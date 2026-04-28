@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, ScrollView, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -10,6 +10,7 @@ import {
   hpBandFromValue,
   pickDialogue,
 } from "@src/data/dialogues";
+import { generateMascotLine } from "@src/services/mascotLlm";
 import type { MealSlot } from "@src/types";
 
 export default function HomeScreen() {
@@ -32,19 +33,31 @@ export default function HomeScreen() {
     }
   }, [currentStage, router]);
 
-  // 取一句台词显示在 Home（按当前 HP band + 默认 slot=lunch 兜底）
-  const greeting = useMemo(() => {
-    const band = hpBandFromValue(hp);
-    const line = pickDialogue(band, "lunch", dialogueHistory);
-    return line;
-    // 注意：不在 useEffect 里 pushDialogue，避免每次渲染都 push；这里只是展示一行。
-    // 真正的"消耗一条台词"会发生在拍照成功页。
+  // 取一句 mock 台词作为 LLM 失败时的兜底（按当前 HP band + slot=lunch）
+  const band = hpBandFromValue(hp);
+  const fallbackGreeting = useMemo(() => {
+    return pickDialogue(band, "lunch", dialogueHistory);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hp]);
 
+  // LLM 生成的一句话；失败/无 key 时为 null，UI 退化到 fallbackGreeting
+  const [llmLine, setLlmLine] = useState<string | null>(null);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    generateMascotLine(
+      { stage: currentStage, hp, band, robotName },
+      ctrl.signal
+    ).then((line) => {
+      if (line) setLlmLine(line);
+    });
+    return () => ctrl.abort();
+  }, [hp, band, currentStage, robotName]);
+
+  const greetingText =
+    llmLine ?? fallbackGreeting?.text ?? "今天也一起吃饭吧～";
+
   // weak 区间且 7 天内没显示过"消失"暗示，则在台词区下面追加一行 gentle alert
-  const showDisappearAlert =
-    hpBandFromValue(hp) === "weak" && canShowDisappearWarning();
+  const showDisappearAlert = band === "weak" && canShowDisappearWarning();
 
   useEffect(() => {
     if (showDisappearAlert) {
@@ -83,7 +96,7 @@ export default function HomeScreen() {
 
         <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4">
           <Text className="text-ink text-base leading-6">
-            {greeting?.text ?? "今天也一起吃饭吧～"}
+            {greetingText}
           </Text>
           {showDisappearAlert && (
             <Text className="text-bad text-xs mt-2">

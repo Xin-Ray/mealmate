@@ -57,7 +57,7 @@
 | 3 | **Mascot 形象随阶段变化**：Stage 1 偏瘦弱 → Stage 2 起逐步强壮 → 后续更强 | **新增**（PRD 只写情绪文案，没说外形进化） | §3.2 / §4 |
 | 4 | Home 主屏增加**日期 + 一周 7 天周视图**（哪几天三餐齐） | **新增** | §5.6 |
 | 5 | **到点弹窗**：单一模态承载完整闭环 — 拍照按钮 + 一句鼓励/名言 + 拍完触发庆祝动画 + HP +0.5 + 弹窗关闭 + 主屏 Mascot 出气泡说一句**结合当前阶段 × HP 区间**的话 | gap | §4 阶段一 / §5.2 |
-| 6 | **ChatGPT / Codex OAuth 真实接入**（替换 onboarding/chatgpt 的 mock，让 Mascot 的对话能力接 OpenAI） | gap，需 xin 进一步明确接入范围 | §5.6 / §7 |
+| 6 | **Mascot 文案接 LLM**（替换 mock dialogues），让对话按 stage × HP × 行为生成 | gap | §5.6 / §7 |
 
 #### 验收状态
 - iOS dev build 在主 worktree 跑 `npx expo run:ios`（含上面两处依赖修复）。
@@ -66,8 +66,55 @@
 
 ---
 
+## Mascot LLM 接入决策（2026-04-28，对应反馈表 #6）
+
+### 候选方案对比
+
+| 方案 | 用户成本 | 开发者成本 | 工程量 | 质量 | 选 |
+|---|---|---|---|---|---|
+| 用户自填 OpenAI API key | 要钱 | 0 | 小 | 优 | ❌ 用户不接受 |
+| 抄 OpenClaw：复用 Codex CLI 公开 client_id（PKCE + loopback） | 0（ChatGPT 订阅 cover） | 0 | 大（mobile 上 loopback `127.0.0.1` 需 WebView 拦截） | 优 | ❌ Apple 审核 + OpenAI 政策双重风险 |
+| iOS 内置 on-device 开源 1B–2B 模型（MLX / llama.cpp） | 0 | 0 | 中 | 中下 | ❌ 包体积 +1GB / 老机型卡 / 文案质量差 |
+| **Gemini 2.0 Flash free tier，开发者一个 key 服务所有用户** ✅ | 0 | ~0 | 小 | 优 | ✅ |
+
+### Codex OAuth 复用（OpenClaw 路径）的事实记录
+
+- OpenAI Codex CLI 的 OAuth client 是公开的：`client_id = app_EMoamEEZ73f0CkXaXp7hrann`，PKCE，redirect 是 `http://127.0.0.1:1455/auth/callback`（loopback）。
+- OpenAI 在 docs 里 explicitly 允许第三方在 Codex CLI 之外复用，OpenClaw 就是这样做的。
+- 但对 mealmate（iOS native）有三个坑：① loopback 在手机上不通用，需 WebView 拦截；② redirect URI 注册时固定，不能换 `mealmate://` scheme；③ Anthropic 已经收紧 Claude OAuth 复用（2026-03），OpenAI 跟进只是时间问题。
+- 决定：**不走这条**。
+
+### Gemini Flash 方案落地
+
+**dev 阶段**（已实现，等 xin 粘 key 即可生效）：
+- `app/.env.local`（gitignored）放 `EXPO_PUBLIC_GEMINI_KEY=...`
+- `app/src/services/mascotLlm.ts`：调 `gemini-2.0-flash` 的 `generateContent`，按 stage × HP × 餐次组 prompt，system prompt 内置 PRD §8 安全边界（禁"消失/不见"硬性威胁）
+- `app/app/(main)/home.tsx`：mascot 气泡先尝试 LLM；失败 / 无 key / 网络错 fallback 到 `dialogues.ts` 的 mock
+- 模型选择：**`gemini-2.5-flash-lite`** —— 当前 Gemini family 最便宜+最快；每次 input ~50 token + output ~30 token
+- ⚠️ **不要**用 `gemini-2.0-flash`：新申请的 free tier key 在该模型上 quota=`limit: 0`（Google 2025 末把流量推向 2.5 系列）。验收时实测 2.0-flash 直接 HTTP 429，2.5-flash-lite 正常返回
+- 配额测算：单 key 撑 ~300 DAU 量级；撑爆再申请第二个 key 或上付费（~$0.02/1000 DAU/day）
+
+**上线前必做（TODO，反馈表 #6 完成的硬性前置）**：
+- 部署 Cloudflare Worker 代理：`mealmate-ai.<account>.workers.dev`
+  - key 存 Worker env var，不进客户端
+  - 客户端只需把 `mascotLlm.ts` 里的 endpoint 换成 worker URL
+  - Worker 加 per-IP 或 per-device-id rate limit（10/min）
+- 工程量预估：30 行 JS + 10 分钟部署
+- 触发时机：closed beta 结束、准备真用户上线前
+
+### 安全事件：API key 在 chat 中暴露（2026-04-28）
+
+xin 在 chat 中直接贴出了第一个 Gemini API key（`AIzaSy...`，前缀只记到此处）。处置：
+- 已请 xin 立刻去 https://aistudio.google.com/apikey **revoke 该 key**
+- 新 key 由 xin 自己粘到 `app/.env.local`，不再过 chat
+
+经验：上线前的 Worker 代理是这件事的根本解 —— 即使将来 key 被反编译也只能命中 Worker，不会泄露真 key。
+
+---
+
 ## 下一步
 
-1. push 当前 main → origin/main（含 Stage 1 commit `9a1c041` + 本次依赖&文档 commit）
-2. xin 真机装 dev build 走 v0.1 黄金路径
-3. 进入 v0.2 迭代：按上表 1–6 排期
+1. xin **revoke** 第一个 key，**新建**一个，粘到 `app/.env.local`
+2. xin 重 build：`cd app && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo run:ios`（首次后 cache，后续秒级）
+3. xin 真机装 dev build 走 v0.1 黄金路径，验证 mascot 文案是否生动
+4. 反馈表 #6 完成 → 继续推 #1–#5（周视图 / Mascot 阶段形象 / 到点弹窗 / 本地推送 / 开发者模式）
