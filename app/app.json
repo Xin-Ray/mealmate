@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "mealmate",
+    "slug": "mealmate",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "mealmate",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mealmate.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "mealmate 需要相机权限来记录你的三餐照片，让小伙伴知道你吃过了。",
+        "NSPhotoLibraryUsageDescription": "mealmate 需要访问相册以选择三餐照片。"
+      }
+    },
+    "android": {
+      "package": "com.mealmate.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFF8F1",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "mealmate 需要访问相册以选择三餐照片。",
+          "cameraPermission": "mealmate 需要相机权限来记录你的三餐照片。"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFF8F1"
+        }
+      ],
+      "expo-web-browser",
+      "@react-native-community/datetimepicker"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
