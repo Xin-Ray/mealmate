@@ -6,6 +6,7 @@ import { useStore } from "@src/store/useStore";
 import HpBar from "@src/components/HpBar";
 import Mascot from "@src/components/Mascot";
 import MealCard from "@src/components/MealCard";
+import WeekStrip from "@src/components/WeekStrip";
 import {
   hpBandFromValue,
   pickDialogue,
@@ -18,6 +19,8 @@ export default function HomeScreen() {
   const hp = useStore((s) => s.hp);
   const robotName = useStore((s) => s.robotName);
   const todayMeals = useStore((s) => s.todayMeals);
+  const todayKey = useStore((s) => s.todayKey);
+  const mealHistory = useStore((s) => s.mealHistory);
   const schedules = useStore((s) => s.mealSchedules);
   const currentStage = useStore((s) => s.currentStage);
   const companionLv = useStore((s) => s.companionLv);
@@ -88,6 +91,14 @@ export default function HomeScreen() {
           >
             <Text className="text-ink text-sm">设置</Text>
           </Pressable>
+        </View>
+
+        <View className="mt-5">
+          <WeekStrip
+            todayKey={todayKey}
+            todayMeals={todayMeals}
+            history={mealHistory}
+          />
         </View>
 
         <View className="items-center mt-6 mb-4">

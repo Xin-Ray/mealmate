@@ -138,3 +138,18 @@ cd .. && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo run:ios
 ```
 
 v0.2 收尾时所有项一并在真机扫一遍（不是 B1 单独的硬性要求）。
+
+---
+
+## A1 周视图实现
+
+home 屏在 mascot 立绘上方加了一条「周一→周日」的 7 列条带（`src/components/WeekStrip.tsx`），含：
+- 顶部当前日期 + 周几（中文）
+- 7 列：`一/二/三/四/五/六/日` + 几号
+- 今天用 accent 色边框 + 浅色底高亮，未来天 opacity 40%
+- 每列底部 3 个小圆点表示该天三餐 done 数（done=ok 色，未 done=hpEmpty 色）
+
+数据层：
+- `useStore` 加 `mealHistory: Record<string, TodayMeals>` 字段，`rollDayIfNeeded` 时把昨天的 `todayMeals` 归档进来，最多保留最近 30 天
+- 老用户持久化数据缺 `mealHistory` 字段时 zustand persist 会从 initialState 拿默认 `{}`，向后兼容
+- WeekStrip 渲染时今天读 `todayMeals`，其它天读 `mealHistory[key]`

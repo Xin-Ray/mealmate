@@ -36,6 +36,8 @@ type State = {
   mealSchedules: MealSchedule;
   todayMeals: TodayMeals;
   todayKey: string; // YYYY-MM-DD，用于按日重置
+  // 历史打卡：rollDayIfNeeded 时把上一天的 todayMeals 归档进来，给周视图用
+  mealHistory: Record<string, TodayMeals>;
   dialogueHistory: string[]; // 最近 5 条 dialogue id
   disappearWarningLastShownAt: number | null; // ms timestamp
   onboardingDone: boolean;
@@ -85,10 +87,13 @@ const initialState: State = {
   mealSchedules: DEFAULT_SCHEDULES,
   todayMeals: FRESH_TODAY,
   todayKey: todayKey(),
+  mealHistory: {},
   dialogueHistory: [],
   disappearWarningLastShownAt: null,
   onboardingDone: false,
 };
+
+const HISTORY_KEEP_DAYS = 30;
 
 export const useStore = create<State & Actions>()(
   persist(
@@ -104,8 +109,23 @@ export const useStore = create<State & Actions>()(
 
       rollDayIfNeeded: () => {
         const k = todayKey();
-        if (k !== get().todayKey) {
-          set({ todayKey: k, todayMeals: { ...FRESH_TODAY } });
+        const s = get();
+        if (k !== s.todayKey) {
+          // 把昨天的 todayMeals 归档到 mealHistory，再清今天
+          const archived = { ...s.mealHistory, [s.todayKey]: s.todayMeals };
+          // 限制最多保留最近 HISTORY_KEEP_DAYS 天
+          const keys = Object.keys(archived).sort();
+          const kept =
+            keys.length > HISTORY_KEEP_DAYS
+              ? keys.slice(-HISTORY_KEEP_DAYS)
+              : keys;
+          const trimmed: Record<string, TodayMeals> = {};
+          for (const key of kept) trimmed[key] = archived[key];
+          set({
+            todayKey: k,
+            todayMeals: { ...FRESH_TODAY },
+            mealHistory: trimmed,
+          });
         }
       },
 
