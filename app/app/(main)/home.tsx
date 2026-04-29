@@ -29,13 +29,6 @@ export default function HomeScreen() {
   const canShowDisappearWarning = useStore((s) => s.canShowDisappearWarning);
   const setDisappearWarningShown = useStore((s) => s.setDisappearWarningShown);
 
-  // 进 Home 时，如果到了 Stage 2 就跳到占位页
-  useEffect(() => {
-    if (currentStage === 2) {
-      router.replace("/(main)/stage2");
-    }
-  }, [currentStage, router]);
-
   // 取一句 mock 台词作为 LLM 失败时的兜底（按当前 HP band + slot=lunch）
   const band = hpBandFromValue(hp);
   const fallbackGreeting = useMemo(() => {
@@ -119,6 +112,15 @@ export default function HomeScreen() {
         <View className="mt-4">
           <HpBar hp={hp} />
         </View>
+
+        {currentStage === 2 && (
+          <Pressable
+            onPress={() => router.push("/(main)/stage2")}
+            className="self-end mt-3 px-3 py-1.5 rounded-lg bg-white border border-cardBorder"
+          >
+            <Text className="text-sub text-xs">查看 Stage 2 ▸</Text>
+          </Pressable>
+        )}
 
         <Text className="text-ink text-base font-semibold mt-8 mb-3">今日三餐</Text>
         <MealCard
