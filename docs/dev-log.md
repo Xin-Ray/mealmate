@@ -186,3 +186,31 @@ stage2.tsx      "回到首页"按钮 → router.replace('/home')
 - 每个被 effect 强制 push 的目标屏，**必须有 escape hatch**：要么改 store 让条件不再成立，要么有按钮直接跳到不被 redirect 的中性屏（比如 settings）
 - 自动跳转尽量用 `Redirect` 组件（声明式）而不是 useEffect 里 imperative 调用，前者 React 调度更可控
 - 加新自动跳转 effect 时心里走一遍闭环：A→B 之后 B 怎么回 A，B 回 A 时 A 还会不会再跳 B
+
+---
+
+## 临时关闭 LLM（2026-04-29）
+
+### 现状
+xin 的 Gemini API token 在调试中用光（free tier 配额）。为了把 v0.2 剩下的项继续在 simulator 上验，**临时全量走 mock 文案**。
+
+### 实现
+全局开关 `EXPO_PUBLIC_LLM_ENABLED`（`app/.env.local`）：
+- 缺失或非 `"true"` 都视为关闭
+- 关闭时 `generateMascotLine()` 第一行返回 `null`，调用方按现有 fallback 链自动走 `dialogues.ts` mock（24 条池子，4 区间 × 3 餐 × 2 变体，够用）
+- 当前默认 `false`
+
+调用点都已验证 null 安全：
+- `app/(main)/home.tsx`：greeting 优先用 `llmLine`，null 时回 `fallbackGreeting?.text`，再回 `"今天也一起吃饭吧～"`
+- `app/(main)/photo.tsx`：result phase 进入时已经先用 `pickDialogue` 设了 mock line，LLM 返回 null 时不动 line（保持 mock）
+
+### 想开回 AI
+1. 编辑 `app/.env.local`：`EXPO_PUBLIC_LLM_ENABLED=true`
+2. Metro 按 `r` reload（env var 是 build/bundle 时读，reload 即可，不用重 native build）
+3. Metro log 应该看到 `[mascotLlm] calling Gemini, key prefix: AIzaSy`，关闭时则是 `[mascotLlm] LLM_ENABLED=false — fallback to mock`
+
+### 回头调 AI 时要做的事（v0.3 候选）
+- [ ] 在 settings 开发者面板加一行"LLM 状态"显示（读 `process.env.EXPO_PUBLIC_LLM_ENABLED`），免得忘了开关位置
+- [ ] **Cloudflare Worker 代理提前**：dev 期就接上，key 移到 server 端 + 加 rate limit + per-device 配额。这样 token 出问题时是 worker 那边可观测可降级，不用动客户端开关
+- [ ] quota 监控：worker 上加日志输出每天调用量、HTTP 429/403 计数，达阈值发 webhook
+- [ ] mascot 文案缓存：同一 (stage × HP band × slot) 24 小时内复用一次 LLM 结果，减少调用

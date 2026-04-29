@@ -6,7 +6,13 @@
 // - 上线前切到 Cloudflare Worker 代理：客户端调 worker，worker 持 key + 加 rate limit。
 //   见 docs/dev-log.md。
 //
-// 返回 null 表示拉取失败 / 无 key，调用方应 fallback 到 dialogues.ts 的 mock 文案。
+// 返回 null 表示「不要用 LLM 文案」，调用方 fallback 到 dialogues.ts 的 mock 文案。
+// null 的来源有三：① LLM_ENABLED=false（全局开关）② 没 KEY ③ 网络/HTTP 错误
+//
+// ⚠️ 全局开关 EXPO_PUBLIC_LLM_ENABLED（2026-04-29 加）：
+//   - 缺失或非 "true" 都视为关闭，generateMascotLine 立刻返回 null
+//   - 当前默认关闭：调试期 token quota 用完了，全量走 mock
+//   - 想开回 AI：app/.env.local 改 `EXPO_PUBLIC_LLM_ENABLED=true`，Metro 按 r reload
 //
 // 模型选择：gemini-2.5-flash-lite —— 当前 Gemini family 里最便宜+最快的模型，
 // mealmate 单次输出 < 20 字完全够用。注意：gemini-2.0-flash 在新申请的 free tier
@@ -14,6 +20,8 @@
 
 import type { HpBand, MealSlot } from "@src/types";
 
+const LLM_ENABLED =
+  (process.env.EXPO_PUBLIC_LLM_ENABLED ?? "false").toLowerCase() === "true";
 const KEY = process.env.EXPO_PUBLIC_GEMINI_KEY ?? "";
 const ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent";
@@ -50,6 +58,10 @@ export async function generateMascotLine(
   ctx: MascotContext,
   signal?: AbortSignal
 ): Promise<string | null> {
+  if (!LLM_ENABLED) {
+    if (__DEV__) console.log("[mascotLlm] LLM_ENABLED=false — fallback to mock");
+    return null;
+  }
   if (!KEY) {
     if (__DEV__) console.warn("[mascotLlm] no EXPO_PUBLIC_GEMINI_KEY in env — fallback to mock");
     return null;
