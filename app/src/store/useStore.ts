@@ -58,6 +58,11 @@ type Actions = {
   canShowDisappearWarning: () => boolean;
 
   resetAll: () => Promise<void>;
+
+  // Dev-only：bypass 业务规则的直接 setter，仅在 __DEV__ 守卫的开发者面板里调用
+  __dev_setHp: (n: number) => void;
+  __dev_setStage: (s: 1 | 2) => void;
+  __dev_resetToday: () => void;
 };
 
 const todayKey = () => {
@@ -148,6 +153,11 @@ export const useStore = create<State & Actions>()(
         set({ ...initialState, todayKey: todayKey() });
         await AsyncStorage.removeItem("mealmate-store");
       },
+
+      __dev_setHp: (n) => set({ hp: clampHp(n) }),
+      __dev_setStage: (s) => set({ currentStage: s }),
+      __dev_resetToday: () =>
+        set({ todayMeals: { ...FRESH_TODAY }, todayKey: todayKey() }),
     }),
     {
       name: "mealmate-store",

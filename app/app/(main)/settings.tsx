@@ -32,6 +32,11 @@ export default function SettingsScreen() {
   const schedules = useStore((s) => s.mealSchedules);
   const setMealSchedule = useStore((s) => s.setMealSchedule);
   const resetAll = useStore((s) => s.resetAll);
+  const hp = useStore((s) => s.hp);
+  const currentStage = useStore((s) => s.currentStage);
+  const devSetHp = useStore((s) => s.__dev_setHp);
+  const devSetStage = useStore((s) => s.__dev_setStage);
+  const devResetToday = useStore((s) => s.__dev_resetToday);
 
   const [pickerOpenFor, setPickerOpenFor] = useState<MealSlot | null>(null);
   const [name, setName] = useState(robotName);
@@ -174,6 +179,82 @@ export default function SettingsScreen() {
         >
           <Text className="text-bad font-semibold">删除账号 / 重置数据</Text>
         </Pressable>
+
+        {/* 开发者模式：仅 dev build 显示 */}
+        {__DEV__ && (
+          <>
+            <Text className="text-sub text-xs mt-8 mb-2">开发者（仅 dev build）</Text>
+            <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3">
+              <Text className="text-ink text-sm mb-2">HP（当前 {hp}/15）</Text>
+              <View className="flex-row gap-2">
+                {[0, 4, 8, 12, 15].map((v) => (
+                  <Pressable
+                    key={v}
+                    onPress={() => devSetHp(v)}
+                    className={`flex-1 py-2 rounded-xl items-center ${
+                      hp === v ? "bg-accent" : "bg-hpEmpty"
+                    }`}
+                  >
+                    <Text className={hp === v ? "text-white" : "text-ink"}>
+                      {v}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3">
+              <Text className="text-ink text-sm mb-2">
+                阶段（当前 Stage {currentStage}）
+              </Text>
+              <View className="flex-row gap-2">
+                {([1, 2] as const).map((s) => (
+                  <Pressable
+                    key={s}
+                    onPress={() => devSetStage(s)}
+                    className={`flex-1 py-2 rounded-xl items-center ${
+                      currentStage === s ? "bg-accent" : "bg-hpEmpty"
+                    }`}
+                  >
+                    <Text
+                      className={
+                        currentStage === s ? "text-white" : "text-ink"
+                      }
+                    >
+                      Stage {s}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <Pressable
+              onPress={() => {
+                devResetToday();
+                Alert.alert("已重置", "今日三餐状态已清空。");
+              }}
+              className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3"
+            >
+              <Text className="text-ink">重置今日三餐</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={async () => {
+                await resetAll();
+                router.replace("/onboarding/eating");
+              }}
+              className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3"
+            >
+              <Text className="text-ink">重置 onboarding（清全部数据）</Text>
+            </Pressable>
+
+            <View className="bg-white/50 border border-cardBorder rounded-2xl px-5 py-4 mb-3 opacity-50">
+              <Text className="text-sub text-sm">
+                立即触发餐次提醒弹窗（B1 / A3 完成后启用）
+              </Text>
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
