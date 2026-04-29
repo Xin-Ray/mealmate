@@ -8,6 +8,7 @@ import {
   hpBandFromValue,
   pickDialogue,
 } from "@src/data/dialogues";
+import { generateMascotLine } from "@src/services/mascotLlm";
 import type { MealSlot } from "@src/types";
 
 type Phase = "intro" | "uploading" | "result";
@@ -64,12 +65,13 @@ export default function PhotoScreen() {
     setImageUri(result.assets[0].uri);
     setPhase("uploading");
     // mock 上传：模拟网络延迟
-    setTimeout(() => {
-      // 当前 HP 取最新（mark 之前先取，用于挑选合适语境的台词）
-      const beforeHp = useStore.getState().hp;
+    setTimeout(async () => {
       markMealDone(realSlot);
       const afterHp = useStore.getState().hp;
+      const stage = useStore.getState().currentStage;
       const band = hpBandFromValue(afterHp);
+
+      // 先用 mock fallback 占位（保证 UI 不空），再异步去拉 LLM
       const picked = pickDialogue(band, realSlot, dialogueHistory);
       if (picked) {
         pushDialogue(picked.id);
@@ -78,8 +80,17 @@ export default function PhotoScreen() {
         setLine("谢谢你陪我一起吃饭。");
       }
       setPhase("result");
-      // 引用 beforeHp 避免 lint 警告
-      void beforeHp;
+
+      // LLM 升级：结合 stage × HP × meal_done 生成更生动的鼓励
+      const llm = await generateMascotLine({
+        stage,
+        hp: afterHp,
+        band,
+        robotName: useStore.getState().robotName,
+        slot: realSlot,
+        recentAction: "meal_done",
+      });
+      if (llm) setLine(llm);
     }, 900);
   };
 
@@ -145,10 +156,10 @@ export default function PhotoScreen() {
               <Text className="text-ink text-base leading-6">{line}</Text>
             </View>
             <Pressable
-              onPress={() => router.replace("/(main)/home")}
+              onPress={() => router.back()}
               className="rounded-2xl py-4 px-8 bg-accent mt-8 w-full items-center"
             >
-              <Text className="text-white font-semibold">回到首页</Text>
+              <Text className="text-white font-semibold">完成</Text>
             </Pressable>
           </View>
         )}
