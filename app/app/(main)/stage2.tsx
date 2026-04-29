@@ -1,14 +1,17 @@
 import { View, Text, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import Mascot from "@src/components/Mascot";
+import { useStore } from "@src/store/useStore";
 
 export default function Stage2Screen() {
   const router = useRouter();
+  const hp = useStore((s) => s.hp);
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <View className="flex-1 items-center justify-center px-6">
-        <Text className="text-6xl mb-6">🎉</Text>
-        <Text className="text-ink text-2xl font-semibold mb-3">阶段 2 · 量化</Text>
+        <Mascot hp={hp} stage={2} size={140} />
+        <Text className="text-ink text-2xl font-semibold mb-3 mt-6">阶段 2 · 量化</Text>
         <Text className="text-sub text-base text-center leading-6 mb-10">
           你已经把"按时吃饭"养成了习惯。{"\n"}
           下一阶段会引入热量 / 蛋白质粗略量化，{"\n"}
