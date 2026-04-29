@@ -91,7 +91,7 @@ export default function HomeScreen() {
         </View>
 
         <View className="items-center mt-6 mb-4">
-          <Mascot hp={hp} size={160} />
+          <Mascot hp={hp} stage={currentStage} size={160} />
         </View>
 
         <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4">
