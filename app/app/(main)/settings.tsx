@@ -4,6 +4,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useStore } from "@src/store/useStore";
+import { hpBandFromValue, pickDialogue } from "@src/data/dialogues";
+import { triggerTestNotification } from "@src/services/notifications";
 import type { MealSlot } from "@src/types";
 
 const SLOT_LABEL: Record<MealSlot, string> = {
@@ -248,10 +250,25 @@ export default function SettingsScreen() {
               <Text className="text-ink">重置 onboarding（清全部数据）</Text>
             </Pressable>
 
-            <View className="bg-white/50 border border-cardBorder rounded-2xl px-5 py-4 mb-3 opacity-50">
-              <Text className="text-sub text-sm">
-                立即触发餐次提醒弹窗（B1 / A3 完成后启用）
-              </Text>
+            <Text className="text-ink text-sm mb-2">立即触发餐次提醒（5 秒后弹）</Text>
+            <View className="flex-row gap-2 mb-3">
+              {(["breakfast", "lunch", "dinner"] as MealSlot[]).map((s) => (
+                <Pressable
+                  key={s}
+                  onPress={async () => {
+                    const band = hpBandFromValue(hp);
+                    const line = pickDialogue(band, s);
+                    await triggerTestNotification(
+                      s,
+                      line?.text ?? "该吃饭啦～"
+                    );
+                    Alert.alert("已安排", `5 秒后会弹出${SLOT_LABEL[s]}测试推送。可以把 app 切到后台观察。`);
+                  }}
+                  className="flex-1 py-2 rounded-xl items-center bg-hpEmpty"
+                >
+                  <Text className="text-ink">{SLOT_LABEL[s]}</Text>
+                </Pressable>
+              ))}
             </View>
           </>
         )}
