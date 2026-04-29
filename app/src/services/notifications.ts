@@ -23,9 +23,9 @@ const SLOT_LABEL: Record<MealSlot, string> = {
 const idForSlot = (slot: MealSlot) => `mealmate.meal.${slot}`;
 
 // 全局 handler：app 在前台时收到推送如何处理（这里选择仍然弹横幅）
+// expo-notifications 新版用 shouldShowBanner / shouldShowList 替代了 shouldShowAlert
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
     shouldShowBanner: true,

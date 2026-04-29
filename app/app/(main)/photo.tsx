@@ -11,7 +11,8 @@ import {
 import { generateMascotLine } from "@src/services/mascotLlm";
 import type { MealSlot } from "@src/types";
 
-type Phase = "intro" | "uploading" | "result";
+type Phase = "intro" | "preview" | "uploading" | "result";
+type Source = "camera" | "library";
 
 const slotLabel: Record<MealSlot, string> = {
   breakfast: "早餐",
@@ -30,6 +31,7 @@ export default function PhotoScreen() {
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [lastSource, setLastSource] = useState<Source>("camera");
   const [line, setLine] = useState<string>("");
 
   // HP +0.5 弹一下的 scale animation
@@ -44,27 +46,54 @@ export default function PhotoScreen() {
     }
   }, [phase, scale]);
 
-  const pickImage = async (source: "camera" | "library") => {
-    let result;
-    if (source === "camera") {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert("没有相机权限", "可以改用相册选一张。");
-        return;
-      }
-      result = await ImagePicker.launchCameraAsync({ quality: 0.6 });
-    } else {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert("没有相册权限", "去设置里允许一下吧。");
-        return;
-      }
-      result = await ImagePicker.launchImageLibraryAsync({ quality: 0.6 });
+  const pickImage = async (source: Source) => {
+    // 权限
+    const permResp =
+      source === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permResp.granted) {
+      Alert.alert(
+        source === "camera" ? "没有相机权限" : "没有相册权限",
+        source === "camera"
+          ? "可以改用相册选一张。"
+          : "去设置里允许一下吧。"
+      );
+      return;
     }
-    if (result.canceled) return;
-    setImageUri(result.assets[0].uri);
+
+    setLastSource(source);
+
+    // 启 picker（catch 模拟器无相机等错）
+    try {
+      const result =
+        source === "camera"
+          ? await ImagePicker.launchCameraAsync({ quality: 0.6 })
+          : await ImagePicker.launchImageLibraryAsync({ quality: 0.6 });
+      if (result.canceled) return;
+      setImageUri(result.assets[0].uri);
+      setPhase("preview");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const isUnavailable = /not available|unavailable/i.test(msg);
+      if (source === "camera" && isUnavailable) {
+        Alert.alert(
+          "相机不可用",
+          "当前设备没有相机（比如模拟器）。要不要从相册选一张？",
+          [
+            { text: "取消", style: "cancel" },
+            { text: "从相册选", onPress: () => pickImage("library") },
+          ]
+        );
+        return;
+      }
+      Alert.alert(source === "camera" ? "拍照失败" : "选图失败", msg);
+    }
+  };
+
+  // preview → 用户点"确定" → 进 uploading → 模拟上传 → result
+  const onConfirm = () => {
     setPhase("uploading");
-    // mock 上传：模拟网络延迟
     setTimeout(async () => {
       markMealDone(realSlot);
       const afterHp = useStore.getState().hp;
@@ -120,6 +149,33 @@ export default function PhotoScreen() {
               className="rounded-2xl py-4 px-8 bg-white border border-cardBorder w-full items-center"
             >
               <Text className="text-ink font-semibold">从相册选</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {phase === "preview" && (
+          <View className="flex-1 items-center justify-center">
+            {imageUri && (
+              <Image
+                source={{ uri: imageUri }}
+                style={{ width: 280, height: 280, borderRadius: 24 }}
+                resizeMode="cover"
+              />
+            )}
+            <Text className="text-sub text-sm mt-4 mb-6">看起来怎么样？</Text>
+            <Pressable
+              onPress={onConfirm}
+              className="rounded-2xl py-4 px-8 bg-accent mb-3 w-full items-center"
+            >
+              <Text className="text-white font-semibold">确定</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => pickImage(lastSource)}
+              className="rounded-2xl py-4 px-8 bg-white border border-cardBorder w-full items-center"
+            >
+              <Text className="text-ink font-semibold">
+                {lastSource === "camera" ? "重拍" : "重选"}
+              </Text>
             </Pressable>
           </View>
         )}
