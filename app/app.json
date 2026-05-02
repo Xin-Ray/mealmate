@@ -10,14 +10,14 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.mealmate.app",
+      "bundleIdentifier": "com.xinray.mealmate",
       "infoPlist": {
         "NSCameraUsageDescription": "mealmate 需要相机权限来记录你的三餐照片，让小伙伴知道你吃过了。",
         "NSPhotoLibraryUsageDescription": "mealmate 需要访问相册以选择三餐照片。"
       }
     },
     "android": {
-      "package": "com.mealmate.app",
+      "package": "com.xinray.mealmate",
       "adaptiveIcon": {
         "backgroundColor": "#FFF8F1",
         "foregroundImage": "./assets/images/android-icon-foreground.png"

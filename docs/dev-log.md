@@ -260,3 +260,27 @@ xin 的 Gemini API token 在调试中用光（free tier 配额）。为了把 v0
 - [ ] **`markWeightLogged` 专用 action**：当前用 `__dev_setHp(before + 0.5)` 是 hack，正式做应该独立 action（语义清晰、便于 stage 切换时改 +0.5 / +1）
 - [ ] **饱腹度评分**（PRD §4.2 / §5.3）：餐次拍完照后加 0–10 滑块，≥7 才算"吃饱" HP +0.5。这是 stage 2 完整闭环的另一半，比体重还更紧
 - [ ] **每周报表**（PRD §5.5）：HP 曲线 / 吃饱率 / 体重折线 / 按时率，机器人"小结"口吻呈现
+
+---
+
+## Bundle ID 变更（2026-04-29）
+
+iOS 真机 build 报 `Failed Registering Bundle Identifier — "com.mealmate.app" cannot be registered to your development team because it is not available`：太通用被别人占了。
+
+改为 **`com.xinray.mealmate`**（基于 GitHub 用户名 Xin-Ray，足够唯一）。Android `package` 同步对齐避免后续踩坑。
+
+替换的位置：
+- `app/app.json`：`expo.ios.bundleIdentifier` + `expo.android.package`
+- `app/ios/mealmate/Info.plist`：`CFBundleURLSchemes`（OAuth deeplink 用，跟 bundleId 保持一致）
+- `app/ios/mealmate.xcodeproj/project.pbxproj`：Debug + Release 两个 build configuration 的 `PRODUCT_BUNDLE_IDENTIFIER`
+
+不跑 `npx expo prebuild --clean`（会清掉 ios/ 重新生成，连带 Pods 状态全丢）—— 直接 sed 替换更稳。
+
+`/ios` 在 .gitignore 里，commit 只带上 `app.json` 的改动；其他人 clone 后跑 `npx expo prebuild` 会从 app.json 读新 bundleId 自动生成正确的 native 工程。
+
+xin 在 Xcode 里要做的：
+1. 选 mealmate target → Signing & Capabilities → Team 重新选（之前选过的话也要再选一次让 Xcode 触发 provisioning profile 拉取）
+2. 等 Xcode 自动 register 新 bundleId 到 Apple Developer 后台并拉新 profile
+3. 重新 build 真机
+
+**未来上 App Store 时**：如果想换更好看的 bundleId（如 `app.mealmate.ios`），先去 Apple Developer 后台 Certificates / Identifiers 那边手动注册占住，再回 app.json 改一遍。
