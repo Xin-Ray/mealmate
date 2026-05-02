@@ -214,3 +214,49 @@ xin 的 Gemini API token 在调试中用光（free tier 配额）。为了把 v0
 - [ ] **Cloudflare Worker 代理提前**：dev 期就接上，key 移到 server 端 + 加 rate limit + per-device 配额。这样 token 出问题时是 worker 那边可观测可降级，不用动客户端开关
 - [ ] quota 监控：worker 上加日志输出每天调用量、HTTP 429/403 计数，达阈值发 webhook
 - [ ] mascot 文案缓存：同一 (stage × HP band × slot) 24 小时内复用一次 LLM 结果，减少调用
+
+---
+
+## v0.3 启动（2026-05-01）
+
+### 这一轮做了什么 — Stage 2 体重模块（PRD §4.2 / §5.4）
+
+**数据层**（`useStore`）
+- 新增 `WeightRecord` 类型（`src/types/index.ts`）：`{ date, kg, photoUri, recordedAt }`，按 date dedupe
+- `weightHistory: WeightRecord[]` —— 按 date 升序，最多保留 90 天（量级与 `mealHistory` 一致）
+- `skipWeightPhoto: boolean` —— settings 里的"称重跳过拍照"开关，默认 false（按 PRD §5.4 强制要求拍）
+- actions: `addWeightRecord({kg, photoUri})`、`setSkipWeightPhoto(v)`、`__dev_clearWeightHistory()`
+- `addWeightRecord` 内部用 `todayKey()` 算 date，同 date 已有则覆盖（每日一条）
+
+**新屏：`weight-entry.tsx`**（modal 路由，`(main)/_layout.tsx` 配 `presentation: 'modal'`）
+- 三阶段 + skip-photo 分支：
+  - `skipWeightPhoto=false`：`intro`（拍秤 / 相册）→ `preview`（图 + 数字输入 + "确定 / 重拍"）→ `uploading`（500ms 模拟）→ `result`（HP +0.5 弹跳 + Mascot 一句话 + "完成"）
+  - `skipWeightPhoto=true`：跳过 intro，直接 `preview`（无图，纯数字 + "确定 / 清空重填"）
+- 数字校验：20–250 kg，精度 0.1（`Math.round(kg * 10) / 10`）
+- "确定"按钮在「图 + 数字」都齐时才点亮（skip 模式下只看数字）
+- 中途退出守卫：用户已经输了数字或拍了照但没点确定 → Alert 警告"会丢掉这次记录"
+- 复用 `src/services/imagePicker.ts` 的 `pickImageWithFallback`（simulator 无相机 → 弹 Alert 转相册），跟 `photo.tsx` 共用一份 picker 逻辑
+
+**`photo.tsx` 跟着 refactor**：原本 inline 的权限 + try/catch + simulator fallback 全抽到 `pickImageWithFallback`，photo 里的 `pickImage` 缩成 4 行
+
+**Stage 2 仪表板（`stage2.tsx`）**
+- `currentStage===1` 进来：保留"完成 Stage 1 后解锁"占位，Mascot stage=2 + 一行解释 + "回到首页"
+- `currentStage===2` 进来：
+  - 头部：阶段 2 · 量化 标题 + Mascot
+  - 「最近一次」卡片：大字 kg + 副标日期/时间 + 较上次 delta（`+0.3 kg` / `-0.1 kg` / `持平`）
+  - 「最近 7 天」柱状条：纯 RN `<View>` 滚动 7 天（最右是今天），无数据的天用 hpEmpty 灰色短条
+  - 「+ 录入今日体重」全宽按钮 → push `/(main)/weight-entry`
+  - 「历史」列表：倒序，最多 30 条，每条左侧缩略图（无照片用 hpEmpty 占位）+ 日期 + kg
+
+**Mascot 文案**：体重模块自己一组 4 句备选（按 HP band），写在 `weight-entry.tsx` 内的 `WEIGHT_LINES` 常量，**不动** `dialogues.ts` 类型扩散影响。LLM 接通时会用 `generateMascotLine({ recentAction: 'meal_done' })` 复用积极行为语义（关闭时本地池兜底）
+
+**HP +0.5 临时实现**：`weight-entry.onConfirm` 通过 `__dev_setHp(before + 0.5)` 给体重打卡加 0.5 HP。Hack — 见 v0.4 TODO 里的 `markWeightLogged` action
+
+### 留给 v0.4 的 TODO
+
+- [ ] **OCR 识别秤面数字**（PRD §5.4 留口子）：`weight-entry` 拍完照后自动填 `kgInput`。实现选项：iOS `Vision.framework`（要 native 模块）/ 云端 OCR API / Google MLKit
+- [ ] **真折线图**（PRD §4.2 / §5.5 每周报表）：装 `react-native-chart-kit` 或 `victory-native`，30 / 90 天切换，替换当前柱状条
+- [ ] **每日称重 21:00 daily-check 惩罚**（PRD §4.2 写明"未上传 → HP -1"）：`expo-notifications` 加一个 21:00 的 silent 调度，触发时检查 `weightHistory` 当日是否有记录，没有则 `markMealMissed` 等价的 HP -1。需要 store 加 `markWeightMissed`
+- [ ] **`markWeightLogged` 专用 action**：当前用 `__dev_setHp(before + 0.5)` 是 hack，正式做应该独立 action（语义清晰、便于 stage 切换时改 +0.5 / +1）
+- [ ] **饱腹度评分**（PRD §4.2 / §5.3）：餐次拍完照后加 0–10 滑块，≥7 才算"吃饱" HP +0.5。这是 stage 2 完整闭环的另一半，比体重还更紧
+- [ ] **每周报表**（PRD §5.5）：HP 曲线 / 吃饱率 / 体重折线 / 按时率，机器人"小结"口吻呈现

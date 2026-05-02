@@ -1,18 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, Image, Alert, Animated } from "react-native";
+import { View, Text, Pressable, Image, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import * as ImagePicker from "expo-image-picker";
 import { useStore } from "@src/store/useStore";
 import {
   hpBandFromValue,
   pickDialogue,
 } from "@src/data/dialogues";
 import { generateMascotLine } from "@src/services/mascotLlm";
+import { pickImageWithFallback, type Source } from "@src/services/imagePicker";
 import type { MealSlot } from "@src/types";
 
 type Phase = "intro" | "preview" | "uploading" | "result";
-type Source = "camera" | "library";
 
 const slotLabel: Record<MealSlot, string> = {
   breakfast: "早餐",
@@ -47,47 +46,11 @@ export default function PhotoScreen() {
   }, [phase, scale]);
 
   const pickImage = async (source: Source) => {
-    // 权限
-    const permResp =
-      source === "camera"
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permResp.granted) {
-      Alert.alert(
-        source === "camera" ? "没有相机权限" : "没有相册权限",
-        source === "camera"
-          ? "可以改用相册选一张。"
-          : "去设置里允许一下吧。"
-      );
-      return;
-    }
-
     setLastSource(source);
-
-    // 启 picker（catch 模拟器无相机等错）
-    try {
-      const result =
-        source === "camera"
-          ? await ImagePicker.launchCameraAsync({ quality: 0.6 })
-          : await ImagePicker.launchImageLibraryAsync({ quality: 0.6 });
-      if (result.canceled) return;
-      setImageUri(result.assets[0].uri);
+    const picked = await pickImageWithFallback(source);
+    if (picked) {
+      setImageUri(picked.uri);
       setPhase("preview");
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const isUnavailable = /not available|unavailable/i.test(msg);
-      if (source === "camera" && isUnavailable) {
-        Alert.alert(
-          "相机不可用",
-          "当前设备没有相机（比如模拟器）。要不要从相册选一张？",
-          [
-            { text: "取消", style: "cancel" },
-            { text: "从相册选", onPress: () => pickImage("library") },
-          ]
-        );
-        return;
-      }
-      Alert.alert(source === "camera" ? "拍照失败" : "选图失败", msg);
     }
   };
 

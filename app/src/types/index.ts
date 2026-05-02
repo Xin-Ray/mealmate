@@ -17,3 +17,11 @@ export type DialogueLine = {
   // 安全级别：normal=日常陪伴，soft=温柔关心，gentle_alert=最低限度的不舍/担心
   safety: "normal" | "soft" | "gentle_alert";
 };
+
+// 体重打卡记录（PRD §4.2 / §5.4）
+export type WeightRecord = {
+  date: string;       // YYYY-MM-DD，按日 dedupe（每天最多一条）
+  kg: number;         // 体重 kg，精度 0.1
+  photoUri: string;   // 体重秤照片 URI；skipWeightPhoto 开关打开时为空字符串
+  recordedAt: number; // ms timestamp，给 21:00 前判定用
+};

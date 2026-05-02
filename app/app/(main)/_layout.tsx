@@ -11,6 +11,14 @@ export default function MainLayout() {
           contentStyle: { backgroundColor: "#FFF8F1" },
         }}
       />
+      <Stack.Screen
+        name="weight-entry"
+        options={{
+          presentation: "modal",
+          gestureEnabled: true,
+          contentStyle: { backgroundColor: "#FFF8F1" },
+        }}
+      />
     </Stack>
   );
 }

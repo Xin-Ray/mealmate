@@ -12,7 +12,13 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { MealSchedule, MealSlot, MealStatus, TodayMeals } from "@src/types";
+import type {
+  MealSchedule,
+  MealSlot,
+  MealStatus,
+  TodayMeals,
+  WeightRecord,
+} from "@src/types";
 
 const DEFAULT_SCHEDULES: MealSchedule = {
   breakfast: "07:30",
@@ -38,6 +44,10 @@ type State = {
   todayKey: string; // YYYY-MM-DD，用于按日重置
   // 历史打卡：rollDayIfNeeded 时把上一天的 todayMeals 归档进来，给周视图用
   mealHistory: Record<string, TodayMeals>;
+  // 体重历史，按 date 升序，最多保留 90 天（PRD §5.4 每日称重，stage 2 起）
+  weightHistory: WeightRecord[];
+  // settings: 称重时是否跳过照片（默认 false，按 PRD 强制要求拍）
+  skipWeightPhoto: boolean;
   dialogueHistory: string[]; // 最近 5 条 dialogue id
   disappearWarningLastShownAt: number | null; // ms timestamp
   onboardingDone: boolean;
@@ -61,10 +71,15 @@ type Actions = {
 
   resetAll: () => Promise<void>;
 
+  // 体重模块（stage 2）
+  addWeightRecord: (input: { kg: number; photoUri: string }) => void;
+  setSkipWeightPhoto: (v: boolean) => void;
+
   // Dev-only：bypass 业务规则的直接 setter，仅在 __DEV__ 守卫的开发者面板里调用
   __dev_setHp: (n: number) => void;
   __dev_setStage: (s: 1 | 2) => void;
   __dev_resetToday: () => void;
+  __dev_clearWeightHistory: () => void;
 };
 
 const todayKey = () => {
@@ -88,6 +103,8 @@ const initialState: State = {
   todayMeals: FRESH_TODAY,
   todayKey: todayKey(),
   mealHistory: {},
+  weightHistory: [],
+  skipWeightPhoto: false,
   dialogueHistory: [],
   disappearWarningLastShownAt: null,
   onboardingDone: false,
@@ -174,10 +191,26 @@ export const useStore = create<State & Actions>()(
         await AsyncStorage.removeItem("mealmate-store");
       },
 
+      addWeightRecord: ({ kg, photoUri }) => {
+        const date = todayKey();
+        const recordedAt = Date.now();
+        set((s) => {
+          const filtered = s.weightHistory.filter((r) => r.date !== date);
+          const merged = [...filtered, { date, kg, photoUri, recordedAt }].sort(
+            (a, b) => a.date.localeCompare(b.date)
+          );
+          // 最多保留 90 天，跟 mealHistory 量级一致
+          const kept = merged.length > 90 ? merged.slice(-90) : merged;
+          return { weightHistory: kept };
+        });
+      },
+      setSkipWeightPhoto: (v) => set({ skipWeightPhoto: v }),
+
       __dev_setHp: (n) => set({ hp: clampHp(n) }),
       __dev_setStage: (s) => set({ currentStage: s }),
       __dev_resetToday: () =>
         set({ todayMeals: { ...FRESH_TODAY }, todayKey: todayKey() }),
+      __dev_clearWeightHistory: () => set({ weightHistory: [] }),
     }),
     {
       name: "mealmate-store",

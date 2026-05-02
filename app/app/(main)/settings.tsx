@@ -29,6 +29,8 @@ export default function SettingsScreen() {
   const setRobotName = useStore((s) => s.setRobotName);
   const gentleMode = useStore((s) => s.gentleMode);
   const setGentleMode = useStore((s) => s.setGentleMode);
+  const skipWeightPhoto = useStore((s) => s.skipWeightPhoto);
+  const setSkipWeightPhoto = useStore((s) => s.setSkipWeightPhoto);
   const chatGPTLinked = useStore((s) => s.chatGPTLinked);
   const setChatGPTLinked = useStore((s) => s.setChatGPTLinked);
   const schedules = useStore((s) => s.mealSchedules);
@@ -135,6 +137,17 @@ export default function SettingsScreen() {
             </Text>
           </View>
           <Switch value={gentleMode} onValueChange={setGentleMode} />
+        </View>
+
+        {/* 称重跳过照片（PRD §5.4 默认要拍，开关给不方便的场景） */}
+        <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3 flex-row items-center justify-between">
+          <View className="flex-1 pr-3">
+            <Text className="text-ink text-base">称重时跳过拍照</Text>
+            <Text className="text-sub text-xs mt-1">
+              开启后只输数字、不拍体重秤。默认关闭。
+            </Text>
+          </View>
+          <Switch value={skipWeightPhoto} onValueChange={setSkipWeightPhoto} />
         </View>
 
         {/* ChatGPT 链接 */}
