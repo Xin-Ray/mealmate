@@ -134,6 +134,35 @@
 
   视觉：暖白底（`#FEFBF6`） + 浅橙边（`#FDE7D4`） + 23 圆角；橘色警示标题 "未完成（血量大幅减少）"；mascot missed.png；红色 "-10" badge `#F16758`；CTA 50 高 `#508729` bg "我知道了"。
 
+### TodayRecordRow
+
+- 文件：`app/src/components/ui/TodayRecordRow.tsx`
+- 来自：v0.4 hotfix #3（按 Figma 12:144），home 专用记录行
+- 用在：`<HomeRecordsSection>`
+- Props:
+
+  | name | type | required | 说明 |
+  |---|---|---|---|
+  | item | FeedItem | ✓ | 跟 records tab 用同一个 FeedItem |
+
+  与 `<RecordCard>`（records tab 用）的视觉区别：
+  - mascot 头像（60×60）放在卡片**外**左侧
+  - 卡内右侧支持大食物图（100×100）+ 文案 + HP delta + 时间戳
+
+### HomeRecordsSection
+
+- 文件：`app/src/components/home/HomeRecordsSection.tsx`
+- 来自：v0.4 hotfix #3
+- 用在：HomeStage1 / HomeStage2 第三板块
+- 无 props；内部读 store + `buildTodayFeed`
+
+  和 records tab 用**同一个 selector**，状态共享 — 一个 tab 录入，另一个 tab 立刻反映。
+
+  渲染：
+  - 头部 "📝 今日记录" + "查看更多 ›"（跳记录 tab）
+  - 列表用 `buildTodayFeed` 取最近 `HOME_PREVIEW_LIMIT=3` 条 → `<TodayRecordRow>`
+  - 空态走 `<EmptyRecord>`
+
 ### HomeMealStatusSlot
 
 - 文件：`app/src/components/home/HomeMealStatusSlot.tsx`

@@ -1,11 +1,11 @@
-import { ScrollView, View, Text, Pressable, Image } from "react-native";
+import { ScrollView, View, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
 import HpHeartsCard from "@src/components/ui/HpHeartsCard";
 import WeightCard from "@src/components/ui/WeightCard";
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
-import EmptyRecord from "@src/components/ui/EmptyRecord";
+import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import { getHpBand } from "@src/theme/hp";
 import { colors } from "@src/theme/tokens";
 
@@ -59,23 +59,8 @@ export default function HomeStage2() {
           <HomeMealStatusSlot />
         </View>
 
-        {/* 4. 今日记录 */}
-        <View className="mt-6 flex-row items-center justify-between">
-          <Text
-            className="font-semibold"
-            style={{ fontSize: 20, color: colors.ink.primary }}
-          >
-            今日记录
-          </Text>
-          <Pressable onPress={() => router.push("/(main)/records" as never)}>
-            <Text className="text-sub text-sm">查看更多 ›</Text>
-          </Pressable>
-        </View>
-
-        {/* 完整 feed 在记录页；首页只显示空态或最近 N 条预览（第 7 项接） */}
-        <View className="mt-3">
-          <EmptyRecord />
-        </View>
+        {/* 4. 今日记录（与 records tab 同 selector，最近 3 条预览） */}
+        <HomeRecordsSection />
       </ScrollView>
     </SafeAreaView>
   );

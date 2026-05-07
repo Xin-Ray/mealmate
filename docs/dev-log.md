@@ -949,3 +949,46 @@ HomeStage2 视觉跟 Figma 完全错位：
 ```
 
 missed-scan 触发的 markMealMissed 不影响 ack 状态（默认 false）—— 用户从 home 卡或 modal 点"我知道了"才标 ack。
+
+---
+
+## v0.4 hotfix #3：今日记录区与 records tab 同步 + UI 对齐 Figma 12:144（2026-05-07）
+
+### 现象
+
+HomeStage1/2 的"今日记录"区是 `<EmptyRecord>` 占位（永远空态），跟 records tab 的真 feed 不同步。UI 也跟 Figma 12:144 不一致。
+
+### 修法
+
+#### 共享 selector
+
+records tab 用 `useStore` 读 `mealRecords / fullnessHistory / dialogueHistory / todayKey` + `buildTodayFeed` 拼合。新建 `<HomeRecordsSection>` 用**同一组**调用，确保数据源一致 — 一个 tab 录一条，另一个 tab 立刻反映。
+
+#### 新组件
+
+- `<TodayRecordRow>` — Home 专用记录行（按 Figma 12:144）：
+  - mascot 头像 60×60 放在卡**外**左侧
+  - 卡内按 kind 切样式：
+    - meal/dialogue + photoUri：文案 + 100×100 食物图 + HP delta badge + 时间
+    - meal/dialogue 无 photo：文案 + HP delta + 时间
+    - fullness：emoji + "今日饱腹度 X/10 · {slot}" + 时间（无 HP delta）
+- `<HomeRecordsSection>` — 容器：
+  - 头部 "📝 今日记录" + "查看更多 ›" → 跳 records tab
+  - 列表只取最近 3 条（`HOME_PREVIEW_LIMIT=3`）
+  - 空态走 `<EmptyRecord>`
+
+#### records tab 不动
+
+continues to use `<RecordCard>`（独立单卡，mascot 在卡内左侧）。两套渲染并存 — `<RecordCard>` for records tab，`<TodayRecordRow>` for home。Selector 共享，渲染独立。
+
+#### HomeStage1 / HomeStage2
+
+- 删 inline 的"今日记录"块（标题 + EmptyRecord 兜底）
+- 用 `<HomeRecordsSection />` 一行替代
+- 同时清理 unused imports（Text / Pressable / useRouter / EmptyRecord 在 stage 1，Text / Pressable / useRouter 在 stage 2）
+
+### 验证（xin reload 后）
+
+- records tab 录一条 → 切回 home → "今日记录"立刻多一条 ✅
+- 拍餐 → 自动 push meal + 双 dialogue → home "今日记录"显示 3 条预览（dialogue encourage / dialogue meal_done / meal）+ "查看更多 ›" 跳 records tab 看完整 feed
+- 选饱腹度（records tab）→ home 多一条 "今日饱腹度 X/10"
