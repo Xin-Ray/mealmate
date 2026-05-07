@@ -563,3 +563,49 @@ dev panel 切 Stage 2 → 首页立刻切到全新 stage 2 视觉（条件渲染
 - dialogueHistory shape（加 ts / hpDelta / photoUri）→ feed dialogue kind 真渲染
 - 餐后 photo 流走完后弹饱腹度评分（次入口）
 - 饱腹度的 mealSlot 精确关联当前/最近过期的 mealWindow（本项默认 lunch）
+
+---
+
+## v0.4 实施 #9 / §11.K 第 5 项 Commit 2：records 页 UI（2026-05-07）
+
+### 新组件
+
+- `EmptyRecord.tsx` — 空态卡（HomeStage1/2/records 共用，按之前留账 4 抽出）
+- `FullnessRatingPicker.tsx` — 3 选 1 圆角浅绿卡片（按 Figma 1:171）；选中态加深 `brand.green/20%`
+
+### `RecordCard` 重写为 polymorphic
+
+旧 props：`{ ts?, text, hpDelta?, photoUri? }` → 新 props：`{ item: FeedItem }`
+
+按 kind dispatch：
+- `meal`：emoji icon (🍽️/💤) + 时间 + "{slot} 已完成 ✓ / 错过了" + HP delta badge（+5 / -10 占位，真实数据待第 7 项）
+- `fullness`：emoji（按 score 切😞/😐/😊）+ 时间 + "今日饱腹度：X/10 · {slot}"
+- `dialogue`：返回 null（shape 升级前不渲染）
+
+### `records.tsx` 完整实现
+
+- 顶部 "我今天吃饭的饱腹感" + `FullnessRatingPicker`，默认 mealSlot=lunch（精确关联 mealWindow 留第 7 项）
+- 选中后调 `addFullnessRecord({ mealSlot: 'lunch', score })`，同 mealSlot+date 覆盖（已存在则改选）
+- 下方 "今日记录" feed：用 `buildTodayFeed` selector → 倒序 `<RecordCard item={...}/>` 列表
+- 无 feed 时显示 `<EmptyRecord />`
+
+### HomeStage1 / HomeStage2 用 EmptyRecord 替换内嵌空态
+
+两处重复的 12 行内嵌空态块 → 单行 `<EmptyRecord />`。
+
+### simulator 验
+
+切到"记录"tab 应该看到：
+- 3 个饱腹度选项（点击切换、改选覆盖）
+- feed 默认空态
+- 用 dev panel 切 HP / "立即触发"推送 → 走 photo flow 完成 → mealHistory 更新
+- 切回记录 tab → feed 显示一条 meal 卡（"早餐 已完成 ✓ +5"）
+- 选饱腹度后 feed 多一条 fullness 卡（"今日饱腹度：5/10 · 午餐"）
+- dev panel 加的「清空饱腹度评分」按钮可重置
+
+### 仍待第 7 项
+
+- dialogueHistory shape 升级 → feed dialogue kind 真渲染
+- photo result phase 完成后弹饱腹度评分（次入口）
+- 饱腹度精确关联 mealWindow（本项默认 lunch）
+- meal kind HP delta 用真实记录而非占位 +5/-10

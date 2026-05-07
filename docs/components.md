@@ -116,17 +116,45 @@
 ### RecordCard
 
 - 文件：`app/src/components/ui/RecordCard.tsx`
-- 来自：抽自 HomeStage2 今日记录卡 / 用于 records 页 feed
+- 来自：抽自 HomeStage2 今日记录卡，§11.K 第 5 项重写为 polymorphic（接 FeedItem）
 - Figma：1:171 今日记录条目；1:79 records 页
-- 用在：HomeStage2 今日记录区（数据接入待 §11.K 第 7 项）；后续 records 页
+- 用在：records 页 feed
 - Props:
 
   | name | type | required | 说明 |
   |---|---|---|---|
-  | ts | number | | ms timestamp；无则不显示时间 |
-  | text | string | ✓ | 文案正文 |
-  | hpDelta | number | | 正绿负红 "血量±N" 标签；0 / 无则不显示 |
-  | photoUri | string | | 食物图缩略；无则显示 mascot mini |
+  | item | FeedItem | ✓ | 来自 `src/data/feed.ts`，三种 kind： meal / fullness / dialogue |
+
+  渲染规则：
+  - `meal`：左 emoji icon (🍽️/💤) + 时间 + "{slot} 已完成 ✓ / 错过了" + HP delta badge
+  - `fullness`：emoji + 时间 + "今日饱腹度：X/10 · {slot}"，无 HP delta
+  - `dialogue`：当前返 null；§11.K 第 7 项 dialogueHistory shape 升级后实装
+
+### EmptyRecord
+
+- 文件：`app/src/components/ui/EmptyRecord.tsx`
+- 来自：抽自 HomeStage1/2 内嵌空态块（§11.K 第 5 项）
+- 用在：HomeStage1 / HomeStage2 / records 页
+- Props:
+
+  | name | type | required | 说明 |
+  |---|---|---|---|
+  | text | string | | 默认 "今天还没有记录，等等就要吃饭啦！" |
+  | emoji | string | | 默认 🍙；统计页可能用 📊 |
+
+### FullnessRatingPicker
+
+- 文件：`app/src/components/ui/FullnessRatingPicker.tsx`
+- 来自：新建（§11.D.1，按 Figma 1:171）
+- 用在：records 页顶部；后续 photo result phase 接入留 §11.K 第 7 项
+- Props:
+
+  | name | type | required | 说明 |
+  |---|---|---|---|
+  | selectedScore | FullnessScore | | 已选则该选项加深；没选时全部默认底色 |
+  | onSelect | (score: 3 \| 5 \| 8) => void | ✓ | 点击回调，调用方一般直接接 `addFullnessRecord` |
+
+  3 选 1 离散：3=😞/5=😐/8=😊。卡片底色 `#F6F8EB`，选中态加深为 `brand.green/20%`。
 
 ---
 

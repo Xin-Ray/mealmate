@@ -1,20 +1,84 @@
-import { View, Text, ScrollView } from "react-native";
+import { useMemo } from "react";
+import { ScrollView, View, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useStore } from "@src/store/useStore";
+import { buildTodayFeed } from "@src/data/feed";
+import EmptyRecord from "@src/components/ui/EmptyRecord";
+import FullnessRatingPicker from "@src/components/ui/FullnessRatingPicker";
+import RecordCard from "@src/components/ui/RecordCard";
+import { colors } from "@src/theme/tokens";
+import type { FullnessScore } from "@src/types";
 
-// 记录页占位（v0.4 §11.D）
-// TODO 实施第 5 项：饱腹度 3 选 1 + 记录 feed 合流（mealHistory + dialogueHistory + fullnessRecord）
+// 记录页（PRD §11.D）：
+// - 顶部「我今天吃饭的饱腹感」3 选 1（默认 mealSlot=lunch，§11.K 第 7 项接 mealWindow）
+// - 下方今日 feed（meal / fullness 当前可用，dialogue 待第 7 项）
+
+const DEFAULT_FULLNESS_SLOT = "lunch" as const;
 
 export default function RecordsScreen() {
+  const todayKey = useStore((s) => s.todayKey);
+  const todayMeals = useStore((s) => s.todayMeals);
+  const schedules = useStore((s) => s.mealSchedules);
+  const fullnessHistory = useStore((s) => s.fullnessHistory);
+  const addFullnessRecord = useStore((s) => s.addFullnessRecord);
+
+  // 今天该 slot 已选的 score（用于回填选中态）
+  const todayFullnessForSlot = fullnessHistory.find(
+    (r) => r.date === todayKey && r.mealSlot === DEFAULT_FULLNESS_SLOT
+  );
+
+  const feed = useMemo(
+    () =>
+      buildTodayFeed({
+        todayKey,
+        todayMeals,
+        schedules,
+        fullnessHistory,
+      }),
+    [todayKey, todayMeals, schedules, fullnessHistory]
+  );
+
+  const onSelectFullness = (score: FullnessScore) => {
+    addFullnessRecord({ mealSlot: DEFAULT_FULLNESS_SLOT, score });
+  };
+
   return (
-    <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
-        <Text className="text-ink text-2xl font-semibold mb-2">记录</Text>
-        <Text className="text-sub text-sm leading-6">
-          v0.4 即将实现：餐后饱腹度评分 + 时间倒序记录 feed。
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }}>
+        <Text
+          className="font-semibold mb-1"
+          style={{ fontSize: 24, color: colors.ink.primary }}
+        >
+          记录
         </Text>
-        <View className="bg-white border border-cardBorder rounded-2xl px-5 py-6 mt-6">
-          <Text className="text-sub text-sm">⏳ Coming soon</Text>
+
+        {/* 1. 饱腹度评分 */}
+        <Text
+          className="font-semibold mt-5 mb-3"
+          style={{ fontSize: 16, color: colors.ink.primary }}
+        >
+          我今天吃饭的饱腹感
+        </Text>
+        <FullnessRatingPicker
+          selectedScore={todayFullnessForSlot?.score}
+          onSelect={onSelectFullness}
+        />
+
+        {/* 2. 今日 feed */}
+        <View className="mt-8 flex-row items-center justify-between mb-3">
+          <Text
+            className="font-semibold"
+            style={{ fontSize: 20, color: colors.ink.primary }}
+          >
+            今日记录
+          </Text>
         </View>
+
+        {feed.length === 0 ? (
+          <EmptyRecord />
+        ) : (
+          feed.map((item) => <RecordCard key={item.key} item={item} />)
+        )}
       </ScrollView>
     </SafeAreaView>
   );

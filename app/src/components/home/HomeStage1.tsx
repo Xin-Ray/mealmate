@@ -6,7 +6,7 @@ import Card from "@src/components/ui/Card";
 import HpHearts from "@src/components/ui/HpHearts";
 import StatusTitle from "@src/components/ui/StatusTitle";
 import MealCountdownCard from "@src/components/ui/MealCountdownCard";
-import RecordCard from "@src/components/ui/RecordCard";
+import EmptyRecord from "@src/components/ui/EmptyRecord";
 import WeekStrip from "@src/components/WeekStrip";
 import { colors } from "@src/theme/tokens";
 import type { MealSlot } from "@src/types";
@@ -73,23 +73,9 @@ export default function HomeStage1() {
           </Pressable>
         </View>
 
-        {/*
-          TODO §11.K 第 7 项：dialogueHistory shape 升级（加 ts / hpDelta /
-          photoUri）后，把当天数据 map 成 RecordCard。当前空态。
-        */}
-        <View
-          className="mt-3 px-5 py-8 rounded-2xl items-center"
-          style={{
-            backgroundColor: colors.bg.card,
-            borderWidth: 1,
-            borderColor: colors.border.card,
-          }}
-        >
-          <Text style={{ fontSize: 28 }}>🍙</Text>
-          <Text className="text-sub text-sm mt-3 text-center">
-            今天还没有记录，等等就要吃饭啦！
-          </Text>
-          {false && <RecordCard text="" />}
+        {/* 完整 feed 在记录页；首页只显示空态或最近 N 条预览（第 7 项接） */}
+        <View className="mt-3">
+          <EmptyRecord />
         </View>
       </ScrollView>
     </SafeAreaView>
