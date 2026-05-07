@@ -1,64 +1,57 @@
-import { View, Text } from "react-native";
-import Svg, { Path } from "react-native-svg";
-import { hpHeartsFill } from "@src/theme/hp";
+import { View, Text, Image } from "react-native";
 
-// HP 心形条完整版（v0.4 hotfix #5，按 Figma 22:3）
+// HP 心形条完整版（v0.4 hotfix #6，按 Figma 22:3 + 真 asset）
 //
 // 三段：
-//   1) 10 颗大心形（绿色）
-//   2) 4px 浅色分隔横线
+//   1) 9 颗心（Figma asset PNG，filled / empty 两态）
+//   2) divider 横线（Figma asset PNG，4px 高拉伸）
 //   3) 左 "还有 X 个爱心即可晋级下一个阶段" + 右 "X/100"
 //
-// 用方：HomeStage2 hero card 下半截直接 inline（无外层 Card）。
-// HomeStage1 仍用 <HpHeartsCard>（简洁版，心形 + X/100，无 hint 行）。
+// 9 颗 / HP 100：1 颗 ≈ 11.11 HP，filled = round(hp * 9 / 100)。
+// HP 0 → 0 / 47 → 4 / 80 → 7 / 100 → 9。
+//
+// xin 反馈 Figma 22:3 是 9 颗（不是 10）+ 用设计师画好的心形资源（不要 svg 自画）。
 
-const HEART_PATH =
-  "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z";
+const HEART_FILLED = require("../../../assets/hearts/filled.png");
+const HEART_EMPTY = require("../../../assets/hearts/empty.png");
+const DIVIDER = require("../../../assets/hearts/divider.png");
 
-const HEART_FILL = "#8FAE75";
-const HEART_EMPTY = "#D8E0CA";
+const TOTAL_HEARTS = 9;
 
 type Props = { hp: number };
 
 export default function HpHeartsContent({ hp }: Props) {
-  const fills = hpHeartsFill(hp);
   const clamped = Math.max(0, Math.min(100, hp));
-  const remainingHearts = Math.max(0, Math.ceil((100 - clamped) / 10));
+  const filledCount = Math.round((clamped * TOTAL_HEARTS) / 100);
+  const remaining = Math.max(0, TOTAL_HEARTS - filledCount);
 
   return (
     <View>
-      {/* 1) 10 颗大心，row 均匀分布 */}
+      {/* 1) 9 颗心 row */}
       <View className="flex-row items-center justify-between">
-        {fills.map((f, i) => (
-          <Svg key={i} width={26} height={24} viewBox="0 0 24 24">
-            <Path d={HEART_PATH} fill={f >= 0.5 ? HEART_FILL : HEART_EMPTY} />
-          </Svg>
+        {Array.from({ length: TOTAL_HEARTS }, (_, i) => (
+          <Image
+            key={i}
+            source={i < filledCount ? HEART_FILLED : HEART_EMPTY}
+            style={{ width: 28, height: 25 }}
+            resizeMode="contain"
+          />
         ))}
       </View>
 
-      {/* 2) 4px 分隔线 */}
-      <View
-        style={{
-          height: 4,
-          backgroundColor: "#E8EFD9",
-          marginTop: 12,
-          marginBottom: 10,
-          borderRadius: 2,
-        }}
+      {/* 2) Figma divider 4px PNG，宽度自适应 */}
+      <Image
+        source={DIVIDER}
+        style={{ width: "100%", height: 4, marginTop: 12, marginBottom: 10 }}
+        resizeMode="stretch"
       />
 
       {/* 3) 左 hint + 右 hp/100 */}
       <View className="flex-row items-center justify-between">
         <Text style={{ fontSize: 12, color: "#747571", flex: 1, paddingRight: 12 }}>
-          还有 {remainingHearts} 个爱心即可晋级下一个阶段
+          还有 {remaining} 个爱心即可晋级下一个阶段
         </Text>
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: "500",
-            color: "#8FAE75",
-          }}
-        >
+        <Text style={{ fontSize: 18, fontWeight: "500", color: "#8FAE75" }}>
           {clamped}/100
         </Text>
       </View>

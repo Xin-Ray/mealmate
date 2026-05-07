@@ -1107,3 +1107,42 @@ HP 47 / low band 落屏：
 - ✅ "残血状态" / "感觉不太好啊" / "好想吃上下一顿" overlay 在左上，深绿字色 vs 浅绿叶子背景可读性 OK
 - ✅ 下方 10 颗心（4 实心 + 6 空心）+ 4px 分隔 + "还有 6 个爱心即可晋级下一个阶段" + "47/100" 绿色数字
 - ✅ 同一 hero card 30 圆角统一
+
+---
+
+## v0.4 hotfix #7：9 颗 Figma asset 心 + divider PNG（2026-05-07）
+
+### xin 反馈
+
+之前 hotfix #6 用 svg 自画的心形是默认形状，不是 Figma 22:3 设计师画的样式；总数应该是 **9 颗**（不是 10）。
+
+### 资源
+
+`app/assets/hearts/` 新增 3 张：
+
+| 文件 | Figma | md5 (前 8) | 尺寸 |
+|---|---|---|---|
+| `filled.png` | imgRectangle22 (44c5492a)，server 返回 SVG，本地 `rsvg-convert --width 152 --height 136` 转 PNG | `bf9f5753` | 152×136 |
+| `empty.png` | imgImage (3b7b35a9)，原本就是 PNG | `57dcf00d` | 151×131 |
+| `divider.png` | imgBackground (d5057a46)，原本就是 PNG | `2457b5fe` | 443×4 |
+
+3 张 md5 全异 ✅。
+
+注：filled asset URL 实际是 SVG 不是 PNG（Figma server 给了 vector），用 macOS `rsvg-convert`（`/opt/homebrew/bin/rsvg-convert`）转 4× retina PNG 入库。
+
+### `HpHeartsContent` 重写
+
+- 9 颗 `<Image source={i < filledCount ? HEART_FILLED : HEART_EMPTY}>`，`width: 28 height: 25`
+- `filledCount = round(hp * 9 / 100)`：HP 0→0 / 47→4 / 80→7 / 100→9
+- `remaining = 9 - filledCount`，"还有 X 个" 按这个算
+- divider 用 `<Image source={DIVIDER} resizeMode="stretch" height: 4 width: 100%>` 替代之前的 borderTopWidth + bg 模拟
+- 删除 svg `<Path>` 自画心形 + 颜色硬编
+
+### simulator 自截验证（`/tmp/mealmate-hearts-v4.png`）
+
+HP 47 / low band：
+- ✅ 9 颗心（不是 10）
+- ✅ 4 颗深绿实心 + 5 颗浅黄绿空心，形状是 Figma 设计师画的
+- ✅ divider 用 Figma PNG（细线，跟之前 4px solid bg 视觉接近但更细腻）
+- ✅ "还有 5 个爱心即可晋级下一个阶段" + "47/100" 右侧
+- ✅ hero overlap 布局保持（上半 mascot 全铺 + 标题 overlay 不变）
