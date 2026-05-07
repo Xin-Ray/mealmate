@@ -723,3 +723,46 @@ LLM 调用从 result phase 临时移除：
 
 仍待 §11.K 第 7-3：
 - 错过餐 silent 调度 → app 激活时 missed-scan → markMealMissed + 双消息 + missed modal
+
+---
+
+## v0.4 实施 #13 / §11.K 第 7 项 Commit 3：missed-scan + 双消息 + missed modal（2026-05-07）
+
+PRD §11.F.2 落地。
+
+### `src/services/missedScan.ts`
+
+- `detectMissedSlots(schedules, todayMeals, now)` — 返回今日 status === 'pending' 且已过窗末（`schedules[slot] + 90min`）的 slot 列表
+- `runMissedScan()` — 顶层入口：
+  1. `state.rollDayIfNeeded()` 防跨日漏扫
+  2. `detectMissedSlots(...)`
+  3. 每个 missed slot：`markMealMissed(slot)` → push 两条 dialogue
+     - `kind: 'meal_missed'` body 随机选自 `MISSED_LINE_BY_SLOT[slot]`（每 slot 3 候选），带 `hpDelta=-10`（gentle -5）
+     - `kind: 'remind'` body 随机选自 `REMIND_BY_STAGE[currentStage]`（stage 1/2 各 3 候选），不带 hpDelta
+  4. 返回新 missed slot 数组（用于 modal 触发判断）
+
+### `_layout.tsx` 接入
+
+- `import { AppState } from "react-native"`
+- 新增 `useEffect` AppState listener：
+  - 首次启动延迟 0ms 跑（等 router 挂载）
+  - `AppState.change` → `'active'` → 跑
+  - `runMissedScan()` 返回非空 → `router.push('/(modal)/meal-missed', { slot: newMissed[0] })`（多 slot 只弹第一个，其它已扣分进 feed）
+
+### iOS 后台限制
+
+iOS 后台不能可靠跑 JS，silent 通知触发后台 task 在 expo-notifications 严苛受限。v0.4 退化为 **app 激活时扫描**：用户白天没开 app 错过餐次也会扣分，只是延迟到下次开 app 才算到 feed。这是 chess 类 app 标准玩法，可接受。
+
+silent 调度精确触发留 v0.5（结合服务端推送）。
+
+### `v0.4-test-plan.md` 更新
+
+#6 modal 章节："业务自动触发已落地"，加测试步骤：把时间改成 91 分钟前 → 杀 app 重开 → 自动扣分 + 弹 modal。
+
+### 完成 §11.K 第 7 项三大目标
+
+| 目标 | 状态 |
+|---|---|
+| dialogueHistory shape 升级 | ✅ Commit 1 |
+| photo flow 接 fullness + 通过餐双消息 + +5 | ✅ Commit 2 |
+| missed-scan 自动扣 -10 + 双消息 + missed modal 触发 | ✅ Commit 3 |

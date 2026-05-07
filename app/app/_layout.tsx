@@ -1,5 +1,6 @@
 import "../global.css";
 import { useEffect } from "react";
+import { AppState } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -10,6 +11,7 @@ import {
   ensureNotificationPermission,
   scheduleMealReminders,
 } from "@src/services/notifications";
+import { runMissedScan } from "@src/services/missedScan";
 import { hpBandFromValue, pickDialogue } from "@src/data/dialogues";
 import type { MealSlot } from "@src/types";
 
@@ -52,6 +54,31 @@ export default function RootLayout() {
       }
     });
     return () => sub.remove();
+  }, [router]);
+
+  // Missed-meal 扫描（PRD §11.F.2）
+  // app 启动 / 前台激活时跑：检测今日已过窗末仍未 done 的 slot → 自动 markMissed +
+  // 推双消息 + 弹 missed modal。已经 missed 的 slot 不重复触发。
+  useEffect(() => {
+    const scanAndMaybePushModal = () => {
+      const newMissed = runMissedScan();
+      if (newMissed.length > 0) {
+        // 多 slot 时只先弹第一个 modal；其它已经扣分 + 进 feed，下次 active 不重复弹
+        router.push({
+          pathname: "/(modal)/meal-missed",
+          params: { slot: newMissed[0] },
+        } as never);
+      }
+    };
+    // 首次启动延迟一帧，等 router 挂载完
+    const t = setTimeout(scanAndMaybePushModal, 0);
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") scanAndMaybePushModal();
+    });
+    return () => {
+      clearTimeout(t);
+      sub.remove();
+    };
   }, [router]);
 
   return (
