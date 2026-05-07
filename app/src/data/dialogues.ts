@@ -69,10 +69,17 @@ export const dialogues: DialogueLine[] = [
     text: "陪你吃完这顿，我今天也心满意足啦。" },
 ];
 
+// v0.4 §11.B 起 store HP 标度为 0–100。本函数沿用旧 4 band 名（mock dialogues 池
+// 数据按这 4 名分类），但阈值已迁移：
+//   weak       0–30   ↔ critical band（v0.4 新名）
+//   hungry     30–50  ↔ low
+//   recovering 50–80  ↔ stable
+//   happy      80–100 ↔ full
+// 不动 dialogues.ts 数据，文案池继续可用。
 export const hpBandFromValue = (hp: number): "weak" | "hungry" | "recovering" | "happy" => {
-  if (hp <= 3) return "weak";
-  if (hp <= 7) return "hungry";
-  if (hp <= 11) return "recovering";
+  if (hp < 30) return "weak";
+  if (hp < 50) return "hungry";
+  if (hp < 80) return "recovering";
   return "happy";
 };
 

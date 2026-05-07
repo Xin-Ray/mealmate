@@ -1,13 +1,14 @@
-// mealmate Zustand store (mock 数据 / Stage 1 UI shell)
+// mealmate Zustand store
 //
 // 持久化：AsyncStorage（@react-native-async-storage/async-storage）
 //
-// HP 规则（PRD §3.2）：
-// - 0–3 虚弱 / 4–7 饿 / 8–11 恢复中 / 12–15 开心
-// - markMealDone：+0.5 HP
-// - markMealMissed：-1 HP（gentleMode 下 -0.5）
-// - HP 上限 15、下限 0
-// - HP=15 触发 advanceStage（仅 Stage 1→2 占位）
+// HP 标度（v0.4 §11.B 起）：**0–100**
+// - 满血 ≥ 80 / 平稳 50–80 / 低血 30–50 / 濒临 < 30（详见 src/theme/hp.ts）
+// - 通过餐 +HP_MEAL_PHOTO_GAIN（=5），错过餐 -HP_MEAL_MISSED_LOSS（=10）
+//   gentleMode 下扣分减半
+// - HP 上限 100、下限 0
+// - HP=100 触发 advanceStage（仅 Stage 1→2 占位）
+// - 老用户 0–15 标度数据通过 persist v1→v2 migrate 自动放大 6.67 倍
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -19,6 +20,10 @@ import type {
   TodayMeals,
   WeightRecord,
 } from "@src/types";
+
+export const HP_MAX = 100;
+export const HP_MEAL_PHOTO_GAIN = 5;
+export const HP_MEAL_MISSED_LOSS = 10;
 
 const DEFAULT_SCHEDULES: MealSchedule = {
   breakfast: "07:30",
@@ -88,10 +93,10 @@ const todayKey = () => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
-const clampHp = (n: number) => Math.max(0, Math.min(15, n));
+const clampHp = (n: number) => Math.max(0, Math.min(HP_MAX, n));
 
 const initialState: State = {
-  hp: 8, // 起始默认中段 — 让用户第一次进 Home 看到一个有活力的小机器人
+  hp: 67, // 0–100 标度，约对应老 0–15 的 10（PRD §四 阶段一初始 HP）
   currentStage: 1,
   companionLv: 1,
   robotName: "小满",
@@ -145,12 +150,12 @@ export const useStore = create<State & Actions>()(
       markMealDone: (slot) => {
         const s = get();
         if (s.todayMeals[slot] === "done") return;
-        const newHp = clampHp(s.hp + 0.5);
+        const newHp = clampHp(s.hp + HP_MEAL_PHOTO_GAIN);
         set({
           hp: newHp,
           todayMeals: { ...s.todayMeals, [slot]: "done" },
         });
-        if (newHp >= 15 && s.currentStage === 1) {
+        if (newHp >= HP_MAX && s.currentStage === 1) {
           // 满 HP → 推进阶段（Stage 2 占位页）
           set({ currentStage: 2, companionLv: s.companionLv + 1 });
         }
@@ -159,7 +164,9 @@ export const useStore = create<State & Actions>()(
       markMealMissed: (slot) => {
         const s = get();
         if (s.todayMeals[slot] === "missed") return;
-        const delta = s.gentleMode ? -0.5 : -1;
+        const delta = s.gentleMode
+          ? -HP_MEAL_MISSED_LOSS / 2
+          : -HP_MEAL_MISSED_LOSS;
         set({
           hp: clampHp(s.hp + delta),
           todayMeals: { ...s.todayMeals, [slot]: "missed" },
@@ -211,6 +218,24 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
+      version: 2,
+      // v1（HP 0–15）→ v2（HP 0–100）：把老 hp 值乘 100/15 ≈ 6.67 放大
+      migrate: (persistedState: unknown, version: number) => {
+        if (
+          version < 2 &&
+          persistedState &&
+          typeof persistedState === "object" &&
+          "hp" in persistedState &&
+          typeof (persistedState as { hp: unknown }).hp === "number"
+        ) {
+          const oldHp = (persistedState as { hp: number }).hp;
+          (persistedState as { hp: number }).hp = Math.max(
+            0,
+            Math.min(100, Math.round(oldHp * (100 / 15)))
+          );
+        }
+        return persistedState as State & Actions;
+      },
     }
   )
 );

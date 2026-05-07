@@ -68,5 +68,4 @@ export const type = {
   hero: 28,
 } as const;
 
-// HP 阈值（v0.4 §11.G "状态不好"页触发条件）
-export const HP_LOW_THRESHOLD = 30;
+// HP_LOW_THRESHOLD 现在统一在 src/theme/hp.ts（避免双源真相）

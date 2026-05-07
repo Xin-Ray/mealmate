@@ -178,9 +178,9 @@ export default function SettingsScreen() {
           <>
             <Text className="text-sub text-xs mt-8 mb-2">开发者（仅 dev build）</Text>
             <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3">
-              <Text className="text-ink text-sm mb-2">HP（当前 {hp}/15）</Text>
+              <Text className="text-ink text-sm mb-2">HP（当前 {hp}/100）</Text>
               <View className="flex-row gap-2">
-                {[0, 4, 8, 12, 15].map((v) => (
+                {[0, 25, 50, 75, 100].map((v) => (
                   <Pressable
                     key={v}
                     onPress={() => devSetHp(v)}

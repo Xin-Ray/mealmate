@@ -5,11 +5,7 @@ import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
 import Mascot from "@src/components/Mascot";
 import HpHearts from "@src/components/home/HpHearts";
-import {
-  hpBandFromStoreHp,
-  HP_BAND_TITLE,
-  HP_BAND_SUBTITLE,
-} from "@src/theme/hp";
+import { getHpBand } from "@src/theme/hp";
 import { colors } from "@src/theme/tokens";
 import type { MealSlot, MealSchedule } from "@src/types";
 
@@ -123,9 +119,8 @@ export default function HomeStage2() {
     return () => clearInterval(id);
   }, []);
 
-  const band = hpBandFromStoreHp(hp);
-  const title = HP_BAND_TITLE[band];
-  const [sub1, sub2] = HP_BAND_SUBTITLE[band];
+  const band = getHpBand(hp);
+  const { title, subtitle, hint } = band;
 
   // 体重模块
   const lastWeight = weightHistory[weightHistory.length - 1];
@@ -176,12 +171,12 @@ export default function HomeStage2() {
               className="mt-2"
               style={{ fontSize: 16, color: colors.ink.sub, lineHeight: 22 }}
             >
-              {sub1}
+              {subtitle}
             </Text>
             <Text
               style={{ fontSize: 16, color: colors.ink.sub, lineHeight: 22 }}
             >
-              {sub2}
+              {hint}
             </Text>
           </View>
           <Mascot hp={hp} stage={2} size={110} />
