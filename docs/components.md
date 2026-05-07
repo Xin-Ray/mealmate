@@ -206,6 +206,36 @@
 
 ---
 
+## 图表
+
+### TrendChart
+
+- 文件：`app/src/components/ui/TrendChart.tsx`
+- 来自：新建（PRD §11.E，按 Figma 1:458 趋势图卡）
+- 依赖：`react-native-svg@15.12.1`（v0.4 §11.K 第 6 项引入）
+- 用在：统计页（爱心 / 体重双图）
+- Props:
+
+  | name | type | required | 说明 |
+  |---|---|---|---|
+  | title | string | ✓ | 图表标题（"爱心变化趋势" 等） |
+  | subtitle | string | | 副标（单位等） |
+  | switcherLabel | string | | 右上 pill 文案；传则显示 disabled 切换器 |
+  | dataPoints | TrendPoint[] | ✓ | 每个数据点 `{ stage, value, bandLabel, display? }`；`value=null` 表示该阶段未到达 |
+  | yAxis | number[] | ✓ | Y 轴刻度数组，等距 |
+  | height | number | | 默认 220px |
+
+  实现：`<Svg>` + `<G>` 分组 + `<Path>` 直线段连相邻有效点 + `<Circle>` 数据点 + `<SvgText>` 数字 / X 轴标签。Y 轴格线用 dashed `<Line>`。
+
+  稀疏降级：
+  - 0 个有效点 → 全部空心圆（虚线描边）
+  - 1 个有效点 → 一个实心圆 + "再坚持几天就能看到趋势啦~" 提示
+  - ≥ 2 → 实心圆 + 直线段连接（跳过 null 点）
+
+  X 轴宽度：用 `onLayout` 获取卡片实际宽度后等距分布数据点。
+
+---
+
 ## 截图
 
 v0.5 加（每个组件配一张 simulator 截图 + Figma 帧对照）。

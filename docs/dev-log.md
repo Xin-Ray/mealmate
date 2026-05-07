@@ -609,3 +609,44 @@ dev panel 切 Stage 2 → 首页立刻切到全新 stage 2 视觉（条件渲染
 - photo result phase 完成后弹饱腹度评分（次入口）
 - 饱腹度精确关联 mealWindow（本项默认 lunch）
 - meal kind HP delta 用真实记录而非占位 +5/-10
+
+---
+
+## v0.4 实施 #10 / §11.K 第 6 项：统计页 — 爱心 + 体重趋势（2026-05-07）
+
+### 引入新 native 依赖
+
+`react-native-svg@15.12.1`（`npx expo install` 选 SDK 54 兼容版）。
+
+⚠️ **xin 必须重 build**（新 native module 不能仅 reload）：
+```
+cd /Users/xiangxin/Documents/mealmate/app/ios
+LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install
+cd .. && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo run:ios
+```
+
+### 新组件 / selector
+
+- `src/components/ui/TrendChart.tsx` — 通用趋势图，接 `TrendPoint[]` + `yAxis: number[]`，用 `<Svg> <G> <Path> <Circle> <Line> <SvgText>` 渲染
+- `src/store/selectors/stats.ts`：
+  - `STAGE_KEYS = [1, 3, 5, 8, 10]` + `STAGE_BAND_LABEL` 映射
+  - `selectStageHpProgress({ hp, currentStage }) → StageHpPoint[]` — 仅 currentStage 对应 stage 有数据，其他 null
+  - `selectStageWeightProgress({ weightHistory, currentStage }) → StageWeightPoint[]`
+  - `autoYAxis(values, targetTicks=5)` — 体重 Y 轴自动 min-max 缩放
+
+### 重写 `stats.tsx`
+
+- 页头 "📊 趋势图表" + 副标 + 右上 disabled "全部阶段" pill
+- `<TrendChart>` × 2：爱心（Y 0-12）+ 体重（Y autoYAxis）
+- 底部小贴士标 v0.5 stage history 持久化
+
+### 稀疏降级实测
+
+- v0.4 currentStage===1 用户：爱心图 1 个实心圆（X=1 那点）+ 4 空心圆 + "再坚持几天" 提示；体重图 5 个空心圆（stage 1 不录体重）
+- currentStage===2 用户：爱心图 2 实心圆（X=1 满 10 颗 + X=3 当前 hp/10）连线；体重图 1 实心圆（X=3）+ "再坚持几天"
+
+### 仍待 v0.5
+
+- 跨 stage history 持久化（每次 advanceStage 记快照）
+- "近 5 个阶段" 切换器
+- 真平滑曲线（quadratic bezier 或 catmull-rom 插值），当前是直线段

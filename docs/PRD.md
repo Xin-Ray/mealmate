@@ -444,7 +444,16 @@ selector：`buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })
 - Y 轴：kg（自动 min-max 缩放）
 - 每阶段平均/最后体重作为数据点
 
-**实现方案**：纯 RN `<View>` 自己画散点 + 连线，不装 chart 库（避免重 build）。要弧线插值就装 `react-native-svg`（pure JS 不重 build）。v0.4 起步用最简：散点 + 直线段。
+**实现方案**：装 `react-native-svg@15.12.1`（v0.4 §11.K 第 6 项引入）。`<TrendChart>` 用 `<Path>` 直线段连相邻有效点 + `<Circle>` 散点 + `<SvgText>` 标签 + 虚线 Y 轴格线。
+
+**稀疏数据降级**（v0.4 用户大多数据稀疏）：
+- 0 个有效点 → 全部空心圆（虚线描边）
+- 1 个有效点 → 一个实心圆 + "再坚持几天就能看到趋势啦~" 提示
+- ≥ 2 → 实心圆 + 直线段连接（跳过 null 点）
+
+**切换器** "近 5 个阶段" 当前 disabled，留 v0.5。
+
+**stage history 持久化**：v0.4 selectors 仅当前 `currentStage` 有数据，其他 stage 返回 `null`。每次 `advanceStage` 时记 peakHp + 平均体重快照到 store 留 v0.5。
 
 ### 11.F 餐后消息生成规则（v0.4 核心业务规则，新增）
 
