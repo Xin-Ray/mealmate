@@ -7,6 +7,9 @@ import {
   Animated,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -149,13 +152,22 @@ export default function WeightEntryScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <View className="flex-1 px-6 pt-6">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-ink text-lg font-semibold">体重 · 记录</Text>
-          <Pressable onPress={onClose}>
-            <Text className="text-sub text-sm">关闭</Text>
-          </Pressable>
-        </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View className="flex-1 px-6 pt-6 pb-6">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-ink text-lg font-semibold">体重 · 记录</Text>
+              <Pressable onPress={onClose}>
+                <Text className="text-sub text-sm">关闭</Text>
+              </Pressable>
+            </View>
 
         {phase === "intro" && (
           <View className="flex-1 items-center justify-center">
@@ -267,7 +279,9 @@ export default function WeightEntryScreen() {
             </Pressable>
           </View>
         )}
-      </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

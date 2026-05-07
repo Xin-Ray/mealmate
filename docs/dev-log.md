@@ -1262,3 +1262,37 @@ HP 0 / critical band：
 - ✅ 文字 overlay "濒临耗尽" / "快撑不住了" / "吃点东西吧"（hp.ts STAGE2 critical 文案不变）
 - ✅ 9 颗心全空心 + "还有 9 个爱心即可晋级下一个阶段" + "0/100"
 - ✅ hero card 高度跟其他 band 一致（aspectRatio 524/461 不变），mascot bottom anchor 自适应高度差
+
+---
+
+## v0.4 hotfix #11：weight-entry 键盘弹起遮挡确认按钮（2026-05-07）
+
+xin 反馈：体重记录 modal 打开后，点数字输入框 → 软键盘弹起 → "确定"按钮被键盘顶到屏外，整个页面也不滚动，没法提交。
+
+### 改动
+
+`app/app/(modal)/weight-entry.tsx` 外层加 `KeyboardAvoidingView` + `ScrollView`：
+
+```tsx
+<KeyboardAvoidingView
+  behavior={Platform.OS === "ios" ? "padding" : "height"}
+  style={{ flex: 1 }}
+>
+  <ScrollView
+    contentContainerStyle={{ flexGrow: 1 }}
+    keyboardShouldPersistTaps="handled"
+  >
+    {/* ... 原有 4 phase 内容 ... */}
+  </ScrollView>
+</KeyboardAvoidingView>
+```
+
+`flexGrow: 1` 让短内容时 ScrollView 仍占满（intro/uploading/result 居中布局不破），键盘弹起时再滚。`keyboardShouldPersistTaps="handled"` 让点击键盘外按钮不会先吃一次"收键盘"事件。
+
+### simulator 自截验证（`/tmp/weight-entry-keyboard-up.png`）
+
+preview phase + 软键盘弹起：
+- ✅ 照片预览（小尺寸） + 体重(kg) 标签 + TextInput（焦点）全部可见
+- ✅ **确定按钮在键盘上方完全可见 + 可点**（之前被遮）
+- ✅ 重选按钮也在键盘上方可见
+- ✅ 数字键盘正常显示
