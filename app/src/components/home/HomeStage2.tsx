@@ -1,4 +1,4 @@
-import { ScrollView, View, Image, Text, StyleSheet } from "react-native";
+import { ScrollView, View, Image, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
@@ -25,31 +25,39 @@ export default function HomeStage2() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }}>
-        {/* 1. Hero 卡：上半 mascot 全铺 + 文字 overlay；下半 心形条 */}
-        <View
-          style={{
-            backgroundColor: colors.bg.card,
-            borderColor: colors.border.card,
-            borderWidth: 1,
-            borderRadius: 30,
-            overflow: "hidden",
-          }}
-        >
-          {/* 上半：mascot 铺满 + 文字 absolute overlay 在左上 */}
+        {/* 1. Hero：mascot card（mascot 右对齐 + 文字 overlay 左上）+ 心形 absolute 浮卡跨底 */}
+        <View style={{ marginBottom: 32 /* 16 心形浮卡溢出 + 16 后续间距 */ }}>
+          {/* mascot card：30 圆角 / overflow hidden / aspectRatio 524:461 */}
           <View
-            style={{ position: "relative", aspectRatio: band.mascotAspect }}
+            style={{
+              backgroundColor: colors.bg.card,
+              borderColor: colors.border.card,
+              borderWidth: 1,
+              borderRadius: 30,
+              overflow: "hidden",
+              aspectRatio: 524 / 461,
+              position: "relative",
+            }}
           >
+            {/* mascot 右对齐 contain：右 anchor + 高度撑满 + width 由 aspect 推 */}
             <Image
               source={band.mascot}
-              style={StyleSheet.absoluteFillObject}
-              resizeMode="cover"
+              style={{
+                position: "absolute",
+                right: 0,
+                top: 0,
+                bottom: 0,
+                aspectRatio: band.mascotAspect,
+              }}
+              resizeMode="contain"
             />
+            {/* 文字 overlay 左上 */}
             <View
               style={{
                 position: "absolute",
-                top: 22,
-                left: 22,
-                right: 180, // 给右侧 mascot 头部留空间
+                top: 28,
+                left: 24,
+                maxWidth: "55%",
               }}
             >
               <Text
@@ -85,12 +93,19 @@ export default function HomeStage2() {
             </View>
           </View>
 
-          {/* 下半：心形条完整 3 段（按 Figma 22:3） */}
+          {/* 心形浮卡：absolute 跨 mascot 底沿（自带 bg + border） */}
           <View
             style={{
+              position: "absolute",
+              bottom: -16,
+              left: 16,
+              right: 16,
+              backgroundColor: "#FDFCF6",
+              borderColor: "#D2DEB9",
+              borderWidth: 1,
+              borderRadius: 30,
               paddingHorizontal: 16,
-              paddingTop: 14,
-              paddingBottom: 16,
+              paddingVertical: 14,
             }}
           >
             <HpHeartsContent hp={hp} />

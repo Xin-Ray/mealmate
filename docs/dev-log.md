@@ -1146,3 +1146,59 @@ HP 47 / low band：
 - ✅ divider 用 Figma PNG（细线，跟之前 4px solid bg 视觉接近但更细腻）
 - ✅ "还有 5 个爱心即可晋级下一个阶段" + "47/100" 右侧
 - ✅ hero overlap 布局保持（上半 mascot 全铺 + 标题 overlay 不变）
+
+---
+
+## v0.4 hotfix #8：mascot 右对齐 + 心形 absolute 浮卡（2026-05-07）
+
+### xin 反馈
+
+1. hotfix #6 / #7 的 mascot 用 `absoluteFillObject + cover`，导致 mascot 角色（在源图右半边）被裁，hero 上半看起来只剩左侧叶子背景
+2. 心形条应该是**自带 bg + border 的浮卡**跨在 mascot 底沿（不是从 mascot card 内 layout 出来的同色块）
+
+### 修法
+
+#### Mascot 右对齐 + contain
+
+```tsx
+<View aspectRatio: 524/461 overflow: hidden position: relative>
+  <Image
+    position: absolute
+    right: 0 top: 0 bottom: 0
+    aspectRatio: band.mascotAspect
+    resizeMode="contain"
+  />
+  <View absolute top:28 left:24 maxWidth:55%>title overlay</View>
+</View>
+```
+
+`right:0 + top:0 bottom:0` pin 高度撑满，width 由 aspectRatio 自动推。simulator iPhone 16 Plus 屏宽 430pt - 24×2 padding = 382pt，hero height = 382/1.137 ≈ 336pt，image width = 336×1.137 ≈ 382pt 完全贴合 — mascot 角色完整显示。
+
+#### 心形浮卡 absolute
+
+```tsx
+<View marginBottom: 32>  {/* 16 心形溢出 + 16 后续间距 */}
+  <View mascot card aspectRatio overflow:hidden>
+    <Image right anchor />
+    <Title overlay />
+  </View>
+  <View
+    position: absolute
+    bottom: -16 left: 16 right: 16
+    bg: #FDFCF6 border: #D2DEB9 1px
+    borderRadius: 30
+    padding: 16/14
+  >
+    <HpHeartsContent hp />
+  </View>
+</View>
+```
+
+心形浮卡 z-index 上层（绝对定位天然层叠），跨 mascot card 底沿 16pt — 视觉上"浮"在 mascot 上沿底部。
+
+### simulator 自截验证（`/tmp/mealmate-mascot-right-v5.png`）
+
+- ✅ mascot 完整显示（角色 + 围裙 + 汗滴 + 飘叶子全部 visible）
+- ✅ 心形浮卡自带 bg + border，bottom 跨出 mascot card 16pt
+- ✅ 9 颗心 + "还有 5 个" + "47/100" 保持
+- ⚠️ 副作用：title overlay 末字（"啊" / "顿"）与 mascot 头发位置重叠，可读性略差。`maxWidth: '55%'` 让文字延伸到 hero 宽度 55% 处，跟 mascot 角色头部重叠。下次 hotfix 视情况调（缩 maxWidth 到 45% / 加 textShadow / 缩短 hint）
