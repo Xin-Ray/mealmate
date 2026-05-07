@@ -16,7 +16,7 @@ export default function MealReminderRoute() {
       onCapture={() => {
         router.dismiss();
         router.push({
-          pathname: "/(main)/photo",
+          pathname: "/(modal)/photo",
           params: { slot: realSlot },
         } as never);
       }}

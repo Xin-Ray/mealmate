@@ -50,7 +50,7 @@ export default function RootLayout() {
     const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
       const slot = resp.notification.request.content.data?.slot;
       if (typeof slot === "string") {
-        router.push({ pathname: "/(main)/photo", params: { slot } });
+        router.push({ pathname: "/(modal)/photo", params: { slot } } as never);
       }
     });
     return () => sub.remove();

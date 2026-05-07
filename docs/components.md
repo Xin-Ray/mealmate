@@ -193,16 +193,14 @@
 
 ---
 
-## 其它（v0.3 遗留，未抽到 ui/）
+## 其它（v0.3 遗留）
 
 | 名称 | 路径 | 用在 | 备注 |
 |---|---|---|---|
-| `Mascot` | `app/src/components/Mascot.tsx` | `HomeStage1` | emoji 占位（stage prop 切 ⚡ 徽章）；stage 1 token 化时考虑迁移 |
-| `WeekStrip` | `app/src/components/WeekStrip.tsx` | `HomeStage1` | 7 列周视图 |
-| `HpBar` | `app/src/components/HpBar.tsx` | `HomeStage1` | 老 0-15 HP 进度条；新阈值已自动适配 |
-| `MealCard` | `app/src/components/MealCard.tsx` | `HomeStage1` | 老餐次卡 |
+| `Mascot` | `app/src/components/Mascot.tsx` | `app/onboarding/name.tsx` | emoji 占位（stage prop 切 ⚡ 徽章）；onboarding 录入名字时显示头像 |
+| `WeekStrip` | `app/src/components/WeekStrip.tsx` | `HomeStage1` | 7 列周视图，stage 1 特有 |
 
-> v0.4 §11.K 第 4 项 stage 1 主页 token 化时，决定这些是否迁移到 `ui/`。
+> v0.4 §11.K 第 10 项已删除孤儿组件 `HpBar.tsx` / `MealCard.tsx`（无引用）。
 
 ---
 

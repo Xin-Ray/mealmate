@@ -27,7 +27,7 @@ export default function HomeStage1() {
 
   const onCaptureMeal = (slot: MealSlot) => {
     router.push({
-      pathname: "/(main)/photo",
+      pathname: "/(modal)/photo",
       params: { slot },
     } as never);
   };

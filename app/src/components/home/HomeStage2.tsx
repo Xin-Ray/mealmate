@@ -28,7 +28,7 @@ export default function HomeStage2() {
 
   const onCaptureMeal = (slot: MealSlot) => {
     router.push({
-      pathname: "/(main)/photo",
+      pathname: "/(modal)/photo",
       params: { slot },
     } as never);
   };
@@ -49,7 +49,7 @@ export default function HomeStage2() {
         <WeightCard
           lastWeight={lastWeight}
           prevWeight={prevWeight}
-          onPress={() => router.push("/(main)/weight-entry" as never)}
+          onPress={() => router.push("/(modal)/weight-entry" as never)}
         />
 
         {/* 3. 下一餐倒计时 */}

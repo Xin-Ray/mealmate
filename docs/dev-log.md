@@ -796,3 +796,64 @@ settings.tsx 全屏重写：
 
 - 「我的」页 Figma frame 链接尚未给。v0.4 仅做 token 化，未做像素级对齐 Figma。
   v0.5 收到 Figma frame 后再精对齐（间距 / 字号 / icon）。
+
+---
+
+## v0.4 实施 #15 / §11.K 第 10 项：v0.4 收尾大扫除（2026-05-07）
+
+### 删除
+
+- `app/(main)/stage2.tsx` — v0.3 占位屏，v0.4 内容并入 HomeStage2，路径不再被引用
+- `app/src/components/HpBar.tsx` — v0.3 老进度条，HomeStage1 v0.4 #4 改用 HpHearts 后无引用
+- `app/src/components/MealCard.tsx` — v0.3 老餐次卡，HomeStage1 v0.4 #4 改用 MealCountdownCard 后无引用
+
+孤儿确认：`grep -rn 'from.*"@src/components/{HpBar,MealCard}"'` 返回空。
+
+### 移动到 (modal) group
+
+- `app/(main)/photo.tsx` → `app/(modal)/photo.tsx`
+- `app/(main)/weight-entry.tsx` → `app/(modal)/weight-entry.tsx`
+
+`(modal)/_layout.tsx` 早已配 `presentation: 'modal'`，迁移后 photo / weight-entry 自动**恢复"从下推上来"的 modal 视觉**（v0.4 §11.K 第 1 项基建临时丢失的）。
+
+### 路由路径迁移（5 处）
+
+| 调用方 | 旧 | 新 |
+|---|---|---|
+| `app/_layout.tsx` notifications listener | `/(main)/photo` | `/(modal)/photo` |
+| `app/(modal)/meal-reminder.tsx` | `/(main)/photo` | `/(modal)/photo` |
+| `src/components/home/HomeStage1.tsx` onCaptureMeal | `/(main)/photo` | `/(modal)/photo` |
+| `src/components/home/HomeStage2.tsx` onCaptureMeal | `/(main)/photo` | `/(modal)/photo` |
+| `src/components/home/HomeStage2.tsx` 体重模块 onPress | `/(main)/weight-entry` | `/(modal)/weight-entry` |
+
+### `(main)/_layout.tsx` 简化
+
+不再需要 hidden Tabs.Screen for photo / stage2 / weight-entry — 这些路径都不在 (main) 下了。layout 现在只剩 4 个 visible tabs（home / records / stats / settings），干净。
+
+### Mascot.tsx 保留
+
+仍被 `app/onboarding/name.tsx` 用（onboarding 第 3/3 步给机器人取名时展示头像）。其他用处都已迁到 `<StatusTitle>` + 真 mascot Image。`isStage2` prop 在 stage 2 被移除引用后可考虑简化，但本项不动（onboarding 仍用 emoji 占位）。
+
+### docs 同步
+
+- `docs/components.md` 删除 HpBar / MealCard 条目；Mascot 备注更新为"onboarding/name 用"
+- `docs/v0.4-test-plan.md` 顶部加"v0.4 全部 10 项已收尾"；modal 测试章节补 photo / weight-entry 的 console 触发命令
+
+### v0.4 完结统计
+
+| 项 | commit | 备注 |
+|---|---|---|
+| #1 基建 tokens + 4-tab | `a8779d1` | |
+| #2 Onboarding 删 ChatGPT + home 删 stage2 入口 | `3d97e04` | |
+| #3 Stage 2 主页重做 | `f68e79d` | |
+| #4 Stage 1 token 化 + 倒计时 + 今日记录 | `bafecf6` | |
+| #5 记录页 + 饱腹度 | `e33251e` + `ee32fa3` | |
+| #6 统计页（svg） | `03f002b` | |
+| #7 餐后消息 + missed-scan | `2e6af9c` + `4da04b1` + `f6162b9` | |
+| #8 critical band 自然渲染 | (随 #4 落地) | |
+| #9 我的页 token 化 | `3b3e532` | |
+| #10 收尾大扫除 | (本 commit) | |
+
+外加：HP 标度 0-15→0-100（`7973745`） / 真 mascot 接入（`22c7638`） / 组件库抽出（`7834de0`） / mascot 资源入库（`b8279c8`） / docs 测试清单（`6d2785e`）
+
+下一步：xin 重 build + 走 v0.4-test-plan 全套测试 → v0.5 大门（LLM worker 代理 / stage history 持久化 / 真平滑曲线 / Figma 像素对齐）
