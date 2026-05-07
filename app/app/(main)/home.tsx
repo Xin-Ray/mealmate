@@ -113,15 +113,6 @@ export default function HomeScreen() {
           <HpBar hp={hp} />
         </View>
 
-        {currentStage === 2 && (
-          <Pressable
-            onPress={() => router.push("/(main)/stage2")}
-            className="self-end mt-3 px-3 py-1.5 rounded-lg bg-white border border-cardBorder"
-          >
-            <Text className="text-sub text-xs">查看 Stage 2 ▸</Text>
-          </Pressable>
-        )}
-
         <Text className="text-ink text-base font-semibold mt-8 mb-3">今日三餐</Text>
         <MealCard
           slot="breakfast"

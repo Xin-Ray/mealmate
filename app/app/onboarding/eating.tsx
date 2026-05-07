@@ -26,7 +26,7 @@ export default function EatingScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <View className="flex-1 px-6 pt-8">
-        <Text className="text-sub text-sm">第 1 / 4 步</Text>
+        <Text className="text-sub text-sm">第 1 / 3 步</Text>
         <Text className="text-ink text-2xl font-semibold mt-2">最近吃饭怎么样？</Text>
         <Text className="text-sub text-sm mt-2">
           这会决定我用什么节奏陪你。选哪个都可以，之后也能在设置里改。

@@ -9,17 +9,19 @@ export default function NameScreen() {
   const router = useRouter();
   const robotName = useStore((s) => s.robotName);
   const setRobotName = useStore((s) => s.setRobotName);
+  const finishOnboarding = useStore((s) => s.finishOnboarding);
   const [val, setVal] = useState(robotName);
 
   const next = () => {
     setRobotName(val);
-    router.push("/onboarding/chatgpt");
+    finishOnboarding();
+    router.replace("/(main)/home");
   };
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <View className="flex-1 px-6 pt-8">
-        <Text className="text-sub text-sm">第 3 / 4 步</Text>
+        <Text className="text-sub text-sm">第 3 / 3 步</Text>
         <Text className="text-ink text-2xl font-semibold mt-2">给它取个名字</Text>
         <Text className="text-sub text-sm mt-2">
           以后它会用这个名字陪着你。

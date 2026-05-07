@@ -284,3 +284,18 @@ xin 在 Xcode 里要做的：
 3. 重新 build 真机
 
 **未来上 App Store 时**：如果想换更好看的 bundleId（如 `app.mealmate.ios`），先去 Apple Developer 后台 Certificates / Identifiers 那边手动注册占住，再回 app.json 改一遍。
+
+---
+
+## v0.4 实施 #2：Bug 修复 batch（2026-05-01）
+
+### 修了什么
+
+- **Onboarding 删 ChatGPT 步骤**：`app/onboarding/chatgpt.tsx` 文件删除（不是 deprecate，直接删干净）。流程从 `eating(1/4) → schedule(2/4) → name(3/4) → chatgpt(4/4)` 简化为 `eating(1/3) → schedule(2/3) → name(3/3)`，name 屏「下一步」直接 `finishOnboarding() + replace('/(main)/home')`。三屏的步骤标签 `第 X / 4 步` → `第 X / 3 步`。
+- **store 删 `chatGPTLinked` 字段 + `setChatGPTLinked` action**：State / Actions / initialState / setter 实现 4 处全清。zustand persist 老用户的旧字段会被忽略，向后兼容
+- **settings.tsx 删「ChatGPT 链接」整块 UI**：那块只 toggle 一个 mock 布尔，无实际功能，v0.5 重新做时按 §11.J 改"Google Gemini API key 录入屏"
+- **home.tsx 删「查看 Stage 2 ▸」临时入口按钮**：之前是 stage2 死循环修复时加的临时入口，v0.4 新 IA 下 stage2 内容拆到首页 + 统计页，按钮失去意义
+
+### 已知未修（留给后续）
+
+- **dev panel 切 stage 2 后首页视觉不变**（xin 反馈）：当前切 stage 2 只影响 mascot 形象 + persistence，首页主体仍是 stage 1 视觉。**§11.K 第 3 项（Stage 2 主页重做）实施时天然解决**。本轮不动

@@ -32,7 +32,7 @@ export default function ScheduleScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <View className="flex-1 px-6 pt-8">
-        <Text className="text-sub text-sm">第 2 / 4 步</Text>
+        <Text className="text-sub text-sm">第 2 / 3 步</Text>
         <Text className="text-ink text-2xl font-semibold mt-2">三餐推送时间</Text>
         <Text className="text-sub text-sm mt-2">
           我会按这些时间提醒你吃饭。可以之后随时改。

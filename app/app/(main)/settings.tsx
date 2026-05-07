@@ -31,8 +31,6 @@ export default function SettingsScreen() {
   const setGentleMode = useStore((s) => s.setGentleMode);
   const skipWeightPhoto = useStore((s) => s.skipWeightPhoto);
   const setSkipWeightPhoto = useStore((s) => s.setSkipWeightPhoto);
-  const chatGPTLinked = useStore((s) => s.chatGPTLinked);
-  const setChatGPTLinked = useStore((s) => s.setChatGPTLinked);
   const schedules = useStore((s) => s.mealSchedules);
   const setMealSchedule = useStore((s) => s.setMealSchedule);
   const resetAll = useStore((s) => s.resetAll);
@@ -148,26 +146,6 @@ export default function SettingsScreen() {
             </Text>
           </View>
           <Switch value={skipWeightPhoto} onValueChange={setSkipWeightPhoto} />
-        </View>
-
-        {/* ChatGPT 链接 */}
-        <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-6 flex-row items-center justify-between">
-          <View className="flex-1 pr-3">
-            <Text className="text-ink text-base">
-              ChatGPT 账号 {chatGPTLinked ? "（已连接）" : "（未连接）"}
-            </Text>
-            <Text className="text-sub text-xs mt-1">
-              连接后台占位，OAuth 真接入会在后续版本上线。
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => setChatGPTLinked(!chatGPTLinked)}
-            className="px-3 py-2 rounded-xl bg-hpEmpty"
-          >
-            <Text className="text-ink text-sm">
-              {chatGPTLinked ? "断开" : "连接"}
-            </Text>
-          </Pressable>
         </View>
 
         {/* 帮助 / 隐私 */}

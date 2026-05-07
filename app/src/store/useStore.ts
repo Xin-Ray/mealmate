@@ -38,7 +38,6 @@ type State = {
   companionLv: number;
   robotName: string;
   gentleMode: boolean;
-  chatGPTLinked: boolean;
   mealSchedules: MealSchedule;
   todayMeals: TodayMeals;
   todayKey: string; // YYYY-MM-DD，用于按日重置
@@ -56,7 +55,6 @@ type State = {
 type Actions = {
   setRobotName: (n: string) => void;
   setGentleMode: (v: boolean) => void;
-  setChatGPTLinked: (v: boolean) => void;
   setMealSchedule: (slot: MealSlot, hhmm: string) => void;
   finishOnboarding: () => void;
   rollDayIfNeeded: () => void;
@@ -98,7 +96,6 @@ const initialState: State = {
   companionLv: 1,
   robotName: "小满",
   gentleMode: false,
-  chatGPTLinked: false,
   mealSchedules: DEFAULT_SCHEDULES,
   todayMeals: FRESH_TODAY,
   todayKey: todayKey(),
@@ -119,7 +116,6 @@ export const useStore = create<State & Actions>()(
 
       setRobotName: (n) => set({ robotName: n.trim() || "小满" }),
       setGentleMode: (v) => set({ gentleMode: v }),
-      setChatGPTLinked: (v) => set({ chatGPTLinked: v }),
       setMealSchedule: (slot, hhmm) =>
         set((s) => ({ mealSchedules: { ...s.mealSchedules, [slot]: hhmm } })),
       finishOnboarding: () => set({ onboardingDone: true }),
