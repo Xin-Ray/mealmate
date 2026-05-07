@@ -67,14 +67,15 @@
 - 文件：`app/src/components/ui/StatusTitle.tsx`
 - 来自：抽自 HomeStage2 顶部状态区
 - Figma：4 band 主形象帧 (5:45 / 5:14 / 1:305 / 1:332)
-- 用在：HomeStage2
+- 用在：HomeStage2 / HomeStage1
 - Props:
 
   | name | type | required | 说明 |
   |---|---|---|---|
   | hp | number | ✓ | 0–100 |
+  | stage | 1 \| 2 | | 默认 2；stage=1 切 Stage 1 鼓励调性文案 + mascot 兜底 full.png |
 
-  内部用 `getHpBand(hp)` 自动选 band，输出对应 title / subtitle / hint + mascot Image。文案/资源来自 `src/theme/hp.ts` 的 `HP_BANDS` 单一真源。
+  内部用 `getHpBand(hp, stage)` 自动选 band，输出对应 title / subtitle / hint + mascot Image。文案/资源来自 `src/theme/hp.ts` 的 `HP_BANDS`（stage 2）+ `STAGE1_BAND_COPY`（stage 1）。
 
 ### WeightCard
 

@@ -41,13 +41,36 @@ export const HP_BANDS: readonly HpBandSpec[] = [
   },
 ];
 
-// 闭区间扫描返回当前 hp 落在的 band。
-export function getHpBand(hp: number): HpBandSpec {
+// Stage 1 文案表（v0.4 §11.C）：4 band 共用 full.png mascot（兜底，
+// 等 stage 1 专属 mascot 画好再按 band 分图）。文案调性比 stage 2 更轻
+// 更鼓励，stage 1 还在"先把吃饭这事做起来"阶段。
+//
+// ⏳ 待 xin 复核（话术由 task 拟）。
+const STAGE1_BAND_COPY: Record<HpBandKey, { title: string; subtitle: string; hint: string }> = {
+  full:     { title: "今天状态超棒哒", subtitle: "继续保持",   hint: "认真吃好每一餐" },
+  stable:   { title: "不错哦，继续加油", subtitle: "稳步前进",   hint: "记得按时吃饭" },
+  low:      { title: "需要加把劲",     subtitle: "有点掉队啦", hint: "快补一顿吧" },
+  critical: { title: "不要放弃哦",     subtitle: "咱们重新出发", hint: "先吃一口看看" },
+};
+
+const STAGE1_MASCOT: ImageSourcePropType = require("../../assets/mascot/full.png");
+
+// 闭区间扫描返回当前 hp 落在的 band；stage 默认 2（保持 stage 2 文案/mascot）。
+// stage===1 时覆盖 title/subtitle/hint/mascot 为 stage 1 专属那一套。
+export function getHpBand(hp: number, stage: 1 | 2 = 2): HpBandSpec {
   const clamped = Math.max(0, Math.min(100, hp));
+  let base = HP_BANDS[HP_BANDS.length - 1]; // 兜底，不应到达
   for (const b of HP_BANDS) {
-    if (clamped >= b.min && clamped <= b.max) return b;
+    if (clamped >= b.min && clamped <= b.max) {
+      base = b;
+      break;
+    }
   }
-  return HP_BANDS[HP_BANDS.length - 1]; // 不应到达
+  if (stage === 1) {
+    const copy = STAGE1_BAND_COPY[base.key];
+    return { ...base, ...copy, mascot: STAGE1_MASCOT };
+  }
+  return base;
 }
 
 // "状态不好"自然渲染阈值（§11.G）。

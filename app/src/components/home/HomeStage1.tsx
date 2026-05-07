@@ -1,20 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
-import { View, Text, Pressable, ScrollView, Alert } from "react-native";
+import { ScrollView, View, Text, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
-import HpBar from "@src/components/HpBar";
-import Mascot from "@src/components/Mascot";
-import MealCard from "@src/components/MealCard";
+import Card from "@src/components/ui/Card";
+import HpHearts from "@src/components/ui/HpHearts";
+import StatusTitle from "@src/components/ui/StatusTitle";
+import MealCountdownCard from "@src/components/ui/MealCountdownCard";
+import RecordCard from "@src/components/ui/RecordCard";
 import WeekStrip from "@src/components/WeekStrip";
-import {
-  hpBandFromValue,
-  pickDialogue,
-} from "@src/data/dialogues";
-import { generateMascotLine } from "@src/services/mascotLlm";
+import { colors } from "@src/theme/tokens";
 import type { MealSlot } from "@src/types";
 
-// Stage 1 主页 — v0.3 视觉骨架，待 §11.K 第 4 项 token 化重做。
+// Stage 1 主页（v0.4 §11.C）：与 Stage 2 共用 ui/ 组件库。
+// 差异：① 状态文案用 stage 1 调性（getHpBand(hp, 1)），mascot 用 full.png 兜底
+//       ② 不显示体重模块（stage 1 未解锁）
+//       ③ 顶部多一行周视图（stage 1 特有）
+
 export default function HomeStage1() {
   const router = useRouter();
   const hp = useStore((s) => s.hp);
@@ -23,109 +24,73 @@ export default function HomeStage1() {
   const todayKey = useStore((s) => s.todayKey);
   const mealHistory = useStore((s) => s.mealHistory);
   const schedules = useStore((s) => s.mealSchedules);
-  const currentStage = useStore((s) => s.currentStage);
-  const companionLv = useStore((s) => s.companionLv);
-  const dialogueHistory = useStore((s) => s.dialogueHistory);
-  const canShowDisappearWarning = useStore((s) => s.canShowDisappearWarning);
-  const setDisappearWarningShown = useStore((s) => s.setDisappearWarningShown);
 
-  const band = hpBandFromValue(hp);
-  const fallbackGreeting = useMemo(() => {
-    return pickDialogue(band, "lunch", dialogueHistory);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hp]);
-
-  const [llmLine, setLlmLine] = useState<string | null>(null);
-  useEffect(() => {
-    const ctrl = new AbortController();
-    generateMascotLine(
-      { stage: currentStage, hp, band, robotName },
-      ctrl.signal
-    ).then((line) => {
-      if (line) setLlmLine(line);
-    });
-    return () => ctrl.abort();
-  }, [hp, band, currentStage, robotName]);
-
-  const greetingText =
-    llmLine ?? fallbackGreeting?.text ?? "今天也一起吃饭吧～";
-
-  const showDisappearAlert = band === "weak" && canShowDisappearWarning();
-
-  useEffect(() => {
-    if (showDisappearAlert) {
-      setDisappearWarningShown();
-    }
-  }, [showDisappearAlert, setDisappearWarningShown]);
-
-  const onMealPress = (slot: MealSlot) => {
-    if (todayMeals[slot] === "done") {
-      Alert.alert("已经吃过这顿啦", "今天先休息，看看其他餐次～");
-      return;
-    }
-    router.push({ pathname: "/(main)/photo", params: { slot } });
+  const onCaptureMeal = (slot: MealSlot) => {
+    router.push({
+      pathname: "/(main)/photo",
+      params: { slot },
+    } as never);
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
-        <View className="flex-row justify-between items-center">
-          <View>
-            <Text className="text-sub text-xs">阶段 {currentStage} · Lv{companionLv} · 坚持</Text>
-            <Text className="text-ink text-xl font-semibold mt-1">{robotName}</Text>
-          </View>
-        </View>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }}>
+        {/* 1. 周视图（stage 1 特有） */}
+        <WeekStrip
+          todayKey={todayKey}
+          todayMeals={todayMeals}
+          history={mealHistory}
+        />
 
+        {/* 2. 状态大标题 + Mascot（stage 1 调性） */}
         <View className="mt-5">
-          <WeekStrip
-            todayKey={todayKey}
-            todayMeals={todayMeals}
-            history={mealHistory}
-          />
+          <StatusTitle hp={hp} stage={1} />
         </View>
 
-        <View className="items-center mt-6 mb-4">
-          <Mascot hp={hp} stage={currentStage} size={160} />
-        </View>
+        {/* 3. HP 心形条 */}
+        <Card style={{ marginTop: 20 }}>
+          <Text className="text-sub text-xs mb-2">{robotName} 的体力</Text>
+          <HpHearts hp={hp} />
+        </Card>
 
-        <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4">
-          <Text className="text-ink text-base leading-6">
-            {greetingText}
+        {/* 4. 下一餐倒计时 */}
+        <MealCountdownCard
+          schedules={schedules}
+          todayMeals={todayMeals}
+          onCapture={onCaptureMeal}
+        />
+
+        {/* 5. 今日记录区 */}
+        <View className="mt-6 flex-row items-center justify-between">
+          <Text
+            className="font-semibold"
+            style={{ fontSize: 20, color: colors.ink.primary }}
+          >
+            今日记录
           </Text>
-          {showDisappearAlert && (
-            <Text className="text-bad text-xs mt-2">
-              （我现在有点没力气，能不能陪我吃一口？）
-            </Text>
-          )}
+          <Pressable onPress={() => router.push("/(main)/records" as never)}>
+            <Text className="text-sub text-sm">查看更多 ›</Text>
+          </Pressable>
         </View>
 
-        <View className="mt-4">
-          <HpBar hp={hp} />
+        {/*
+          TODO §11.K 第 7 项：dialogueHistory shape 升级（加 ts / hpDelta /
+          photoUri）后，把当天数据 map 成 RecordCard。当前空态。
+        */}
+        <View
+          className="mt-3 px-5 py-8 rounded-2xl items-center"
+          style={{
+            backgroundColor: colors.bg.card,
+            borderWidth: 1,
+            borderColor: colors.border.card,
+          }}
+        >
+          <Text style={{ fontSize: 28 }}>🍙</Text>
+          <Text className="text-sub text-sm mt-3 text-center">
+            今天还没有记录，等等就要吃饭啦！
+          </Text>
+          {false && <RecordCard text="" />}
         </View>
-
-        <Text className="text-ink text-base font-semibold mt-8 mb-3">今日三餐</Text>
-        <MealCard
-          slot="breakfast"
-          scheduledAt={schedules.breakfast}
-          status={todayMeals.breakfast}
-          onPress={() => onMealPress("breakfast")}
-        />
-        <MealCard
-          slot="lunch"
-          scheduledAt={schedules.lunch}
-          status={todayMeals.lunch}
-          onPress={() => onMealPress("lunch")}
-        />
-        <MealCard
-          slot="dinner"
-          scheduledAt={schedules.dinner}
-          status={todayMeals.dinner}
-          onPress={() => onMealPress("dinner")}
-        />
-
-        <Text className="text-sub text-xs mt-2">
-          tip：mock 版本——拍照只走一遍流程，不会真的上传服务器。
-        </Text>
       </ScrollView>
     </SafeAreaView>
   );

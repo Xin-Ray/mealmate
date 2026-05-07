@@ -487,3 +487,46 @@ dev panel 切 Stage 2 → 首页立刻切到全新 stage 2 视觉（条件渲染
 ### 仍待做
 
 - `Mascot.tsx` / `WeekStrip.tsx` / `HpBar.tsx` / `MealCard.tsx` 仍在 v0.3 老位置（HomeStage1 还在用），第 4 项 stage 1 主页 token 化时一并 review 是否迁 ui/
+
+---
+
+## v0.4 实施 #7 / §11.K 第 4 项：Stage 1 主页 token 化（2026-05-07）
+
+### HomeStage1 重写
+
+旧（v0.3 风格）：硬编码颜色 / 老 `<Mascot>` emoji / 老 `<HpBar>` / `pickDialogue` 选 mock greeting / 三餐 `<MealCard>` 列表 / 顶部 stage label + name + 设置按钮。
+
+新（v0.4 §11.C）：与 HomeStage2 共用 `ui/` 组件库。
+
+| 段 | 用什么 |
+|---|---|
+| 1. 周视图 7 天 | `<WeekStrip>`（保留 v0.3，stage 1 特有） |
+| 2. 状态大标题 + Mascot | `<StatusTitle hp={hp} stage={1} />` |
+| 3. HP 心形条 | `<Card>` + `<HpHearts hp={hp} />` |
+| 4. 倒计时卡 | `<MealCountdownCard>` |
+| 5. 今日记录 | `<RecordCard>`（数据接 §11.K 第 7 项；当前空态） |
+
+行数：~132 → ~85。
+
+删除：v0.3 的 LLM call / dialogueHistory mock greeting 拉取 / disappearWarning 提示 / `useEffect` LLM AbortController / 三餐 MealCard 列表 / header stage label 区。
+
+### `getHpBand(hp, stage)` 加 stage 参数
+
+`src/theme/hp.ts`：
+- 新建 `STAGE1_BAND_COPY: Record<HpBandKey, { title, subtitle, hint }>`，4 band 鼓励调性文案（⏳ 待 xin 复核，由 task 拟）
+- `STAGE1_MASCOT = require('full.png')`（4 band 都用满血形象兜底，等 stage 1 专属 mascot 画好再换）
+- `getHpBand(hp, stage = 2)`：stage=1 时把 base band 的 title/subtitle/hint/mascot 用 stage 1 那套覆盖；stage=2 不变（向后兼容）
+
+### `StatusTitle` 加 stage prop
+
+`Props: { hp: number; stage?: 1 \| 2 }`，默认 2。HomeStage1 传 `stage={1}`，HomeStage2 不传走默认。
+
+### 孤儿组件
+
+`HpBar.tsx` / `MealCard.tsx` 现在没有调用方。**本 commit 不删**（避免 diff 膨胀）— 第 10 项收尾时一并清掉。
+
+`Mascot.tsx` 仍被 `onboarding/name.tsx` + `(main)/stage2.tsx` 使用，保留。
+
+### dev panel 切 Stage 1 ↔ 2
+
+切 stage 时首页**视觉骨架完全一致**，差异只在：状态文案调性、是否显示体重、是否显示周视图。组件复用率显著提高。
