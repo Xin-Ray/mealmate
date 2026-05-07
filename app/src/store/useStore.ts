@@ -14,6 +14,8 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type {
+  FullnessRecord,
+  FullnessScore,
   MealSchedule,
   MealSlot,
   MealStatus,
@@ -52,6 +54,8 @@ type State = {
   weightHistory: WeightRecord[];
   // settings: 称重时是否跳过照片（默认 false，按 PRD 强制要求拍）
   skipWeightPhoto: boolean;
+  // 餐后饱腹度评分（PRD §11.D.1）
+  fullnessHistory: FullnessRecord[];
   dialogueHistory: string[]; // 最近 5 条 dialogue id
   disappearWarningLastShownAt: number | null; // ms timestamp
   onboardingDone: boolean;
@@ -78,11 +82,15 @@ type Actions = {
   addWeightRecord: (input: { kg: number; photoUri: string }) => void;
   setSkipWeightPhoto: (v: boolean) => void;
 
+  // 饱腹度（stage 1+2，§11.D.1）
+  addFullnessRecord: (input: { mealSlot: MealSlot; score: FullnessScore }) => void;
+
   // Dev-only：bypass 业务规则的直接 setter，仅在 __DEV__ 守卫的开发者面板里调用
   __dev_setHp: (n: number) => void;
   __dev_setStage: (s: 1 | 2) => void;
   __dev_resetToday: () => void;
   __dev_clearWeightHistory: () => void;
+  __dev_clearFullnessHistory: () => void;
 };
 
 const todayKey = () => {
@@ -107,6 +115,7 @@ const initialState: State = {
   mealHistory: {},
   weightHistory: [],
   skipWeightPhoto: false,
+  fullnessHistory: [],
   dialogueHistory: [],
   disappearWarningLastShownAt: null,
   onboardingDone: false,
@@ -209,30 +218,46 @@ export const useStore = create<State & Actions>()(
       },
       setSkipWeightPhoto: (v) => set({ skipWeightPhoto: v }),
 
+      addFullnessRecord: ({ mealSlot, score }) => {
+        const date = todayKey();
+        const recordedAt = Date.now();
+        const id = `${date}-${mealSlot}-${recordedAt}`;
+        set((s) => {
+          // 同 mealSlot+date 覆盖（每餐次每天一条）
+          const filtered = s.fullnessHistory.filter(
+            (r) => !(r.date === date && r.mealSlot === mealSlot)
+          );
+          const merged = [...filtered, { id, mealSlot, date, score, recordedAt }];
+          // 按 date 升序保留最近 90 天 × 3 餐 = 270 条上限
+          const sorted = merged.sort((a, b) => a.recordedAt - b.recordedAt);
+          const kept = sorted.length > 270 ? sorted.slice(-270) : sorted;
+          return { fullnessHistory: kept };
+        });
+      },
+
       __dev_setHp: (n) => set({ hp: clampHp(n) }),
       __dev_setStage: (s) => set({ currentStage: s }),
       __dev_resetToday: () =>
         set({ todayMeals: { ...FRESH_TODAY }, todayKey: todayKey() }),
       __dev_clearWeightHistory: () => set({ weightHistory: [] }),
+      __dev_clearFullnessHistory: () => set({ fullnessHistory: [] }),
     }),
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 2,
-      // v1（HP 0–15）→ v2（HP 0–100）：把老 hp 值乘 100/15 ≈ 6.67 放大
+      version: 3,
+      // v1 → v2: HP 0–15 → 0–100（× 100/15）
+      // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       migrate: (persistedState: unknown, version: number) => {
-        if (
-          version < 2 &&
-          persistedState &&
-          typeof persistedState === "object" &&
-          "hp" in persistedState &&
-          typeof (persistedState as { hp: unknown }).hp === "number"
-        ) {
-          const oldHp = (persistedState as { hp: number }).hp;
-          (persistedState as { hp: number }).hp = Math.max(
-            0,
-            Math.min(100, Math.round(oldHp * (100 / 15)))
-          );
+        if (!persistedState || typeof persistedState !== "object") {
+          return persistedState as State & Actions;
+        }
+        const ps = persistedState as Record<string, unknown>;
+        if (version < 2 && typeof ps.hp === "number") {
+          ps.hp = Math.max(0, Math.min(100, Math.round(ps.hp * (100 / 15))));
+        }
+        if (version < 3 && !Array.isArray(ps.fullnessHistory)) {
+          ps.fullnessHistory = [];
         }
         return persistedState as State & Actions;
       },

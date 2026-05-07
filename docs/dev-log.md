@@ -530,3 +530,36 @@ dev panel 切 Stage 2 → 首页立刻切到全新 stage 2 视觉（条件渲染
 ### dev panel 切 Stage 1 ↔ 2
 
 切 stage 时首页**视觉骨架完全一致**，差异只在：状态文案调性、是否显示体重、是否显示周视图。组件复用率显著提高。
+
+---
+
+## v0.4 实施 #8 / §11.K 第 5 项 Commit 1：records 数据层（2026-05-07）
+
+### types
+
+- `FullnessScore = 3 | 5 | 8`
+- `FullnessRecord = { id, mealSlot, date, score, recordedAt }`
+
+### store v2 → v3
+
+- 加 `fullnessHistory: FullnessRecord[]`
+- action `addFullnessRecord({ mealSlot, score })`：内部用 todayKey + Date.now() + 同 mealSlot+date 覆盖；上限 270 条（90 天 × 3 餐）
+- `__dev_clearFullnessHistory()` 给 dev panel
+- persist `version: 3` migrate：v2→v3 默认 `fullnessHistory=[]` 老用户兼容
+
+### feed selector
+
+`src/data/feed.ts` — `buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })` 返回 `FeedItem[]`，三种 kind：
+- `meal`：从 `todayMeals` 派生（done/missed），ts 用 `schedules[slot]` 转今天近似
+- `fullness`：从 `fullnessHistory` 当日过滤，ts=recordedAt
+- `dialogue`：留接口，shape 升级前不返回数据（第 7 项接）
+
+### dev panel
+
+加「清空饱腹度评分」按钮。
+
+### 仍待第 7 项
+
+- dialogueHistory shape（加 ts / hpDelta / photoUri）→ feed dialogue kind 真渲染
+- 餐后 photo 流走完后弹饱腹度评分（次入口）
+- 饱腹度的 mealSlot 精确关联当前/最近过期的 mealWindow（本项默认 lunch）

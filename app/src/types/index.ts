@@ -25,3 +25,14 @@ export type WeightRecord = {
   photoUri: string;   // 体重秤照片 URI；skipWeightPhoto 开关打开时为空字符串
   recordedAt: number; // ms timestamp，给 21:00 前判定用
 };
+
+// 餐后饱腹度评分（PRD §11.D.1 — v0.4 §5.3 简化为 3 选 1 离散值）
+export type FullnessScore = 3 | 5 | 8;
+
+export type FullnessRecord = {
+  id: string;            // 唯一 key，feed 渲染用
+  mealSlot: MealSlot;
+  date: string;          // YYYY-MM-DD，同 mealSlot+date 覆盖
+  score: FullnessScore;
+  recordedAt: number;    // ms timestamp
+};
