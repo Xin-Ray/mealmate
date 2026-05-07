@@ -299,3 +299,52 @@ xin 在 Xcode 里要做的：
 ### 已知未修（留给后续）
 
 - **dev panel 切 stage 2 后首页视觉不变**（xin 反馈）：当前切 stage 2 只影响 mascot 形象 + persistence，首页主体仍是 stage 1 视觉。**§11.K 第 3 项（Stage 2 主页重做）实施时天然解决**。本轮不动
+
+---
+
+## v0.4 实施 #3：Stage 2 主页重做（2026-05-01）
+
+### 改动结构
+
+`home.tsx` 简化为分发器（5 行）：
+
+```tsx
+return currentStage === 2 ? <HomeStage2 /> : <HomeStage1 />;
+```
+
+- `src/components/home/HomeStage1.tsx` — v0.3 主页主体抽出（视觉保持，第 4 项 token 化）
+- `src/components/home/HomeStage2.tsx` — 新建，按 §11.B 实现
+- `src/components/home/HpHearts.tsx` — 10 颗心横排
+- `src/theme/hp.ts` — v0.4 0–100 阈值 + 5 band + 缩放函数
+- `src/theme/tokens.ts` — 加 `brand.greenDark` (#3d683f) / `brand.greenSoft` (#8FAE75)
+
+### 三个技术决策（自行拍板，dev-log 留痕）
+
+#### 1. HP scale 0–15 vs 0–100 不一致 — 走显示缩放路线（C 路）
+store 当前 HP 仍是 0–15（v0.3 旧规则未 migrate）。但 PRD §11.B 用 0–100 阈值（满血≥80 / 平稳 60-79 / 欠佳 40-59 / 虚弱 20-39 / 濒临<20）。
+本项 stage 2 主页内部用 `hpToDisplay(hp) = round(hp / 15 * 100)` 缩放显示，按 0–100 算 band。
+
+**TODO §11.K 第 7 项（餐后 +5/-15）**：把 store HP scale 真正 migrate 到 0–100，届时移除 `hpToDisplay` 缩放，所有阈值直接用 raw HP。stage 1 的 `hpBandFromValue` (0–15 → 4 band) 同时迁移。
+
+#### 2. 今日记录区先空态
+`dialogueHistory: string[]` 当前是 ID 数组，无 timestamp / hpDelta / slot 关联。§11.B step 4 描述的卡片（时间 / 文案 / HP delta 标签 / 食物图缩略）所需字段不在当前 shape。
+
+本项实现完整 UI 骨架 + 空态分支（"今天还没有记录"）；卡片渲染推到 §11.K 第 7 项数据进来时。**不动 dialogueHistory shape**——第 7 项决定升级它还是新建字段。
+
+#### 3. expo-router typed routes 类型 stale
+`.expo/types/router.d.ts` 是 14 行 stub，未含新路由 records / stats / weight-entry。Metro 重启时 expo-router 会自动 regen，但本地 tsc 报错。HomeStage2 的 `router.push("/(main)/records" as never)` 用 `as never` 绕开。Metro 跑过一次后可以移除 cast。
+
+### Stage 2 主页元素（§11.B 全部落地）
+
+| 元素 | 状态 |
+|---|---|
+| 状态大标题（5 band 切换） + Mascot（stage=2） | ✅ |
+| HP 心形条（10 颗 ❤️/🤍 + X/100 数字） | ✅（按比例填充） |
+| 当前体重模块（最近 / diff / 时间 / ⚖️ icon） | ✅ 点击跳 weight-entry（已实现屏） |
+| 下一餐倒计时（窗内：到窗末 / 窗外：到下一餐窗起 / 跨日 → 明天早餐） | ✅ 每秒 tick |
+| "去拍照" CTA + alreadyDone 状态切换 | ✅ |
+| 今日记录区 + "查看更多 ›" → /records | ✅（空态） |
+
+### Stage 1 切 Stage 2 切换体验
+
+dev panel 切 Stage 2 → 首页立刻切到全新 stage 2 视觉（条件渲染就在 home.tsx 顶部）。v0.4 #2 留下的"切 stage 2 视觉问题"本项**已经解决**。

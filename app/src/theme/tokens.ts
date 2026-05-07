@@ -25,7 +25,9 @@ export const colors = {
   brand: {
     accent: "#FF8A4C",      // 现有橙（v0.1–v0.3 主 CTA）
     accentDark: "#E0723A",
-    green: "#60883b",       // v0.4 Figma 主色绿（待大面积应用）
+    green: "#60883b",       // v0.4 Figma 主色绿（CTA 主按钮）
+    greenDark: "#3d683f",   // 状态大标题色（深绿）
+    greenSoft: "#8FAE75",   // HP 心形填充色（浅绿）
     greenDim: "#8B9A7A",    // "状态不好"页主色 (§11.G)
   },
   status: {
