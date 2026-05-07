@@ -650,3 +650,51 @@ cd .. && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo run:ios
 - 跨 stage history 持久化（每次 advanceStage 记快照）
 - "近 5 个阶段" 切换器
 - 真平滑曲线（quadratic bezier 或 catmull-rom 插值），当前是直线段
+
+---
+
+## v0.4 实施 #11 / §11.K 第 7 项 Commit 1：dialogueHistory + mealHistory shape 升级（2026-05-07）
+
+### types
+
+- `MealRecord` — `{ id, date, mealSlot, status: 'done'|'missed', ts, hpDelta, photoUri? }`
+- `DialogueKind` — `'meal_done'|'meal_missed'|'encourage'|'remind'|'mock'`
+- `DialogueRecord` — `{ id, ts, body, kind, hpDelta?, mealSlot?, photoUri? }`
+
+### store v3 → v4
+
+- `state.dialogueHistory: string[]` → `DialogueRecord[]`，倒序，最多 50 条
+- `state.mealRecords: MealRecord[]` 新增（与 todayMeals 并存：todayMeals 给周视图用，mealRecords 给 feed 用）
+- `markMealDone(slot, options?: { photoUri? })` 升级：自动 push 一条 MealRecord
+- `markMealMissed(slot)` 同上（内部还会被 missed-scan 调，§11.K 第 7-3 项）
+- `pushDialogue(input: Omit<DialogueRecord, 'id'|'ts'>)` 接结构化对象
+- v3→v4 migrate：老 `dialogueHistory: string[]` 检测到首元素是 string 就丢成 `[]`（v0.4 不向后保留 dialogue 历史，可接受），加 `mealRecords: []`
+- 新加 `__dev_clearMealRecords` + `__dev_clearDialogueHistory`，settings dev panel 两个按钮
+
+### feed.ts
+
+- 输入：`{ todayKey, fullnessHistory, mealRecords, dialogueHistory }`（不再依赖 todayMeals + schedules）
+- meal kind：从 `mealRecords.filter(r => r.date === todayKey)` 派生，ts 精确
+- dialogue kind：实装！按 `dateKeyOf(record.ts) === todayKey` 过滤，渲染含 photoUri / hpDelta / body
+
+### RecordCard
+
+- dialogue kind 实装：左侧 photo / 🤖 缩略 + 时间 + body + hpDelta badge（如有）
+- meal kind 改用 `record.hpDelta` 而非硬编 +5/-10
+
+### photo.tsx 兼容更新
+
+- `markMealDone(realSlot, { photoUri })` 传 photoUri 进 store
+- `pushDialogue({ kind: 'mock', body, mealSlot })`（结构化对象）
+- pickDialogue 的 excludeIds 暂传 `dialogueHistory.map(d=>d.id)`，但新 record.id 与池 id 不重合 → dedup 失效（不影响用户感知，v0.5 加 sourceId 字段恢复）
+
+### records.tsx
+
+- `useStore` 选 `mealRecords` + `dialogueHistory`，传给 buildTodayFeed
+- 不再读 todayMeals/schedules 给 feed（todayMeals 只剩周视图用）
+
+### 仍待 §11.K 第 7-2 / 7-3
+
+- photo result phase 接 FullnessRatingPicker
+- 通过餐双消息（"太棒了..." + 鼓励）
+- missed-scan 自动扣分 + 双消息 + missed modal

@@ -36,3 +36,32 @@ export type FullnessRecord = {
   score: FullnessScore;
   recordedAt: number;    // ms timestamp
 };
+
+// 餐次记录（PRD §11.D.2 + §11.F）— 每次 markMealDone/Missed 落一条
+export type MealRecord = {
+  id: string;
+  date: string;          // YYYY-MM-DD
+  mealSlot: MealSlot;
+  status: "done" | "missed";
+  ts: number;            // 实际打卡 / 错过判定时间
+  hpDelta: number;       // 通过 +5 / 错过 -10（gentleMode -5）
+  photoUri?: string;
+};
+
+// 对话记录（PRD §11.F）— 每次推送鼓励/警示话落一条；feed 倒序展示
+export type DialogueKind =
+  | "meal_done"   // §11.F.1 第一条："太棒了！X 看起来不错"
+  | "meal_missed" // §11.F.2 第一条："你错过了一餐..."
+  | "encourage"   // §11.F.1 第二条 鼓励
+  | "remind"      // §11.F.2 第二条 "贵在坚持..."
+  | "mock";       // v0.3 mock dialogues 池里的过渡内容
+
+export type DialogueRecord = {
+  id: string;
+  ts: number;
+  body: string;
+  kind: DialogueKind;
+  hpDelta?: number;      // 仅与 HP 联动的卡片显示 badge
+  mealSlot?: MealSlot;
+  photoUri?: string;
+};

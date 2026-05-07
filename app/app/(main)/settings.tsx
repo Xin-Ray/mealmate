@@ -251,6 +251,26 @@ export default function SettingsScreen() {
               <Text className="text-ink">清空饱腹度评分</Text>
             </Pressable>
 
+            <Pressable
+              onPress={() => {
+                useStore.getState().__dev_clearMealRecords();
+                Alert.alert("已清空", "餐次记录历史已清空。");
+              }}
+              className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3"
+            >
+              <Text className="text-ink">清空餐次记录</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                useStore.getState().__dev_clearDialogueHistory();
+                Alert.alert("已清空", "对话历史已清空。");
+              }}
+              className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3"
+            >
+              <Text className="text-ink">清空对话历史</Text>
+            </Pressable>
+
             <Text className="text-ink text-sm mb-2">立即触发餐次提醒（5 秒后弹）</Text>
             <View className="flex-row gap-2 mb-3">
               {(["breakfast", "lunch", "dinner"] as MealSlot[]).map((s) => (

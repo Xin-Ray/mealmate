@@ -14,8 +14,10 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type {
+  DialogueRecord,
   FullnessRecord,
   FullnessScore,
+  MealRecord,
   MealSchedule,
   MealSlot,
   MealStatus,
@@ -56,7 +58,9 @@ type State = {
   skipWeightPhoto: boolean;
   // 餐后饱腹度评分（PRD §11.D.1）
   fullnessHistory: FullnessRecord[];
-  dialogueHistory: string[]; // 最近 5 条 dialogue id
+  // 餐次记录（v0.4 §11.D.2 / §11.F）— 每次 markMeal*/missed-scan 落一条
+  mealRecords: MealRecord[];
+  dialogueHistory: DialogueRecord[]; // 倒序时间排序，最多 50 条
   disappearWarningLastShownAt: number | null; // ms timestamp
   onboardingDone: boolean;
 };
@@ -68,11 +72,11 @@ type Actions = {
   finishOnboarding: () => void;
   rollDayIfNeeded: () => void;
 
-  markMealDone: (slot: MealSlot) => void;
+  markMealDone: (slot: MealSlot, options?: { photoUri?: string }) => void;
   markMealMissed: (slot: MealSlot) => void;
   advanceStage: () => void;
 
-  pushDialogue: (id: string) => void;
+  pushDialogue: (input: Omit<DialogueRecord, "id" | "ts">) => void;
   setDisappearWarningShown: () => void;
   canShowDisappearWarning: () => boolean;
 
@@ -91,6 +95,8 @@ type Actions = {
   __dev_resetToday: () => void;
   __dev_clearWeightHistory: () => void;
   __dev_clearFullnessHistory: () => void;
+  __dev_clearMealRecords: () => void;
+  __dev_clearDialogueHistory: () => void;
 };
 
 const todayKey = () => {
@@ -116,6 +122,7 @@ const initialState: State = {
   weightHistory: [],
   skipWeightPhoto: false,
   fullnessHistory: [],
+  mealRecords: [],
   dialogueHistory: [],
   disappearWarningLastShownAt: null,
   onboardingDone: false,
@@ -156,13 +163,25 @@ export const useStore = create<State & Actions>()(
         }
       },
 
-      markMealDone: (slot) => {
+      markMealDone: (slot, options) => {
         const s = get();
         if (s.todayMeals[slot] === "done") return;
         const newHp = clampHp(s.hp + HP_MEAL_PHOTO_GAIN);
+        const ts = Date.now();
+        const date = s.todayKey;
+        const record: MealRecord = {
+          id: `meal-${date}-${slot}-${ts}`,
+          date,
+          mealSlot: slot,
+          status: "done",
+          ts,
+          hpDelta: HP_MEAL_PHOTO_GAIN,
+          photoUri: options?.photoUri,
+        };
         set({
           hp: newHp,
           todayMeals: { ...s.todayMeals, [slot]: "done" },
+          mealRecords: [...s.mealRecords, record],
         });
         if (newHp >= HP_MAX && s.currentStage === 1) {
           // 满 HP → 推进阶段（Stage 2 占位页）
@@ -176,17 +195,35 @@ export const useStore = create<State & Actions>()(
         const delta = s.gentleMode
           ? -HP_MEAL_MISSED_LOSS / 2
           : -HP_MEAL_MISSED_LOSS;
+        const ts = Date.now();
+        const date = s.todayKey;
+        const record: MealRecord = {
+          id: `meal-${date}-${slot}-${ts}`,
+          date,
+          mealSlot: slot,
+          status: "missed",
+          ts,
+          hpDelta: delta,
+        };
         set({
           hp: clampHp(s.hp + delta),
           todayMeals: { ...s.todayMeals, [slot]: "missed" },
+          mealRecords: [...s.mealRecords, record],
         });
       },
 
       advanceStage: () =>
         set((s) => ({ currentStage: s.currentStage === 1 ? 2 : s.currentStage })),
 
-      pushDialogue: (id) =>
-        set((s) => ({ dialogueHistory: [id, ...s.dialogueHistory].slice(0, 5) })),
+      pushDialogue: (input) =>
+        set((s) => {
+          const ts = Date.now();
+          const id = `dlg-${ts}-${Math.random().toString(36).slice(2, 8)}`;
+          const record: DialogueRecord = { id, ts, ...input };
+          // 倒序：新的在前，最多保留 50 条
+          const merged = [record, ...s.dialogueHistory].slice(0, 50);
+          return { dialogueHistory: merged };
+        }),
 
       setDisappearWarningShown: () =>
         set({ disappearWarningLastShownAt: Date.now() }),
@@ -241,13 +278,16 @@ export const useStore = create<State & Actions>()(
         set({ todayMeals: { ...FRESH_TODAY }, todayKey: todayKey() }),
       __dev_clearWeightHistory: () => set({ weightHistory: [] }),
       __dev_clearFullnessHistory: () => set({ fullnessHistory: [] }),
+      __dev_clearMealRecords: () => set({ mealRecords: [] }),
+      __dev_clearDialogueHistory: () => set({ dialogueHistory: [] }),
     }),
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 3,
+      version: 4,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
+      // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢，转空）；加 mealRecords []
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as State & Actions;
@@ -258,6 +298,19 @@ export const useStore = create<State & Actions>()(
         }
         if (version < 3 && !Array.isArray(ps.fullnessHistory)) {
           ps.fullnessHistory = [];
+        }
+        if (version < 4) {
+          // 旧 dialogueHistory 是 string[]（dialogue ID 数组），新 shape 不兼容 → 丢
+          if (
+            !Array.isArray(ps.dialogueHistory) ||
+            (ps.dialogueHistory.length > 0 &&
+              typeof ps.dialogueHistory[0] === "string")
+          ) {
+            ps.dialogueHistory = [];
+          }
+          if (!Array.isArray(ps.mealRecords)) {
+            ps.mealRecords = [];
+          }
         }
         return persistedState as State & Actions;
       },

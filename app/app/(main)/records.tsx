@@ -17,9 +17,9 @@ const DEFAULT_FULLNESS_SLOT = "lunch" as const;
 
 export default function RecordsScreen() {
   const todayKey = useStore((s) => s.todayKey);
-  const todayMeals = useStore((s) => s.todayMeals);
-  const schedules = useStore((s) => s.mealSchedules);
   const fullnessHistory = useStore((s) => s.fullnessHistory);
+  const mealRecords = useStore((s) => s.mealRecords);
+  const dialogueHistory = useStore((s) => s.dialogueHistory);
   const addFullnessRecord = useStore((s) => s.addFullnessRecord);
 
   // 今天该 slot 已选的 score（用于回填选中态）
@@ -31,11 +31,11 @@ export default function RecordsScreen() {
     () =>
       buildTodayFeed({
         todayKey,
-        todayMeals,
-        schedules,
         fullnessHistory,
+        mealRecords,
+        dialogueHistory,
       }),
-    [todayKey, todayMeals, schedules, fullnessHistory]
+    [todayKey, fullnessHistory, mealRecords, dialogueHistory]
   );
 
   const onSelectFullness = (score: FullnessScore) => {

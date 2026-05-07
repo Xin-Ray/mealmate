@@ -55,22 +55,25 @@ export default function PhotoScreen() {
   };
 
   // preview → 用户点"确定" → 进 uploading → 模拟上传 → result
+  // 注：本 commit (#7-1) 仅做 shape 升级，把 pushDialogue 调整为新 shape；
+  //     完整双消息 + fullness 接入留 #7-2。
   const onConfirm = () => {
     setPhase("uploading");
     setTimeout(async () => {
-      markMealDone(realSlot);
+      markMealDone(realSlot, { photoUri: imageUri ?? undefined });
       const afterHp = useStore.getState().hp;
       const stage = useStore.getState().currentStage;
       const band = hpBandFromValue(afterHp);
 
       // 先用 mock fallback 占位（保证 UI 不空），再异步去拉 LLM
-      const picked = pickDialogue(band, realSlot, dialogueHistory);
-      if (picked) {
-        pushDialogue(picked.id);
-        setLine(picked.text);
-      } else {
-        setLine("谢谢你陪我一起吃饭。");
-      }
+      const picked = pickDialogue(band, realSlot, dialogueHistory.map((d) => d.id));
+      const bodyMock = picked?.text ?? "谢谢你陪我一起吃饭。";
+      pushDialogue({
+        kind: "mock",
+        body: bodyMock,
+        mealSlot: realSlot,
+      });
+      setLine(bodyMock);
       setPhase("result");
 
       // LLM 升级：结合 stage × HP × meal_done 生成更生动的鼓励

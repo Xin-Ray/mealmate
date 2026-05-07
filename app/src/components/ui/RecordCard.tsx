@@ -30,29 +30,90 @@ const SCORE_EMOJI: Record<3 | 5 | 8, string> = {
 
 export default function RecordCard({ item }: Props) {
   if (item.kind === "dialogue") {
-    // TODO §11.K 第 7 项：dialogueHistory shape 升级后实装
-    return null;
-  }
-
-  if (item.kind === "meal") {
-    const isDone = item.status === "done";
-    const text = isDone
-      ? `${SLOT_LABEL[item.slot]} 已完成 ✓`
-      : `${SLOT_LABEL[item.slot]} 错过了`;
-    const hpDelta = isDone ? 5 : -10; // §11.F.1 / §11.F.2 默认值；真实数据待第 7 项
+    const r = item.record;
     return (
       <Card style={{ marginBottom: 8 }}>
         <View className="flex-row items-start gap-3">
-          <View
-            className="items-center justify-center rounded-xl"
-            style={{
-              width: 48,
-              height: 48,
-              backgroundColor: colors.bg.hpEmpty,
-            }}
-          >
-            <Text style={{ fontSize: 22 }}>{isDone ? "🍽️" : "💤"}</Text>
+          {r.photoUri ? (
+            <Image
+              source={{ uri: r.photoUri }}
+              style={{ width: 48, height: 48, borderRadius: 12 }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              className="items-center justify-center rounded-xl"
+              style={{
+                width: 48,
+                height: 48,
+                backgroundColor: colors.bg.hpEmpty,
+              }}
+            >
+              <Text style={{ fontSize: 22 }}>🤖</Text>
+            </View>
+          )}
+          <View className="flex-1">
+            <Text className="text-sub text-xs">{fmtTime(item.ts)}</Text>
+            <Text
+              className="text-ink text-base mt-0.5"
+              style={{ lineHeight: 22 }}
+            >
+              {r.body}
+            </Text>
           </View>
+          {r.hpDelta !== undefined && r.hpDelta !== 0 && (
+            <View
+              className="px-2 py-1 rounded-full"
+              style={{
+                backgroundColor:
+                  r.hpDelta > 0
+                    ? `${colors.status.ok}33`
+                    : `${colors.status.bad}33`,
+              }}
+            >
+              <Text
+                className="text-xs font-semibold"
+                style={{
+                  color: r.hpDelta > 0 ? colors.status.ok : colors.status.bad,
+                }}
+              >
+                血量{r.hpDelta > 0 ? "+" : ""}
+                {r.hpDelta}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Card>
+    );
+  }
+
+  if (item.kind === "meal") {
+    const r = item.record;
+    const isDone = r.status === "done";
+    const text = isDone
+      ? `${SLOT_LABEL[r.mealSlot]} 已完成 ✓`
+      : `${SLOT_LABEL[r.mealSlot]} 错过了`;
+    return (
+      <Card style={{ marginBottom: 8 }}>
+        <View className="flex-row items-start gap-3">
+          {r.photoUri ? (
+            <Image
+              source={{ uri: r.photoUri }}
+              style={{ width: 48, height: 48, borderRadius: 12 }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              className="items-center justify-center rounded-xl"
+              style={{
+                width: 48,
+                height: 48,
+                backgroundColor: colors.bg.hpEmpty,
+              }}
+            >
+              <Text style={{ fontSize: 22 }}>{isDone ? "🍽️" : "💤"}</Text>
+            </View>
+          )}
           <View className="flex-1">
             <Text className="text-sub text-xs">{fmtTime(item.ts)}</Text>
             <Text
@@ -66,7 +127,7 @@ export default function RecordCard({ item }: Props) {
             className="px-2 py-1 rounded-full"
             style={{
               backgroundColor:
-                hpDelta > 0
+                r.hpDelta > 0
                   ? `${colors.status.ok}33`
                   : `${colors.status.bad}33`,
             }}
@@ -74,11 +135,11 @@ export default function RecordCard({ item }: Props) {
             <Text
               className="text-xs font-semibold"
               style={{
-                color: hpDelta > 0 ? colors.status.ok : colors.status.bad,
+                color: r.hpDelta > 0 ? colors.status.ok : colors.status.bad,
               }}
             >
-              血量{hpDelta > 0 ? "+" : ""}
-              {hpDelta}
+              血量{r.hpDelta > 0 ? "+" : ""}
+              {r.hpDelta}
             </Text>
           </View>
         </View>
