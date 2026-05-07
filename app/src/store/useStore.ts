@@ -86,6 +86,9 @@ type Actions = {
   addWeightRecord: (input: { kg: number; photoUri: string }) => void;
   setSkipWeightPhoto: (v: boolean) => void;
 
+  // 标记某条 missed record 已被用户确认（home incomplete 卡 / missed modal "我知道了"）
+  acknowledgeMissedMeal: (slot: MealSlot, date: string) => void;
+
   // 饱腹度（stage 1+2，§11.D.1）
   addFullnessRecord: (input: { mealSlot: MealSlot; score: FullnessScore }) => void;
 
@@ -255,6 +258,18 @@ export const useStore = create<State & Actions>()(
       },
       setSkipWeightPhoto: (v) => set({ skipWeightPhoto: v }),
 
+      acknowledgeMissedMeal: (slot, date) =>
+        set((s) => ({
+          mealRecords: s.mealRecords.map((r) =>
+            r.date === date &&
+            r.mealSlot === slot &&
+            r.status === "missed" &&
+            !r.acknowledged
+              ? { ...r, acknowledged: true }
+              : r
+          ),
+        })),
+
       addFullnessRecord: ({ mealSlot, score }) => {
         const date = todayKey();
         const recordedAt = Date.now();
@@ -284,10 +299,12 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 4,
+      version: 5,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
-      // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢，转空）；加 mealRecords []
+      // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
+      // v4 → v5: MealRecord 加可选 acknowledged 字段（缺失视为 false，无需主动写入；
+      //          bump version 让仪表板更清晰）
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as State & Actions;
@@ -300,7 +317,6 @@ export const useStore = create<State & Actions>()(
           ps.fullnessHistory = [];
         }
         if (version < 4) {
-          // 旧 dialogueHistory 是 string[]（dialogue ID 数组），新 shape 不兼容 → 丢
           if (
             !Array.isArray(ps.dialogueHistory) ||
             (ps.dialogueHistory.length > 0 &&
@@ -312,6 +328,7 @@ export const useStore = create<State & Actions>()(
             ps.mealRecords = [];
           }
         }
+        // v4 → v5: noop（acknowledged 缺失自动 undefined → 视为未确认）
         return persistedState as State & Actions;
       },
     }

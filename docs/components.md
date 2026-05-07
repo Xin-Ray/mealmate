@@ -98,25 +98,55 @@
 
   显示：`X.X kg` 大字 + `对比上次 ±X.X kg · MM-DD HH:mm` 副标 + ⚖️ icon。空态："还没有记录哦"。
 
-### MealCountdownCard
+### MealCountdownCard ⚠️ deprecated
 
 - 文件：`app/src/components/ui/MealCountdownCard.tsx`
-- 来自：抽自 HomeStage2 倒计时卡
-- Figma：1:171 倒计时区
-- 用在：HomeStage2
+- v0.4 hotfix（2026-05-07）后**已停用**：HomeStage1/2 改用 `<HomeMealStatusSlot>` +
+  `<MealReminderCard>` + `<MealIncompleteCard>` 三态生命周期管理。
+- 文件保留作历史参考；如确认无引用，下次清理可删。
+
+### MealReminderCard
+
+- 文件：`app/src/components/ui/MealReminderCard.tsx`
+- 来自：v0.4 hotfix（2026-05-07）按 Figma 12:119
+- 用在：`<HomeMealStatusSlot>`（条件分支）
 - Props:
 
   | name | type | required | 说明 |
   |---|---|---|---|
-  | schedules | MealSchedule | ✓ | 三餐时间，从 store 读 |
-  | todayMeals | TodayMeals | ✓ | 今日完成状态，决定 alreadyDone |
-  | onCapture | (slot: MealSlot) => void | ✓ | 点 "去拍照" 时调用 |
+  | slot | MealSlot | ✓ | 早 / 午 / 晚 |
+  | windowEnd | Date | ✓ | 倒计时目标（窗末） |
+  | onPressGoPhoto | () => void | ✓ | 点 "去拍照" 触发 |
 
-  内部 `setInterval(1000)` tick + `getMealWindowState`：
-  - 窗内 → "X时间到啦" + 倒计时到窗末
-  - 窗外今日 → "距离 X 还有" + 倒计时到下一餐窗起
-  - 今日三餐都过 → "明天早餐" + 倒计时到明日窗起
-  - alreadyDone 时 PrimaryButton disabled "已记录 ✓"
+  视觉：浅米黄底（`#FBFAF1`） + 浅绿边（`#E2E8CF`） + 30 圆角；标题 "{slot}时间到啦!" 24pt；mascot reminder.png；倒计时 36pt `#3A6436`；CTA 73 高 `#60883B` bg；底部小字提示。
+
+### MealIncompleteCard
+
+- 文件：`app/src/components/ui/MealIncompleteCard.tsx`
+- 来自：v0.4 hotfix 按 Figma 10:116
+- 用在：`<HomeMealStatusSlot>`（条件分支）
+- Props:
+
+  | name | type | required | 说明 |
+  |---|---|---|---|
+  | slot | MealSlot | ✓ | 错过的那一餐 |
+  | onAcknowledge | () => void | ✓ | 点 "我知道了" 触发，应调 `acknowledgeMissedMeal` |
+
+  视觉：暖白底（`#FEFBF6`） + 浅橙边（`#FDE7D4`） + 23 圆角；橘色警示标题 "未完成（血量大幅减少）"；mascot missed.png；红色 "-10" badge `#F16758`；CTA 50 高 `#508729` bg "我知道了"。
+
+### HomeMealStatusSlot
+
+- 文件：`app/src/components/home/HomeMealStatusSlot.tsx`
+- 来自：v0.4 hotfix
+- 用在：HomeStage1 / HomeStage2 第二板块
+- 无 props；内部读 store + selectors
+
+  渲染规则：
+  1. `selectActiveReminderSlot` 命中 → `<MealReminderCard>`
+  2. 否则 `selectUnackMissedSlot` 命中 → `<MealIncompleteCard>`
+  3. 否则 `null`（首页该位置不占空间）
+
+  selectors 在 `src/store/selectors/reminder.ts`，配合 store action `acknowledgeMissedMeal`。
 
 ### RecordCard
 

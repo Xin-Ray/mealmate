@@ -4,11 +4,10 @@ import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
 import HpHeartsCard from "@src/components/ui/HpHeartsCard";
 import StatusTitle from "@src/components/ui/StatusTitle";
-import MealCountdownCard from "@src/components/ui/MealCountdownCard";
+import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import EmptyRecord from "@src/components/ui/EmptyRecord";
 import WeekStrip from "@src/components/WeekStrip";
 import { colors } from "@src/theme/tokens";
-import type { MealSlot } from "@src/types";
 
 // Stage 1 主页（v0.4 §11.C）：与 Stage 2 共用 ui/ 组件库。
 // 差异：① 状态文案用 stage 1 调性（getHpBand(hp, 1)），mascot 用 full.png 兜底
@@ -21,14 +20,6 @@ export default function HomeStage1() {
   const todayMeals = useStore((s) => s.todayMeals);
   const todayKey = useStore((s) => s.todayKey);
   const mealHistory = useStore((s) => s.mealHistory);
-  const schedules = useStore((s) => s.mealSchedules);
-
-  const onCaptureMeal = (slot: MealSlot) => {
-    router.push({
-      pathname: "/(modal)/photo",
-      params: { slot },
-    } as never);
-  };
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
@@ -50,12 +41,10 @@ export default function HomeStage1() {
           <HpHeartsCard hp={hp} />
         </View>
 
-        {/* 4. 下一餐倒计时 */}
-        <MealCountdownCard
-          schedules={schedules}
-          todayMeals={todayMeals}
-          onCapture={onCaptureMeal}
-        />
+        {/* 4. 提醒卡（active reminder / missed incomplete / 隐藏 三态） */}
+        <View style={{ marginTop: 16 }}>
+          <HomeMealStatusSlot />
+        </View>
 
         {/* 5. 今日记录区 */}
         <View className="mt-6 flex-row items-center justify-between">

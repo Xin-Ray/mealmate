@@ -5,6 +5,11 @@ import PrimaryButton from "@src/components/ui/PrimaryButton";
 import { colors } from "@src/theme/tokens";
 import type { MealSchedule, MealSlot, TodayMeals } from "@src/types";
 
+// @deprecated v0.4 hotfix（2026-05-07）：HomeStage1/2 改用 <HomeMealStatusSlot> +
+// <MealReminderCard> + <MealIncompleteCard> 三态生命周期管理。本组件保留作历史
+// 参考（pre-hotfix 行为：始终显示，含"已记录 ✓" disabled 态）；如确认无引用，
+// 下次清理可删。
+//
 // 下一餐倒计时卡（HomeStage2 用）。
 // 内部计算 meal window（settings 提醒时间 ±90min, PRD §11.F.3）+ 每秒 tick。
 //   窗内 → "X时间到啦" + 倒计时到窗末

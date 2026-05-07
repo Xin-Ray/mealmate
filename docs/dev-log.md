@@ -897,3 +897,55 @@ HomeStage2 视觉跟 Figma 完全错位：
 
 - critical mascot 是裁出来的（524×392 vs 另 3 张 524×461），高度不一致；contain 模式吸收差异但视觉上 critical hero 显得矮一截。等 xin 在 Figma 给 critical 的 ip 子组（或者就接受当前留白）
 - 心形 svg path 用经典 24×24 viewBox + 缩放到 20×18，可能跟 Figma 的心形 path 形状不完全一致（pixel-perfect 留 v0.5 精对齐）
+
+---
+
+## v0.4 hotfix #2：提醒卡生命周期（2026-05-07）
+
+### 现象（xin 反馈）
+
+之前 `<MealCountdownCard>` 永远显示，包括拍完照后还显示"已记录 ✓"占位（不对）。
+错过餐没有专属"未完成卡 + 我知道了"流程。
+
+### 修法
+
+#### Store v4 → v5
+
+- `MealRecord` 加 `acknowledged?: boolean`（仅 status='missed' 用）
+- 新 action `acknowledgeMissedMeal(slot, date)` — 把 mealRecords 里匹配的 missed 记录标 acked
+- persist v5 migrate noop（缺失字段自动 undefined）
+
+#### selectors `src/store/selectors/reminder.ts`
+
+- `selectActiveReminderSlot({ schedules, mealRecords, todayKey }, now?)` — 当前在某 slot 窗口（90min）内 + 今日未 done → 返回 `{ slot, windowEnd }`；否则 null
+- `selectUnackMissedSlot({ mealRecords })` — 找最近一条 status='missed' 且未 ack → 返回 `{ slot, date }`；否则 null
+
+#### 新组件
+
+- `<MealReminderCard>` — 按 Figma 12:119（active 提醒卡）
+- `<MealIncompleteCard>` — 按 Figma 10:116（未完成卡 + 我知道了）
+- `<HomeMealStatusSlot>` — 容器，跑 selectors 决定 active / incomplete / null
+
+#### HomeStage1 + HomeStage2
+
+- 删 `<MealCountdownCard>` 引用 + 相关 `schedules` / `onCaptureMeal` 局部 state
+- 用 `<HomeMealStatusSlot />` 替代
+
+#### Modal 入口
+
+- `(modal)/meal-missed.tsx` 内 "我知道了" 也调 `acknowledgeMissedMeal`，跟首页 incomplete 卡同步 ack 状态。modal 现作为通知点击的次入口。
+
+#### MealCountdownCard 标 deprecated
+
+文件保留 + 顶部加 `@deprecated` 注释。无引用，下次清理可删。
+
+### 行为时序
+
+```
+窗口 [start, end] 内未 done    → MealReminderCard（倒计时）
+窗口 [start, end] 内 done       → 隐藏（拍完照立刻消失）
+窗口结束未 done + 未 ack         → MealIncompleteCard
+窗口结束未 done + 已 ack         → 隐藏
+```
+
+missed-scan 触发的 markMealMissed 不影响 ack 状态（默认 false）—— 用户从 home 卡或 modal 点"我知道了"才标 ack。

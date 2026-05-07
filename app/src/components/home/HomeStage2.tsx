@@ -4,11 +4,10 @@ import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
 import HpHeartsCard from "@src/components/ui/HpHeartsCard";
 import WeightCard from "@src/components/ui/WeightCard";
-import MealCountdownCard from "@src/components/ui/MealCountdownCard";
+import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import EmptyRecord from "@src/components/ui/EmptyRecord";
 import { getHpBand } from "@src/theme/hp";
 import { colors } from "@src/theme/tokens";
-import type { MealSlot } from "@src/types";
 
 // Stage 2 主页（v0.4 §11.B）：状态区 / HP 心形 / 体重 / 倒计时 / 今日记录
 // 本屏纯组装，所有 UI 模块抽到 src/components/ui/。
@@ -16,21 +15,12 @@ import type { MealSlot } from "@src/types";
 export default function HomeStage2() {
   const router = useRouter();
   const hp = useStore((s) => s.hp);
-  const todayMeals = useStore((s) => s.todayMeals);
-  const schedules = useStore((s) => s.mealSchedules);
   const weightHistory = useStore((s) => s.weightHistory);
 
   const band = getHpBand(hp);
   const lastWeight = weightHistory[weightHistory.length - 1];
   const prevWeight =
     weightHistory.length >= 2 ? weightHistory[weightHistory.length - 2] : undefined;
-
-  const onCaptureMeal = (slot: MealSlot) => {
-    router.push({
-      pathname: "/(modal)/photo",
-      params: { slot },
-    } as never);
-  };
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
@@ -64,12 +54,10 @@ export default function HomeStage2() {
           onPress={() => router.push("/(modal)/weight-entry" as never)}
         />
 
-        {/* 3. 下一餐倒计时 */}
-        <MealCountdownCard
-          schedules={schedules}
-          todayMeals={todayMeals}
-          onCapture={onCaptureMeal}
-        />
+        {/* 3. 提醒卡（active reminder / missed incomplete / 隐藏 三态） */}
+        <View style={{ marginTop: 16 }}>
+          <HomeMealStatusSlot />
+        </View>
 
         {/* 4. 今日记录 */}
         <View className="mt-6 flex-row items-center justify-between">

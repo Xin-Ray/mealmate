@@ -46,6 +46,9 @@ export type MealRecord = {
   ts: number;            // 实际打卡 / 错过判定时间
   hpDelta: number;       // 通过 +5 / 错过 -10（gentleMode -5）
   photoUri?: string;
+  // status='missed' 用：用户在 home 上点过"我知道了" / missed modal "我知道了"。
+  // 用来决定"未完成卡"是否还显示。done 状态忽略此字段。
+  acknowledged?: boolean;
 };
 
 // 对话记录（PRD §11.F）— 每次推送鼓励/警示话落一条；feed 倒序展示
