@@ -1202,3 +1202,40 @@ HP 47 / low band：
 - ✅ 心形浮卡自带 bg + border，bottom 跨出 mascot card 16pt
 - ✅ 9 颗心 + "还有 5 个" + "47/100" 保持
 - ⚠️ 副作用：title overlay 末字（"啊" / "顿"）与 mascot 头发位置重叠，可读性略差。`maxWidth: '55%'` 让文字延伸到 hero 宽度 55% 处，跟 mascot 角色头部重叠。下次 hotfix 视情况调（缩 maxWidth 到 45% / 加 textShadow / 缩短 hint）
+
+---
+
+## v0.4 hotfix #9：HomeStage2 hero mascot 缩到 60%（2026-05-07）
+
+xin 反馈 hero IP 太大。范围最终收窄到**只**改 HomeStage2 hero 的 mascot Image。
+
+### 改动（1 行 effective）
+
+`HomeStage2.tsx` hero `<Image>`：
+- 旧：`right:0 top:0 bottom:0 aspectRatio: band.mascotAspect`（撑满 hero 高度）
+- 新：`right:0 bottom:0 width: '60%' aspectRatio: band.mascotAspect`（hero 右下角占 60% 宽，aspectRatio 推 height）
+
+hero 容器 aspectRatio 524/461 不变（card 整体高度保持）。mascot 只占 hero 内 60% 宽 × 对应 aspect 高，貼右下，左上腾出大块空白给文字 overlay。
+
+### 顺带解决 hotfix #7 留账
+
+之前 `maxWidth:55%` overlay 文字延到 mascot 头发位置，"啊"/"顿"末字跟头发重叠。mascot 现在缩到右下，文字左上完全独立，**重叠问题自然消失**，可读性 OK。
+
+### 不动的（xin 范围明确收窄）
+
+- ❌ TodayRecordRow 头像 60×60
+- ❌ MealReminderCard reminder.png 78×71
+- ❌ MealIncompleteCard missed.png 84×76
+- ❌ HomeStage1 StatusTitle mascot 130×130
+- ❌ Tab bar icon 28×28
+- ❌ HpHeartsContent 心形 28×25 + divider
+- ❌ 文字 fontSize
+
+### simulator 自截验证（`/tmp/mealmate-hero60-v6.png`）
+
+HP 50 / stable band 落屏（HP 因 missed-scan 又跑了一次，从 47 又减下来；测试时碰巧到 50 stable）：
+- ✅ "轻微疲惫"/"能量不足"/"需要好好补充" 文字左上 clean，无重叠
+- ✅ stable.png mascot 在 hero 右下角 60% 大小，完整显示（角色 + 围裙 + 飘叶子局部）
+- ✅ hero card aspectRatio 不变，整体高度跟 hotfix #7 一样
+- ✅ 心形浮卡（5 实心 + 4 空心 + "还有 4 个" + 50/100）跨 mascot 底沿保持
+- ✅ 其它板块未受影响
