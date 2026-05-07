@@ -39,14 +39,14 @@ export default function HomeStage2() {
               position: "relative",
             }}
           >
-            {/* mascot 缩到 60%：宽度 hero 60% + 右下贴底（hero 容器 aspectRatio 不动） */}
+            {/* mascot 缩到原始 90%：宽度 hero 90% + 右下贴底（hero 容器 aspectRatio 不动） */}
             <Image
               source={band.mascot}
               style={{
                 position: "absolute",
                 right: 0,
                 bottom: 0,
-                width: "60%",
+                width: "90%",
                 aspectRatio: band.mascotAspect,
               }}
               resizeMode="contain"
