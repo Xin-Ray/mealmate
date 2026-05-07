@@ -427,33 +427,32 @@ selector：`buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })
 
 顶部「我今天吃饭的饱腹感」模块：如果今日已答则显示选项 + 当前选中（同 mealSlot+date 可改选 → 覆盖）。
 
-### 11.E 统计页面（`(main)/stats`，按 Figma 1:458）
+### 11.E 统计页面（`(main)/stats`，按 Figma 1:458 — v0.4 hotfix#12 重写）
 
 两张图表纵向：
 
 #### 11.E.1 爱心变化趋势
 
-- X 轴：阶段 1/3/5/8/10（与 5 档一致）+ 对应 HP band 标签
+- X 轴：**记录时间**（实际产生 HP 变更的日期），按时间序均匀分布，标签 `MM-DD`
 - Y 轴：爱心数量 0–12（颗，对齐 §11.B HP 心形条单位）
-- 每阶段一个数据点，标注当时达到的 HP/10 值
-- 「近 5 个阶段 / 全部」切换（v0.4 暂只做"全部"，预留 prop）
+- 数据点：每条 HP 变更（meal_done / missed / weight reward）一个实心圆 + 当时爱心数
 
 #### 11.E.2 体重变化趋势
 
-- X 轴同上（按阶段）
+- X 轴：**记录时间**（每条 weightHistory 的 date），按时间序均匀分布，标签 `MM-DD`
 - Y 轴：kg（自动 min-max 缩放）
-- 每阶段平均/最后体重作为数据点
+- 数据点：每条体重记录一个实心圆 + 当日 kg 值
 
-**实现方案**：装 `react-native-svg@15.12.1`（v0.4 §11.K 第 6 项引入）。`<TrendChart>` 用 `<Path>` 直线段连相邻有效点 + `<Circle>` 散点 + `<SvgText>` 标签 + 虚线 Y 轴格线。
+**实现方案**：`react-native-svg@15.12.1`（v0.4 §11.K 第 6 项引入）。`<TrendChart>` 用 `<Path>` 直线段连相邻数据点 + `<Circle>` 散点 + `<SvgText>` 标签 + 虚线 Y 轴格线 + MM-DD X 轴标签（最多 6 个，多于则等距抽样）。
 
-**稀疏数据降级**（v0.4 用户大多数据稀疏）：
-- 0 个有效点 → 全部空心圆（虚线描边）
-- 1 个有效点 → 一个实心圆 + "再坚持几天就能看到趋势啦~" 提示
-- ≥ 2 → 实心圆 + 直线段连接（跳过 null 点）
+**空/稀疏数据**：
+- 0 个数据点 → 中央空态文案（"暂无数据，开始记录就能看到趋势啦~" 或自定义 `emptyText`），**不画任何空心圆 / 虚线占位**
+- 1 个数据点 → 一个实心圆 + "再坚持几天就能看到趋势啦~" 提示
+- ≥ 2 → 实心圆 + 直线段连接
 
-**切换器** "近 5 个阶段" 当前 disabled，留 v0.5。
+**切换器** v0.4 移除（之前的 "近 5 个阶段" pill）；v0.5 想加"按阶段 / 按日期"切换器留 TODO。
 
-**stage history 持久化**：v0.4 selectors 仅当前 `currentStage` 有数据，其他 stage 返回 `null`。每次 `advanceStage` 时记 peakHp + 平均体重快照到 store 留 v0.5。
+**HP 时间序列持久化**：v0.4 store 只存当前 hp，没 hpHistory，所以爱心图永远走空态（`emptyText="爱心趋势记录功能开发中..."`）。v0.5 加 `hpHistory: { date, hp, ts }[]` 持久化字段，每次 `markMealDone` / `markMealMissed` / 体重 reward 时落一条 → `selectHpTimeline` 直接读。
 
 ### 11.F 餐后消息生成规则（v0.4 核心业务规则，新增）
 
