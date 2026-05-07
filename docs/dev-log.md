@@ -992,3 +992,38 @@ continues to use `<RecordCard>`（独立单卡，mascot 在卡内左侧）。两
 - records tab 录一条 → 切回 home → "今日记录"立刻多一条 ✅
 - 拍餐 → 自动 push meal + 双 dialogue → home "今日记录"显示 3 条预览（dialogue encourage / dialogue meal_done / meal）+ "查看更多 ›" 跳 records tab 看完整 feed
 - 选饱腹度（records tab）→ home 多一条 "今日饱腹度 X/10"
+
+---
+
+## v0.4 hotfix #4：底部 tab icon 全用 Figma 资源（2026-05-07）
+
+### 现状（xin 反馈）
+
+4 个底部 tab 中只有"首页"是绿色叶子（Figma），其它 3 个用了 React Navigation 默认 / 通用图标，跟 Figma 1:420 完整 tab bar icon 库不一致。
+
+### 资源
+
+`app/assets/tab-icons/` 新增 8 张 PNG（实心选中 / 线框未选中）：
+
+| 文件 | Figma node-id | 尺寸 | md5 (前 8) |
+|---|---|---|---|
+| home-on.png | 12:179 | 139×139 | 7b34b9dd |
+| home-off.png | 12:162 | 132×136 | d2273c31 |
+| records-on.png | 12:176 | 143×143 | 5281a32d |
+| records-off.png | 12:159 | 132×136 | a1259e46 |
+| stats-on.png | 12:173 | 126×130 | 6e887886 |
+| stats-off.png | 12:156 | 130×130 | 91f12115 |
+| my-on.png | 12:170 | 123×139 | 99fc098a |
+| my-off.png | 12:153 | 117×133 | c61fb7ff |
+
+8 张 md5 全异。
+
+### `(main)/_layout.tsx` 改造
+
+- 引入 `Image` + `ImageSourcePropType`，每 tab 用 `tabBarIcon: ({ focused }) => <Image source={focused ? on : off} 28×28 contain />`
+- `tabBarActiveTintColor` 改为 `#3A6436`（深绿，与 stage 2 倒计时数字色同源）
+- `tabBarInactiveTintColor` 改为 `#B4B4B4`（灰）
+- `tabBarLabelStyle.fontSize = 12`
+- 路由名 `settings` 不改（v0.4 #2 决定保留），label 显 "我的"，icon 用 my-on/off
+
+ICON 字典 + `renderIcon(name)` curry 闭包让 4 个 Screen 一致引用，没有重复 inline JSX。
