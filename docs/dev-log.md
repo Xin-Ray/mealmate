@@ -409,3 +409,33 @@ dev panel 切 Stage 2 → 首页立刻切到全新 stage 2 视觉（条件渲染
 历史曲折：第一次拿到 4 张 band mascot ID 都返回同一张占位 PNG（md5 一致）；xin 在 Figma 重新合并/拆分后给了 4 个新 node-id（5:45 / 5:14 / 1:305 / 1:332），重下 md5 全不同 ✅。
 
 **未接入**：HomeStage2 仍用 `<Mascot stage={2}>` emoji 占位。HP 阈值表（hp.ts 的 `HP_BANDS`）也未按新心数划分（xin 提到 8-10/5-7/2-4/1，与 v0.4 §11.B 当前 ≥80 / 50-80 / 30-50 / <30 略有差别），等 xin 给完整文案 + 阈值后整合接入。
+
+---
+
+## v0.4 实施 #5 / Commit B：HomeStage2 接真 mascot + 4 band 文案最终化（2026-05-07）
+
+### HP_BANDS 最终阈值（xin 拍板）
+
+| band | HP（闭区间） | 大标题 | mascot |
+|---|---|---|---|
+| full | 80–100 | 精力十足 | full.png |
+| stable | 50–79 | 轻微疲惫 | stable.png |
+| low | 20–49 | 残血状态 | low.png |
+| critical | 0–19 | 濒临耗尽 | critical.png |
+
+变化点（vs v0.4 实施 #4 暂定）：
+- low 下限 30 → **20**
+- critical 上限 <30 → **0–19**
+- full title 「满血状态」 → 「精力十足」
+- 区间从开/闭混合统一改为**闭区间**（max=100/79/49/19，无 gap）
+- `HP_BANDS` 每条加 `mascot: ImageSourcePropType` 字段（require Figma export PNG）
+
+### HomeStage2 改动
+
+- `<Mascot hp={hp} stage={2} size={110} />`（emoji 占位）→ `<Image source={band.mascot} style={{width:130,height:130}} resizeMode="contain" />`
+- mascot 用 `getHpBand(hp).mascot` 实时切换（dev panel 切 HP 立刻看效果）
+- Mascot 组件本身保留（HomeStage1 还在用，第 4 项 token 化时再处理）
+
+### HP_LOW_THRESHOLD 现状
+
+保留在 `hp.ts` 仍为 30，与 4 band 的 critical 上限 (19) 不一致。语义独立：HP_LOW_THRESHOLD 给后续 missed-check / 提醒触发等更宽阈值场景；UI 显示按 4 band 走。§11.K 第 7 项实施 missed-check 时再 review 是否对齐 20。

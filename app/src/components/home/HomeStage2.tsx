@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, Pressable, ScrollView } from "react-native";
+import { View, Text, Pressable, ScrollView, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
-import Mascot from "@src/components/Mascot";
 import HpHearts from "@src/components/home/HpHearts";
 import { getHpBand } from "@src/theme/hp";
 import { colors } from "@src/theme/tokens";
@@ -179,7 +178,11 @@ export default function HomeStage2() {
               {hint}
             </Text>
           </View>
-          <Mascot hp={hp} stage={2} size={110} />
+          <Image
+            source={band.mascot}
+            style={{ width: 130, height: 130 }}
+            resizeMode="contain"
+          />
         </View>
 
         {/* HP 心形条卡片 */}
