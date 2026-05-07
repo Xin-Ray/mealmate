@@ -857,3 +857,43 @@ settings.tsx 全屏重写：
 外加：HP 标度 0-15→0-100（`7973745`） / 真 mascot 接入（`22c7638`） / 组件库抽出（`7834de0`） / mascot 资源入库（`b8279c8`） / docs 测试清单（`6d2785e`）
 
 下一步：xin 重 build + 走 v0.4-test-plan 全套测试 → v0.5 大门（LLM worker 代理 / stage history 持久化 / 真平滑曲线 / Figma 像素对齐）
+
+---
+
+## v0.4 hotfix：HomeStage2 hero 区按 Figma 修正（2026-05-07）
+
+### 现象（xin 反馈）
+
+HomeStage2 视觉跟 Figma 完全错位：
+- Figma 设计：顶部一整块大 hero 卡（524×461 PNG，背景 + mascot + 标题/副标 baked 在图里），下面**独立**一个心形条卡
+- 之前实现：`<StatusTitle>` 把 title/subtitle 用 RN Text 渲染在左侧，**整张 Figma frame 当成 130×130 小缩略图塞在右上角**（成了"卡片套小卡片"）；心形条用红色 emoji ❤️/🤍
+
+### 根因
+
+之前下载的 4 张 mascot PNG 是 557×553，**含 HP 卡片在底部**（不是 mascot-only）。视觉上当成"图标"塞 StatusTitle 是误用。
+
+### 修法
+
+1. **重下 4 张 mascot-only PNG**（524×461，无 HP 卡片）：
+   - `full.png` (Figma 5:46 ip 子组)、`stable.png` (5:15)、`low.png` (5:11) — curl 下载
+   - `critical.png` — Figma 没单独 ip 子组，用 `sips --cropToHeightWidth 392 524` 把现有 critical.png（含 HP 卡）顶部 mascot 区裁出
+   - 4 张 md5 全异 ✅，全合法 PNG。critical 比另 3 张矮（392 vs 461）—— hero card aspectRatio=524/461 + contain 模式自动留白吸收差异
+2. **HomeStage2 hero 重写**：
+   - 删 `<StatusTitle hp={hp} stage={2} />` 引用（不再渲染文字 + 小图）
+   - 改成 hero card：`<View>` + `<Image source={band.mascot} style={{ width: '100%', aspectRatio: 524/461 }} resizeMode="contain" />`
+   - 卡片样式：`bg.card` + `border.card` 1px + 30 圆角 + `overflow: hidden`
+3. **`HpHearts` → `HpHeartsCard`**（重命名 + 升级）：
+   - emoji ❤️/🤍 → react-native-svg `<Path>` 心形
+   - 满心填充 `colors.brand.greenSoft` (#8FAE75)；空心 `#D8E0CA`
+   - 右侧 X/100 18pt semibold `colors.brand.green`
+   - 自带 `<Card>` 包装（HomeStage1/2 不再需要外层 Card）
+4. **HomeStage1 同步用 `HpHeartsCard`**：删了之前内嵌的 "Apig 的体力" 头标题（`robotName` 也不再需要 selector，删 hook）；StatusTitle 在 HomeStage1 仍保留（左标题右小图布局这屏没变）
+
+### docs
+
+- `components.md`：HpHearts 条目 → HpHeartsCard，附 svg 心形说明；StatusTitle 备注"v0.4 hotfix 后 HomeStage2 不再用"
+
+### ⏳ 待 xin 复核
+
+- critical mascot 是裁出来的（524×392 vs 另 3 张 524×461），高度不一致；contain 模式吸收差异但视觉上 critical hero 显得矮一截。等 xin 在 Figma 给 critical 的 ip 子组（或者就接受当前留白）
+- 心形 svg path 用经典 24×24 viewBox + 缩放到 20×18，可能跟 Figma 的心形 path 形状不完全一致（pixel-perfect 留 v0.5 精对齐）

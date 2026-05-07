@@ -1,13 +1,12 @@
-import { ScrollView, View, Text, Pressable } from "react-native";
+import { ScrollView, View, Text, Pressable, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
-import Card from "@src/components/ui/Card";
-import HpHearts from "@src/components/ui/HpHearts";
-import StatusTitle from "@src/components/ui/StatusTitle";
+import HpHeartsCard from "@src/components/ui/HpHeartsCard";
 import WeightCard from "@src/components/ui/WeightCard";
 import MealCountdownCard from "@src/components/ui/MealCountdownCard";
 import EmptyRecord from "@src/components/ui/EmptyRecord";
+import { getHpBand } from "@src/theme/hp";
 import { colors } from "@src/theme/tokens";
 import type { MealSlot } from "@src/types";
 
@@ -17,11 +16,11 @@ import type { MealSlot } from "@src/types";
 export default function HomeStage2() {
   const router = useRouter();
   const hp = useStore((s) => s.hp);
-  const robotName = useStore((s) => s.robotName);
   const todayMeals = useStore((s) => s.todayMeals);
   const schedules = useStore((s) => s.mealSchedules);
   const weightHistory = useStore((s) => s.weightHistory);
 
+  const band = getHpBand(hp);
   const lastWeight = weightHistory[weightHistory.length - 1];
   const prevWeight =
     weightHistory.length >= 2 ? weightHistory[weightHistory.length - 2] : undefined;
@@ -36,14 +35,27 @@ export default function HomeStage2() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }}>
-        {/* 1. 状态大标题 + Mascot */}
-        <StatusTitle hp={hp} />
+        {/* 1. Hero 卡：整张 mascot 图（按 Figma，含 baked 标题/副标/装饰） */}
+        <View
+          style={{
+            backgroundColor: colors.bg.card,
+            borderColor: colors.border.card,
+            borderWidth: 1,
+            borderRadius: 30,
+            overflow: "hidden",
+          }}
+        >
+          <Image
+            source={band.mascot}
+            style={{ width: "100%", aspectRatio: 524 / 461 }}
+            resizeMode="contain"
+          />
+        </View>
 
-        {/* HP 心形条 */}
-        <Card style={{ marginTop: 20 }}>
-          <Text className="text-sub text-xs mb-2">{robotName} 的体力</Text>
-          <HpHearts hp={hp} />
-        </Card>
+        {/* 2. HP 心形条独立卡 */}
+        <View style={{ marginTop: 16 }}>
+          <HpHeartsCard hp={hp} />
+        </View>
 
         {/* 2. 当前体重 */}
         <WeightCard

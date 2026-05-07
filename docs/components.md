@@ -45,18 +45,23 @@
 
   视觉：bg `colors.brand.green` (#60883b) / 白字 / 16 圆角 / py=16；disabled 时 bg=`hpEmpty`/字色=`sub`/opacity 0.6
 
-### HpHearts
+### HpHeartsCard
 
-- 文件：`app/src/components/ui/HpHearts.tsx`
-- 来自：v0.4 §11.B step 1 起原生新建
-- 用在：HomeStage2 HP 心形条卡片
+- 文件：`app/src/components/ui/HpHeartsCard.tsx`
+- 来自：v0.4 hotfix（HomeStage2 hero 修正）— 由 HpHearts 升级而来：emoji ❤️/🤍 → svg `<Path>` 心形 + Card 包装
+- 用在：HomeStage1 / HomeStage2 共用
 - Props:
 
   | name | type | required | 说明 |
   |---|---|---|---|
   | hp | number | ✓ | 0–100 |
 
-  10 颗心横排 + 右侧 X/100 数字。简化：满心 ❤️ / 空心 🤍（>=50% 显示满心）。
+  视觉：10 颗 svg 心形 + 右侧 `X/100` 数字（18pt semibold `colors.brand.green`）。
+  - 满心填充 `colors.brand.greenSoft` (#8FAE75)
+  - 空心填充 `#D8E0CA`（轮廓更浅）
+  - 简化：>=50% 视为满心（半填先不画，v0.5 上线前打磨）
+
+  自带 `<Card>` 包装（无需外层再包卡片）。
 
 ---
 
@@ -67,7 +72,7 @@
 - 文件：`app/src/components/ui/StatusTitle.tsx`
 - 来自：抽自 HomeStage2 顶部状态区
 - Figma：4 band 主形象帧 (5:45 / 5:14 / 1:305 / 1:332)
-- 用在：HomeStage2 / HomeStage1
+- 用在：HomeStage1（v0.4 hotfix 后 HomeStage2 不再用——改用整张 Figma hero PNG，文案 baked 在图里）
 - Props:
 
   | name | type | required | 说明 |

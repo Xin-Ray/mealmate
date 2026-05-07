@@ -2,8 +2,7 @@ import { ScrollView, View, Text, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
-import Card from "@src/components/ui/Card";
-import HpHearts from "@src/components/ui/HpHearts";
+import HpHeartsCard from "@src/components/ui/HpHeartsCard";
 import StatusTitle from "@src/components/ui/StatusTitle";
 import MealCountdownCard from "@src/components/ui/MealCountdownCard";
 import EmptyRecord from "@src/components/ui/EmptyRecord";
@@ -19,7 +18,6 @@ import type { MealSlot } from "@src/types";
 export default function HomeStage1() {
   const router = useRouter();
   const hp = useStore((s) => s.hp);
-  const robotName = useStore((s) => s.robotName);
   const todayMeals = useStore((s) => s.todayMeals);
   const todayKey = useStore((s) => s.todayKey);
   const mealHistory = useStore((s) => s.mealHistory);
@@ -48,10 +46,9 @@ export default function HomeStage1() {
         </View>
 
         {/* 3. HP 心形条 */}
-        <Card style={{ marginTop: 20 }}>
-          <Text className="text-sub text-xs mb-2">{robotName} 的体力</Text>
-          <HpHearts hp={hp} />
-        </Card>
+        <View style={{ marginTop: 20 }}>
+          <HpHeartsCard hp={hp} />
+        </View>
 
         {/* 4. 下一餐倒计时 */}
         <MealCountdownCard
