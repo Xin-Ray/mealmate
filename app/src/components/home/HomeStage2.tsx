@@ -1,8 +1,8 @@
-import { ScrollView, View, Image, Text } from "react-native";
+import { ScrollView, View, Image, Text, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
-import HpHeartsCard from "@src/components/ui/HpHeartsCard";
+import HpHeartsContent from "@src/components/ui/HpHeartsContent";
 import WeightCard from "@src/components/ui/WeightCard";
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
@@ -25,7 +25,7 @@ export default function HomeStage2() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }}>
-        {/* 1. Hero 卡：上半截左文右图 + 下半截心形条（同一 card） */}
+        {/* 1. Hero 卡：上半 mascot 全铺 + 文字 overlay；下半 心形条 */}
         <View
           style={{
             backgroundColor: colors.bg.card,
@@ -35,31 +35,38 @@ export default function HomeStage2() {
             overflow: "hidden",
           }}
         >
+          {/* 上半：mascot 铺满 + 文字 absolute overlay 在左上 */}
           <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingHorizontal: 20,
-              paddingTop: 24,
-              paddingBottom: 20,
-            }}
+            style={{ position: "relative", aspectRatio: band.mascotAspect }}
           >
-            <View style={{ flex: 1, paddingRight: 8 }}>
+            <Image
+              source={band.mascot}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+            />
+            <View
+              style={{
+                position: "absolute",
+                top: 22,
+                left: 22,
+                right: 180, // 给右侧 mascot 头部留空间
+              }}
+            >
               <Text
                 style={{
-                  fontSize: 28,
+                  fontSize: 30,
                   fontWeight: "600",
                   color: "#3D683F",
-                  lineHeight: 34,
+                  lineHeight: 36,
                 }}
               >
                 {band.title}
               </Text>
               <Text
                 style={{
-                  fontSize: 15,
+                  fontSize: 16,
                   color: "#6E6F6C",
-                  marginTop: 8,
+                  marginTop: 10,
                   lineHeight: 22,
                 }}
               >
@@ -67,7 +74,7 @@ export default function HomeStage2() {
               </Text>
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: 15,
                   color: "#666663",
                   marginTop: 4,
                   lineHeight: 20,
@@ -76,21 +83,17 @@ export default function HomeStage2() {
                 {band.hint}
               </Text>
             </View>
-            <Image
-              source={band.mascot}
-              style={{ width: 160, aspectRatio: band.mascotAspect }}
-              resizeMode="contain"
-            />
           </View>
+
+          {/* 下半：心形条完整 3 段（按 Figma 22:3） */}
           <View
             style={{
-              borderTopWidth: 1,
-              borderTopColor: "#E8EFD9",
-              paddingHorizontal: 20,
-              paddingVertical: 16,
+              paddingHorizontal: 16,
+              paddingTop: 14,
+              paddingBottom: 16,
             }}
           >
-            <HpHeartsCard hp={hp} embedded />
+            <HpHeartsContent hp={hp} />
           </View>
         </View>
 

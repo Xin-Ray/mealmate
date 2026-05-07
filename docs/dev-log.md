@@ -1063,3 +1063,47 @@ xin 拍板：以后视觉 hotfix 必须 task **simulator 自截 + Read 视觉对
 ### HomeStage1 不动
 
 保持 StatusTitle + 旁边小 mascot 布局（与 Stage 2 不同），HomeStage1 文字独立块。
+
+---
+
+## v0.4 hotfix #6：hero overlap 布局 + 心形条按 Figma 22:3（2026-05-07）
+
+### 起因
+
+xin 反馈 hotfix #5 (`94bb259`) 的 hero 还是不对：
+1. 当时是 row 布局（左文 flex:1 + 右 mascot 160 宽），mascot 没"铺满"hero 上半部分
+2. 心形条还是简洁版（只有心 + X/100），缺 Figma 22:3 设计的 3 段结构（心形 / 4px 分隔 / hint+数字）
+
+### 修法
+
+#### `src/components/ui/HpHeartsContent.tsx` 新建
+
+按 Figma 22:3 完整 3 段：
+- 10 颗 svg `<Path>` 心形（26×24，row + `justify-between` 自动均匀分布），满心 `#8FAE75` / 空心 `#D8E0CA`
+- `height: 4` 浅色分隔线 `#E8EFD9`
+- 左 "还有 X 个爱心即可晋级下一个阶段"（13pt #747571）+ 右 "X/100"（18pt medium #8FAE75）
+  - X = `Math.ceil((100 - hp) / 10)`
+
+`HpHeartsCard`（hotfix #4 加 embedded prop 那个）保留 — HomeStage1 仍用简洁版。两个组件并存：
+- `HpHeartsCard`：HomeStage1 用，简洁（心 + X/100，无 hint 行）
+- `HpHeartsContent`：HomeStage2 hero 内嵌完整版（3 段）
+
+#### `HomeStage2` hero 重写
+
+- 上半截：`<View aspectRatio: band.mascotAspect position: relative>`
+  - `<Image source={band.mascot} StyleSheet.absoluteFillObject resizeMode="cover" />`（mascot 全铺）
+  - `<View position: absolute top: 22 left: 22 right: 180>` 文字 overlay
+    - title 30pt #3D683F semibold
+    - subtitle 16pt #6E6F6C
+    - hint 15pt #666663
+- 下半截：`paddingHorizontal: 16 paddingVertical: 14-16` + `<HpHeartsContent hp={hp} />`
+
+整张 hero card 30 圆角 + bg.card + border.card 1px + overflow:hidden。
+
+### simulator 自截验证（`/tmp/mealmate-stage2-hero-v3.png`）
+
+HP 47 / low band 落屏：
+- ✅ mascot（绿围裙小人 + 飘叶子）铺满 hero 上半部分，不再是缩小图标
+- ✅ "残血状态" / "感觉不太好啊" / "好想吃上下一顿" overlay 在左上，深绿字色 vs 浅绿叶子背景可读性 OK
+- ✅ 下方 10 颗心（4 实心 + 6 空心）+ 4px 分隔 + "还有 6 个爱心即可晋级下一个阶段" + "47/100" 绿色数字
+- ✅ 同一 hero card 30 圆角统一
