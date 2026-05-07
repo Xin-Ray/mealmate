@@ -1,13 +1,13 @@
-import { ScrollView, View, Image, Text } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { useStore } from "@src/store/useStore";
-import HpHeartsContent from "@src/components/ui/HpHeartsContent";
-import WeightCard from "@src/components/ui/WeightCard";
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
+import HpHeartsContent from "@src/components/ui/HpHeartsContent";
+import WeightCard from "@src/components/ui/WeightCard";
+import { useStore } from "@src/store/useStore";
 import { getHpBand } from "@src/theme/hp";
 import { colors } from "@src/theme/tokens";
+import { useRouter } from "expo-router";
+import { Image, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // Stage 2 主页（v0.4 §11.B）：状态区 / HP 心形 / 体重 / 倒计时 / 今日记录
 // 本屏纯组装，所有 UI 模块抽到 src/components/ui/。
@@ -40,17 +40,34 @@ export default function HomeStage2() {
             }}
           >
             {/* mascot 缩到原始 90%：宽度 hero 90% + 右下贴底（hero 容器 aspectRatio 不动） */}
-            <Image
-              source={band.mascot}
+            <View
               style={{
                 position: "absolute",
+                left: 0,
                 right: 0,
-                bottom: 0,
-                width: "90%",
-                aspectRatio: band.mascotAspect,
+                top: 0,
+                // bottom: 0,
+                justifyContent: "center",
+                alignItems: "center",
               }}
-              resizeMode="contain"
-            />
+            >
+              <View
+                style={{
+                  width: "100%",
+                  aspectRatio: band.mascotAspect,
+                  transform: [{ translateY: 0 }],
+                }}
+              >
+                <Image
+                  source={band.mascot}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
             {/* 文字 overlay 左上 */}
             <View
               style={{

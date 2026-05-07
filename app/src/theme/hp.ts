@@ -43,7 +43,7 @@ export const HP_BANDS: readonly HpBandSpec[] = [
     min: 0, max: 19, key: "critical",
     title: "濒临耗尽", subtitle: "快撑不住了", hint: "吃点东西吧",
     mascot: require("../../assets/mascot/critical.png"),
-    mascotAspect: 524 / 392, // sips 裁出，Figma 没单独 ip 子组
+    mascotAspect: 524 / 416, // Figma 1:357 专属 ip 子组（hotfix #9 替换）
   },
 ];
 
