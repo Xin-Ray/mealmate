@@ -22,34 +22,34 @@ const HEART_PATH =
 const HEART_FILL = colors.brand.greenSoft;
 const HEART_EMPTY = "#D8E0CA";
 
-type Props = { hp: number };
+type Props = {
+  hp: number;
+  /** true 时不渲染外层 <Card>，直接 inline 给上层容器（HomeStage2 hero card 内嵌用） */
+  embedded?: boolean;
+};
 
-export default function HpHeartsCard({ hp }: Props) {
+export default function HpHeartsCard({ hp, embedded = false }: Props) {
   const fills = hpHeartsFill(hp);
   const clamped = Math.max(0, Math.min(100, hp));
-  return (
-    <Card>
-      <View className="flex-row items-center justify-between">
-        <View className="flex-row gap-1">
-          {fills.map((f, i) => (
-            <Svg key={i} width={20} height={18} viewBox="0 0 24 24">
-              <Path
-                d={HEART_PATH}
-                fill={f >= 0.5 ? HEART_FILL : HEART_EMPTY}
-              />
-            </Svg>
-          ))}
-        </View>
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: "600",
-            color: colors.brand.green,
-          }}
-        >
-          {clamped}/100
-        </Text>
+  const inner = (
+    <View className="flex-row items-center justify-between">
+      <View className="flex-row gap-1">
+        {fills.map((f, i) => (
+          <Svg key={i} width={20} height={18} viewBox="0 0 24 24">
+            <Path d={HEART_PATH} fill={f >= 0.5 ? HEART_FILL : HEART_EMPTY} />
+          </Svg>
+        ))}
       </View>
-    </Card>
+      <Text
+        style={{
+          fontSize: 18,
+          fontWeight: "600",
+          color: colors.brand.green,
+        }}
+      >
+        {clamped}/100
+      </Text>
+    </View>
   );
+  return embedded ? inner : <Card>{inner}</Card>;
 }

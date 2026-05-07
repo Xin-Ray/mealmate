@@ -1027,3 +1027,39 @@ continues to use `<RecordCard>`（独立单卡，mascot 在卡内左侧）。两
 - 路由名 `settings` 不改（v0.4 #2 决定保留），label 显 "我的"，icon 用 my-on/off
 
 ICON 字典 + `renderIcon(name)` curry 闭包让 4 个 Screen 一致引用，没有重复 inline JSX。
+
+---
+
+## v0.4 hotfix #5：HomeStage2 hero card 合并 + 文字回归（2026-05-07）
+
+### 起因
+
+xin 反馈之前 hotfix #2 把 hero（mascot 大图）和心形条拆成两个独立 card，跟 Figma df8b0448 设计错位（设计上是同一个 rounded card）。下载新的 mascot-only ip 子组 PNG 后又发现：ip 子组**只**含 mascot，没 baked 文字层，删 `<StatusTitle>` 后 Stage 2 主页失去状态文字。
+
+### 修法（B 路：RN Text overlay 回归）
+
+`HomeStage2` hero card 内部布局：
+- 外层 `<View>`：bg.card / border.card 1px / 30 圆角 / overflow:hidden
+- 上半截 `flexDirection: 'row'`：
+  - 左 column flex:1：title 28pt #3D683F semibold / subtitle 15pt #6E6F6C / hint 14pt #666663（按 Figma 字号比例缩到 simulator viewport，~390/524 系数）
+  - 右 mascot Image width=160 + `aspectRatio: band.mascotAspect`
+- 下半截：浅绿 `#E8EFD9` 1px divider + `<HpHeartsCard hp={hp} embedded />`
+
+`HpHeartsCard` 加的 `embedded` prop（hotfix #4 已加）此处复用：embedded=true 时不渲染外层 Card，让 hero card 直接作为容器。
+
+### simulator 自截验证
+
+- HP 47 / low band 落屏：mascot=low.png，标题"残血状态"，副标"感觉不太好啊"，hint"好想吃上下一顿"
+- 同一 card 内左文右图 + 下方心形条 47/100（4 实心 + 6 空心） + 47/100 数字
+- 整张 hero 边界统一 30 圆角，跟 Figma 对得上
+- 副 confirm：incomplete 卡 / 今日记录 TodayRecordRow / 4 tab Figma icon 全部在工作
+
+### 流程升级（task 自验工作流）
+
+xin 拍板：以后视觉 hotfix 必须 task **simulator 自截 + Read 视觉对比 Figma** 才能 push（不光 tsc 通过就 commit）。
+
+本次首次落地：`xcrun simctl boot/openurl/io booted screenshot` + computer-use MCP 走 onboarding + 后台 expo run:ios 触发首次 simulator build（svg 没 cache 用了 ~30 分钟）。后续视觉 hotfix 走 reload（terminate+openurl）就够了，不重 build。
+
+### HomeStage1 不动
+
+保持 StatusTitle + 旁边小 mascot 布局（与 Stage 2 不同），HomeStage1 文字独立块。

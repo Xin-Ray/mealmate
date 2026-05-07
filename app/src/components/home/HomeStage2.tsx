@@ -1,4 +1,4 @@
-import { ScrollView, View, Image } from "react-native";
+import { ScrollView, View, Image, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
@@ -25,7 +25,7 @@ export default function HomeStage2() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }}>
-        {/* 1. Hero 卡：整张 mascot 图（按 Figma，含 baked 标题/副标/装饰） */}
+        {/* 1. Hero 卡：上半截左文右图 + 下半截心形条（同一 card） */}
         <View
           style={{
             backgroundColor: colors.bg.card,
@@ -35,16 +35,63 @@ export default function HomeStage2() {
             overflow: "hidden",
           }}
         >
-          <Image
-            source={band.mascot}
-            style={{ width: "100%", aspectRatio: 524 / 461 }}
-            resizeMode="contain"
-          />
-        </View>
-
-        {/* 2. HP 心形条独立卡 */}
-        <View style={{ marginTop: 16 }}>
-          <HpHeartsCard hp={hp} />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 20,
+              paddingTop: 24,
+              paddingBottom: 20,
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text
+                style={{
+                  fontSize: 28,
+                  fontWeight: "600",
+                  color: "#3D683F",
+                  lineHeight: 34,
+                }}
+              >
+                {band.title}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 15,
+                  color: "#6E6F6C",
+                  marginTop: 8,
+                  lineHeight: 22,
+                }}
+              >
+                {band.subtitle}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#666663",
+                  marginTop: 4,
+                  lineHeight: 20,
+                }}
+              >
+                {band.hint}
+              </Text>
+            </View>
+            <Image
+              source={band.mascot}
+              style={{ width: 160, aspectRatio: band.mascotAspect }}
+              resizeMode="contain"
+            />
+          </View>
+          <View
+            style={{
+              borderTopWidth: 1,
+              borderTopColor: "#E8EFD9",
+              paddingHorizontal: 20,
+              paddingVertical: 16,
+            }}
+          >
+            <HpHeartsCard hp={hp} embedded />
+          </View>
         </View>
 
         {/* 2. 当前体重 */}

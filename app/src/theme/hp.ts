@@ -14,6 +14,8 @@ export type HpBandSpec = {
   subtitle: string;
   hint: string;
   mascot: ImageSourcePropType;
+  /** mascot PNG 实际宽高比（width/height）。critical 是 sips 裁的不等高，单独标。 */
+  mascotAspect: number;
 };
 
 // 4 档（v0.4 §11.B Figma 标注，2026-05-07 xin 拍板最终阈值 + 文案）
@@ -23,21 +25,25 @@ export const HP_BANDS: readonly HpBandSpec[] = [
     min: 80, max: 100, key: "full",
     title: "精力十足", subtitle: "活力满满", hint: "认真吃好每一餐",
     mascot: require("../../assets/mascot/full.png"),
+    mascotAspect: 524 / 461, // Figma ip 子组
   },
   {
     min: 50, max: 79, key: "stable",
     title: "轻微疲惫", subtitle: "能量不足", hint: "需要好好补充",
     mascot: require("../../assets/mascot/stable.png"),
+    mascotAspect: 524 / 461,
   },
   {
     min: 20, max: 49, key: "low",
     title: "残血状态", subtitle: "感觉不太好啊", hint: "好想吃上下一顿",
     mascot: require("../../assets/mascot/low.png"),
+    mascotAspect: 524 / 461,
   },
   {
     min: 0, max: 19, key: "critical",
     title: "濒临耗尽", subtitle: "快撑不住了", hint: "吃点东西吧",
     mascot: require("../../assets/mascot/critical.png"),
+    mascotAspect: 524 / 392, // sips 裁出，Figma 没单独 ip 子组
   },
 ];
 
@@ -68,7 +74,8 @@ export function getHpBand(hp: number, stage: 1 | 2 = 2): HpBandSpec {
   }
   if (stage === 1) {
     const copy = STAGE1_BAND_COPY[base.key];
-    return { ...base, ...copy, mascot: STAGE1_MASCOT };
+    // STAGE1_MASCOT 是 full.png（524/461），覆盖 base.mascotAspect 保持一致
+    return { ...base, ...copy, mascot: STAGE1_MASCOT, mascotAspect: 524 / 461 };
   }
   return base;
 }
