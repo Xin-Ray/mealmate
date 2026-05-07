@@ -10,19 +10,17 @@ export default function HpHearts({ hp }: Props) {
   const fills = hpHeartsFill(hp);
   const clamped = Math.max(0, Math.min(100, hp));
   return (
-    <View>
-      <View className="flex-row items-center justify-between">
-        <View className="flex-row gap-0.5">
-          {fills.map((f, i) => (
-            <Text key={i} style={{ fontSize: 22 }}>
-              {f >= 0.5 ? "❤️" : "🤍"}
-            </Text>
-          ))}
-        </View>
-        <Text className="text-ink text-base font-semibold">
-          {clamped}/100
-        </Text>
+    <View className="flex-row items-center justify-between">
+      <View className="flex-row gap-0.5">
+        {fills.map((f, i) => (
+          <Text key={i} style={{ fontSize: 22 }}>
+            {f >= 0.5 ? "❤️" : "🤍"}
+          </Text>
+        ))}
       </View>
+      <Text className="text-ink text-base font-semibold">
+        {clamped}/100
+      </Text>
     </View>
   );
 }

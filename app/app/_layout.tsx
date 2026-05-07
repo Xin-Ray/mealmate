@@ -63,7 +63,13 @@ export default function RootLayout() {
             headerShown: false,
             contentStyle: { backgroundColor: "#FFF8F1" },
           }}
-        />
+        >
+          {/* (modal) group 用 modal presentation 呈现 */}
+          <Stack.Screen
+            name="(modal)"
+            options={{ presentation: "modal", headerShown: false }}
+          />
+        </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -439,3 +439,51 @@ dev panel 切 Stage 2 → 首页立刻切到全新 stage 2 视觉（条件渲染
 ### HP_LOW_THRESHOLD 现状
 
 保留在 `hp.ts` 仍为 30，与 4 band 的 critical 上限 (19) 不一致。语义独立：HP_LOW_THRESHOLD 给后续 missed-check / 提醒触发等更宽阈值场景；UI 显示按 4 band 走。§11.K 第 7 项实施 missed-check 时再 review 是否对齐 20。
+
+---
+
+## v0.4 实施 #6 / Commit C：组件库 + (modal) group + components.md（2026-05-07）
+
+### 新建 `app/src/components/ui/`
+
+9 个组件：
+
+**基础**：
+- `Card` — 通用卡片包装（bg.card / 16 圆角 / border 1px），children + 可选 onPress
+- `PrimaryButton` — 主 CTA（brand.green bg / 白字 / disabled 降饱和）
+- `HpHearts` — 10 颗心 + X/100（从 home/ 移到 ui/）
+
+**业务模块（抽自 HomeStage2）**：
+- `StatusTitle` — 状态大标题区（含 mascot Image），输入 hp 自动渲染 4 band
+- `WeightCard` — 体重模块（最近一次 + diff + 时间 + ⚖️ icon）
+- `MealCountdownCard` — 倒计时卡（内部 tick + getMealWindowState + PrimaryButton）
+- `RecordCard` — 单条记录（ts / text / hpDelta / photoUri 缩略图）
+
+**Modal**：
+- `MealReminderModal` — 餐次到点提醒（reminder.png mascot + 去拍照 / 稍后再说）
+- `MissedMealModal` — 错过餐次提示（missed.png mascot + 血量-10 badge + 我知道了）
+
+### HomeStage2 重写为组装版
+
+330 行 → ~85 行。所有 5 段 UI 都用新组件。`<Mascot stage={2}>` emoji 引用被 StatusTitle 内嵌的真 mascot Image 替代。
+
+### 新增 `app/(modal)/` route group
+
+- `_layout.tsx`：`<Stack screenOptions={{ presentation: 'modal' }}>`
+- `meal-reminder.tsx`：route 包装 MealReminderModal
+- `meal-missed.tsx`：route 包装 MissedMealModal
+- root `_layout.tsx` 加 `<Stack.Screen name="(modal)" options={{ presentation: 'modal' }} />`
+
+业务触发（meal window 监听 → 自动 push reminder/missed modal）留 §11.K 第 7 项。当前阶段开发者可手动 `router.push({ pathname: '/(modal)/meal-reminder', params: { slot: 'breakfast' } })` 预览。
+
+### 新增 `docs/components.md`
+
+集中所有可复用组件的 props 表 + Figma 参考 + 用在哪些屏。**强制规则**：每加新组件必须同步更新此文档（否则仓库下一个接手的人找不到组件）。
+
+### 删除
+
+- `app/src/components/home/HpHearts.tsx`（移到 ui/）
+
+### 仍待做
+
+- `Mascot.tsx` / `WeekStrip.tsx` / `HpBar.tsx` / `MealCard.tsx` 仍在 v0.3 老位置（HomeStage1 还在用），第 4 项 stage 1 主页 token 化时一并 review 是否迁 ui/
