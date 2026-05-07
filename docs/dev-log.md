@@ -698,3 +698,28 @@ cd .. && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo run:ios
 - photo result phase 接 FullnessRatingPicker
 - 通过餐双消息（"太棒了..." + 鼓励）
 - missed-scan 自动扣分 + 双消息 + missed modal
+
+---
+
+## v0.4 实施 #12 / §11.K 第 7 项 Commit 2：photo flow 接 fullness + 双消息（2026-05-07）
+
+PRD §11.F.1 落地。photo.tsx onConfirm 改造：
+
+- `markMealDone(slot, { photoUri })` → store 自动落 `MealRecord` 含 `hpDelta=+5`
+- push **两条** dialogue（feed 倒序展示）：
+  - `kind: 'meal_done'` body: 随机选自 `DONE_LINE_BY_SLOT[slot]`（每 slot 3 候选），带 `hpDelta=5` + `photoUri`，feed 卡片显示「血量+5」绿色 badge
+  - `kind: 'encourage'` body: 随机选自 `ENCOURAGE_LINES`（5 候选），不带 hpDelta（无 badge，纯陪伴话）
+
+result phase UI 升级：
+- "HP +0.5" → "血量 +5"（值用 `HP_MEAL_PHOTO_GAIN` 常量，不硬编）
+- Mascot 卡显示**两条**消息（doneLine 主 + encourageLine 副）
+- 下方挂 `<FullnessRatingPicker>`，选了即调 `addFullnessRecord(slot, score)`
+- 完成按钮文字按是否选了切：「跳过，先回首页」/「完成」
+- 整屏改为 `<ScrollView>`（多了 picker 内容，避免溢出）
+
+LLM 调用从 result phase 临时移除：
+- v0.4 §11.H 全程 LLM_ENABLED=false，调了也只走 fallback；本项简化为静态文案（DONE_LINE_BY_SLOT + ENCOURAGE_LINES），减少视觉抖动（之前 mock → LLM 替换会闪一次）
+- v0.5 服务器代理上线后再接回，本 commit dev-log 记 TODO
+
+仍待 §11.K 第 7-3：
+- 错过餐 silent 调度 → app 激活时 missed-scan → markMealMissed + 双消息 + missed modal

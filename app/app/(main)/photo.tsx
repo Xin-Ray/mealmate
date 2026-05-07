@@ -1,15 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, Image, Animated } from "react-native";
+import { ScrollView, View, Text, Pressable, Image, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useStore } from "@src/store/useStore";
-import {
-  hpBandFromValue,
-  pickDialogue,
-} from "@src/data/dialogues";
-import { generateMascotLine } from "@src/services/mascotLlm";
+import { useStore, HP_MEAL_PHOTO_GAIN } from "@src/store/useStore";
+import FullnessRatingPicker from "@src/components/ui/FullnessRatingPicker";
 import { pickImageWithFallback, type Source } from "@src/services/imagePicker";
-import type { MealSlot } from "@src/types";
+import type { FullnessScore, MealSlot } from "@src/types";
 
 type Phase = "intro" | "preview" | "uploading" | "result";
 
@@ -19,21 +15,58 @@ const slotLabel: Record<MealSlot, string> = {
   dinner: "晚餐",
 };
 
+// PRD §11.F.1：通过餐推送 2 条 dialogue（"太棒了！X 看起来不错" + 鼓励话）
+const DONE_LINE_BY_SLOT: Record<MealSlot, string[]> = {
+  breakfast: [
+    "太棒了！早餐看起来不错",
+    "今天的第一顿，开始得很好",
+    "早餐光盘 ✓ 你今天的状态我看好",
+  ],
+  lunch: [
+    "太棒了！午餐看起来不错",
+    "中午这顿很到位",
+    "午餐打卡，节奏稳",
+  ],
+  dinner: [
+    "太棒了！晚餐看起来不错",
+    "晚餐吃完，今天就圆满啦",
+    "一天三顿都齐了，开心",
+  ],
+};
+
+const ENCOURAGE_LINES = [
+  "继续加油哈，这么下去一定可以尽快达到目标的",
+  "保持节奏就很好，慢慢来",
+  "你今天的努力我都看见了",
+  "陪着你吃饭真开心",
+  "这一份认真我先收下了",
+];
+
+const pickRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
 export default function PhotoScreen() {
   const { slot } = useLocalSearchParams<{ slot: MealSlot }>();
   const realSlot: MealSlot = (slot as MealSlot) ?? "lunch";
   const router = useRouter();
   const markMealDone = useStore((s) => s.markMealDone);
   const robotName = useStore((s) => s.robotName);
-  const dialogueHistory = useStore((s) => s.dialogueHistory);
   const pushDialogue = useStore((s) => s.pushDialogue);
+  const addFullnessRecord = useStore((s) => s.addFullnessRecord);
+  const fullnessHistory = useStore((s) => s.fullnessHistory);
+  const todayKey = useStore((s) => s.todayKey);
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [lastSource, setLastSource] = useState<Source>("camera");
-  const [line, setLine] = useState<string>("");
+  const [doneLine, setDoneLine] = useState<string>("");
+  const [encourageLine, setEncourageLine] = useState<string>("");
+  const [selectedFullness, setSelectedFullness] = useState<FullnessScore | undefined>(
+    () =>
+      fullnessHistory.find((r) => r.date === todayKey && r.mealSlot === realSlot)
+        ?.score
+  );
 
-  // HP +0.5 弹一下的 scale animation
+  // HP +5 弹一下的 scale animation
   const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -55,43 +88,47 @@ export default function PhotoScreen() {
   };
 
   // preview → 用户点"确定" → 进 uploading → 模拟上传 → result
-  // 注：本 commit (#7-1) 仅做 shape 升级，把 pushDialogue 调整为新 shape；
-  //     完整双消息 + fullness 接入留 #7-2。
+  // §11.F.1：通过餐 +5 HP，push 两条 dialogue（done line + encourage line）
   const onConfirm = () => {
     setPhase("uploading");
-    setTimeout(async () => {
+    setTimeout(() => {
       markMealDone(realSlot, { photoUri: imageUri ?? undefined });
-      const afterHp = useStore.getState().hp;
-      const stage = useStore.getState().currentStage;
-      const band = hpBandFromValue(afterHp);
 
-      // 先用 mock fallback 占位（保证 UI 不空），再异步去拉 LLM
-      const picked = pickDialogue(band, realSlot, dialogueHistory.map((d) => d.id));
-      const bodyMock = picked?.text ?? "谢谢你陪我一起吃饭。";
+      const doneBody = pickRandom(DONE_LINE_BY_SLOT[realSlot]);
+      const encourageBody = pickRandom(ENCOURAGE_LINES);
+
       pushDialogue({
-        kind: "mock",
-        body: bodyMock,
+        kind: "meal_done",
+        body: doneBody,
+        mealSlot: realSlot,
+        hpDelta: HP_MEAL_PHOTO_GAIN,
+        photoUri: imageUri ?? undefined,
+      });
+      pushDialogue({
+        kind: "encourage",
+        body: encourageBody,
         mealSlot: realSlot,
       });
-      setLine(bodyMock);
+      setDoneLine(doneBody);
+      setEncourageLine(encourageBody);
       setPhase("result");
-
-      // LLM 升级：结合 stage × HP × meal_done 生成更生动的鼓励
-      const llm = await generateMascotLine({
-        stage,
-        hp: afterHp,
-        band,
-        robotName: useStore.getState().robotName,
-        slot: realSlot,
-        recentAction: "meal_done",
-      });
-      if (llm) setLine(llm);
     }, 900);
+  };
+
+  const onSelectFullness = (score: FullnessScore) => {
+    setSelectedFullness(score);
+    addFullnessRecord({ mealSlot: realSlot, score });
+  };
+
+  const onFinish = () => {
+    router.back();
   };
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
-      <View className="flex-1 px-6 pt-6">
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 48 }}
+      >
         <View className="flex-row items-center justify-between">
           <Text className="text-ink text-lg font-semibold">{slotLabel[realSlot]} · 记录</Text>
           <Pressable onPress={() => router.back()}>
@@ -100,7 +137,7 @@ export default function PhotoScreen() {
         </View>
 
         {phase === "intro" && (
-          <View className="flex-1 items-center justify-center">
+          <View className="items-center justify-center" style={{ minHeight: 480 }}>
             <Text className="text-ink text-base text-center mb-6">
               拍一张你正在吃的或准备吃的就行，{"\n"}哪怕只是一杯牛奶。
             </Text>
@@ -120,7 +157,7 @@ export default function PhotoScreen() {
         )}
 
         {phase === "preview" && (
-          <View className="flex-1 items-center justify-center">
+          <View className="items-center justify-center" style={{ minHeight: 480 }}>
             {imageUri && (
               <Image
                 source={{ uri: imageUri }}
@@ -147,7 +184,7 @@ export default function PhotoScreen() {
         )}
 
         {phase === "uploading" && (
-          <View className="flex-1 items-center justify-center">
+          <View className="items-center justify-center" style={{ minHeight: 480 }}>
             {imageUri && (
               <Image
                 source={{ uri: imageUri }}
@@ -160,32 +197,52 @@ export default function PhotoScreen() {
         )}
 
         {phase === "result" && (
-          <View className="flex-1 items-center justify-center">
+          <View className="items-center" style={{ paddingTop: 16 }}>
             <Animated.View style={{ transform: [{ scale }] }}>
               <View className="bg-ok/20 rounded-full px-6 py-3 mb-4">
-                <Text className="text-ok text-base font-semibold">HP +0.5</Text>
+                <Text className="text-ok text-base font-semibold">
+                  血量 +{HP_MEAL_PHOTO_GAIN}
+                </Text>
               </View>
             </Animated.View>
             {imageUri && (
               <Image
                 source={{ uri: imageUri }}
-                style={{ width: 180, height: 180, borderRadius: 20, opacity: 0.85 }}
+                style={{ width: 160, height: 160, borderRadius: 20, opacity: 0.9 }}
                 resizeMode="cover"
               />
             )}
-            <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mt-6 w-full">
+            <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mt-5 w-full">
               <Text className="text-sub text-xs mb-2">{robotName}</Text>
-              <Text className="text-ink text-base leading-6">{line}</Text>
+              <Text className="text-ink text-base leading-6">{doneLine}</Text>
+              {encourageLine && (
+                <Text className="text-ink text-sm leading-5 mt-2 opacity-80">
+                  {encourageLine}
+                </Text>
+              )}
             </View>
+
+            <Text className="text-ink text-sm font-semibold mt-6 self-start">
+              这餐吃得怎么样？
+            </Text>
+            <View className="w-full mt-2">
+              <FullnessRatingPicker
+                selectedScore={selectedFullness}
+                onSelect={onSelectFullness}
+              />
+            </View>
+
             <Pressable
-              onPress={() => router.back()}
-              className="rounded-2xl py-4 px-8 bg-accent mt-8 w-full items-center"
+              onPress={onFinish}
+              className="rounded-2xl py-4 px-8 bg-accent mt-6 w-full items-center"
             >
-              <Text className="text-white font-semibold">完成</Text>
+              <Text className="text-white font-semibold">
+                {selectedFullness === undefined ? "跳过，先回首页" : "完成"}
+              </Text>
             </Pressable>
           </View>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
