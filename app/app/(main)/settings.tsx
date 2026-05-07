@@ -1,12 +1,27 @@
 import { useState } from "react";
-import { View, Text, Pressable, ScrollView, Switch, TextInput, Platform, Alert } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  Switch,
+  TextInput,
+  Platform,
+  Alert,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useStore } from "@src/store/useStore";
 import { hpBandFromValue, pickDialogue } from "@src/data/dialogues";
 import { triggerTestNotification } from "@src/services/notifications";
+import Card from "@src/components/ui/Card";
+import { colors } from "@src/theme/tokens";
 import type { MealSlot } from "@src/types";
+
+// 我的页（v0.4 §11.K 第 9 项 token 化）
+// 用 Card 卡片 / colors.* / 统一 section 间距。功能保留：推送时间 / 名字 /
+// 温柔模式 / 跳过称重照片 / 关于 / 危险区 / 开发者面板（仅 __DEV__）。
 
 const SLOT_LABEL: Record<MealSlot, string> = {
   breakfast: "早餐",
@@ -20,8 +35,28 @@ const parseHHmm = (hhmm: string) => {
   d.setHours(h || 0, m || 0, 0, 0);
   return d;
 };
-const fmt = (d: Date) =>
+const fmtHHmm = (d: Date) =>
   `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+// Section header（小灰字标题，section 之间分隔）
+const SectionLabel = ({ children }: { children: string }) => (
+  <Text
+    className="mb-2"
+    style={{ fontSize: 12, color: colors.ink.sub, marginTop: 8 }}
+  >
+    {children}
+  </Text>
+);
+
+const Divider = () => (
+  <View
+    style={{
+      height: 1,
+      backgroundColor: colors.border.card,
+      marginHorizontal: -20, // 抵消 Card 内 px=20，让分隔线贴边
+    }}
+  />
+);
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -60,35 +95,44 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-bg">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }}>
-        <View className="flex-row items-center justify-between mb-6">
-          <Text className="text-ink text-2xl font-semibold">设置</Text>
-          <Pressable onPress={() => router.back()}>
-            <Text className="text-sub text-sm">返回</Text>
-          </Pressable>
-        </View>
+        <Text
+          className="font-semibold mb-1"
+          style={{ fontSize: 24, color: colors.ink.primary }}
+        >
+          我的
+        </Text>
 
         {/* 推送时间 */}
-        <Text className="text-sub text-xs mb-2">推送时间</Text>
-        <View className="bg-white border border-cardBorder rounded-2xl mb-6">
+        <SectionLabel>推送时间</SectionLabel>
+        <Card style={{ paddingVertical: 0, paddingHorizontal: 20 }}>
           {slots.map((s, i) => (
-            <View
-              key={s}
-              className={`flex-row items-center justify-between px-5 py-4 ${
-                i < slots.length - 1 ? "border-b border-cardBorder" : ""
-              }`}
-            >
-              <Text className="text-ink text-base">{SLOT_LABEL[s]}</Text>
-              <Pressable
-                onPress={() => setPickerOpenFor(s)}
-                className="px-3 py-2 rounded-xl bg-hpEmpty"
+            <View key={s}>
+              <View
+                className="flex-row items-center justify-between"
+                style={{ paddingVertical: 16 }}
               >
-                <Text className="text-ink font-mono">{schedules[s]}</Text>
-              </Pressable>
+                <Text style={{ fontSize: 16, color: colors.ink.primary }}>
+                  {SLOT_LABEL[s]}
+                </Text>
+                <Pressable
+                  onPress={() => setPickerOpenFor(s)}
+                  className="px-3 py-2 rounded-xl"
+                  style={{ backgroundColor: colors.bg.hpEmpty }}
+                >
+                  <Text
+                    className="font-mono"
+                    style={{ color: colors.ink.primary }}
+                  >
+                    {schedules[s]}
+                  </Text>
+                </Pressable>
+              </View>
+              {i < slots.length - 1 && <Divider />}
             </View>
           ))}
-        </View>
+        </Card>
 
         {pickerOpenFor && (
           <DateTimePicker
@@ -97,7 +141,7 @@ export default function SettingsScreen() {
             is24Hour
             display={Platform.OS === "ios" ? "spinner" : "default"}
             onChange={(_, date) => {
-              if (date) setMealSchedule(pickerOpenFor, fmt(date));
+              if (date) setMealSchedule(pickerOpenFor, fmtHHmm(date));
               if (Platform.OS !== "ios") setPickerOpenFor(null);
             }}
           />
@@ -105,99 +149,162 @@ export default function SettingsScreen() {
         {pickerOpenFor && Platform.OS === "ios" && (
           <Pressable
             onPress={() => setPickerOpenFor(null)}
-            className="self-end mb-4 px-4 py-2 rounded-xl bg-hpEmpty"
+            className="self-end mt-2 mb-2 px-4 py-2 rounded-xl"
+            style={{ backgroundColor: colors.bg.hpEmpty }}
           >
-            <Text className="text-ink">完成</Text>
+            <Text style={{ color: colors.ink.primary }}>完成</Text>
           </Pressable>
         )}
 
         {/* 机器人名字 */}
-        <Text className="text-sub text-xs mb-2">机器人名字</Text>
-        <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-6 flex-row items-center">
+        <SectionLabel>机器人名字</SectionLabel>
+        <Card style={{ flexDirection: "row", alignItems: "center" }}>
           <TextInput
-            className="flex-1 text-ink text-base"
+            className="flex-1"
+            style={{ fontSize: 16, color: colors.ink.primary }}
             value={name}
             onChangeText={setName}
             onBlur={() => setRobotName(name)}
             maxLength={12}
           />
-          <Pressable onPress={() => setRobotName(name)} className="px-3 py-1 rounded-lg bg-accent">
-            <Text className="text-white text-sm">保存</Text>
-          </Pressable>
-        </View>
-
-        {/* 温柔模式 */}
-        <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3 flex-row items-center justify-between">
-          <View className="flex-1 pr-3">
-            <Text className="text-ink text-base">温柔模式</Text>
-            <Text className="text-sub text-xs mt-1">
-              错过一餐时只扣 0.5 HP；语气更轻。
-            </Text>
-          </View>
-          <Switch value={gentleMode} onValueChange={setGentleMode} />
-        </View>
-
-        {/* 称重跳过照片（PRD §5.4 默认要拍，开关给不方便的场景） */}
-        <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3 flex-row items-center justify-between">
-          <View className="flex-1 pr-3">
-            <Text className="text-ink text-base">称重时跳过拍照</Text>
-            <Text className="text-sub text-xs mt-1">
-              开启后只输数字、不拍体重秤。默认关闭。
-            </Text>
-          </View>
-          <Switch value={skipWeightPhoto} onValueChange={setSkipWeightPhoto} />
-        </View>
-
-        {/* 帮助 / 隐私 */}
-        <Text className="text-sub text-xs mb-2">关于</Text>
-        <View className="bg-white border border-cardBorder rounded-2xl mb-6">
           <Pressable
-            className="px-5 py-4 border-b border-cardBorder"
-            onPress={() => Alert.alert("隐私政策", "占位 — 上线前会替换为正式文案。")}
+            onPress={() => setRobotName(name)}
+            className="px-3 py-1 rounded-lg"
+            style={{ backgroundColor: colors.brand.green }}
           >
-            <Text className="text-ink">隐私政策</Text>
+            <Text style={{ color: "#FFFFFF", fontSize: 14 }}>保存</Text>
           </Pressable>
+        </Card>
+
+        {/* 偏好开关 */}
+        <SectionLabel>偏好</SectionLabel>
+        <Card style={{ paddingVertical: 0, paddingHorizontal: 20 }}>
+          <View
+            className="flex-row items-center justify-between"
+            style={{ paddingVertical: 16 }}
+          >
+            <View className="flex-1 pr-3">
+              <Text style={{ fontSize: 16, color: colors.ink.primary }}>
+                温柔模式
+              </Text>
+              <Text
+                className="mt-1"
+                style={{ fontSize: 12, color: colors.ink.sub }}
+              >
+                错过一餐时只扣 5 HP（默认 -10）；语气更轻。
+              </Text>
+            </View>
+            <Switch value={gentleMode} onValueChange={setGentleMode} />
+          </View>
+          <Divider />
+          <View
+            className="flex-row items-center justify-between"
+            style={{ paddingVertical: 16 }}
+          >
+            <View className="flex-1 pr-3">
+              <Text style={{ fontSize: 16, color: colors.ink.primary }}>
+                称重时跳过拍照
+              </Text>
+              <Text
+                className="mt-1"
+                style={{ fontSize: 12, color: colors.ink.sub }}
+              >
+                开启后只输数字、不拍体重秤。默认关闭。
+              </Text>
+            </View>
+            <Switch value={skipWeightPhoto} onValueChange={setSkipWeightPhoto} />
+          </View>
+        </Card>
+
+        {/* 关于 */}
+        <SectionLabel>关于</SectionLabel>
+        <Card style={{ paddingVertical: 0, paddingHorizontal: 20 }}>
           <Pressable
-            className="px-5 py-4"
-            onPress={() => Alert.alert("求助资源", "占位 — 会替换为大陆地区可拨打的资源（如 12320 等）。")}
+            style={{ paddingVertical: 16 }}
+            onPress={() =>
+              Alert.alert("隐私政策", "占位 — 上线前会替换为正式文案。")
+            }
           >
-            <Text className="text-ink">求助资源</Text>
+            <Text style={{ fontSize: 16, color: colors.ink.primary }}>
+              隐私政策
+            </Text>
           </Pressable>
-        </View>
+          <Divider />
+          <Pressable
+            style={{ paddingVertical: 16 }}
+            onPress={() =>
+              Alert.alert(
+                "求助资源",
+                "占位 — 会替换为大陆地区可拨打的资源（如 12320 等）。"
+              )
+            }
+          >
+            <Text style={{ fontSize: 16, color: colors.ink.primary }}>
+              求助资源
+            </Text>
+          </Pressable>
+        </Card>
 
         {/* 危险区 */}
-        <Pressable
-          onPress={onDeleteAccount}
-          className="rounded-2xl py-4 items-center bg-bad/10 border border-bad"
-        >
-          <Text className="text-bad font-semibold">删除账号 / 重置数据</Text>
-        </Pressable>
+        <View style={{ marginTop: 20 }}>
+          <Pressable
+            onPress={onDeleteAccount}
+            className="rounded-2xl py-4 items-center"
+            style={{
+              backgroundColor: `${colors.status.bad}1A`,
+              borderWidth: 1,
+              borderColor: colors.status.bad,
+            }}
+          >
+            <Text
+              className="font-semibold"
+              style={{ color: colors.status.bad }}
+            >
+              删除账号 / 重置数据
+            </Text>
+          </Pressable>
+        </View>
 
         {/* 开发者模式：仅 dev build 显示 */}
         {__DEV__ && (
           <>
-            <Text className="text-sub text-xs mt-8 mb-2">开发者（仅 dev build）</Text>
-            <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3">
-              <Text className="text-ink text-sm mb-2">HP（当前 {hp}/100）</Text>
+            <SectionLabel>开发者（仅 dev build）</SectionLabel>
+
+            <Card style={{ marginBottom: 12 }}>
+              <Text
+                className="mb-2"
+                style={{ fontSize: 14, color: colors.ink.primary }}
+              >
+                HP（当前 {hp}/100）
+              </Text>
               <View className="flex-row gap-2">
                 {[0, 25, 50, 75, 100].map((v) => (
                   <Pressable
                     key={v}
                     onPress={() => devSetHp(v)}
-                    className={`flex-1 py-2 rounded-xl items-center ${
-                      hp === v ? "bg-accent" : "bg-hpEmpty"
-                    }`}
+                    className="flex-1 py-2 rounded-xl items-center"
+                    style={{
+                      backgroundColor:
+                        hp === v ? colors.brand.green : colors.bg.hpEmpty,
+                    }}
                   >
-                    <Text className={hp === v ? "text-white" : "text-ink"}>
+                    <Text
+                      style={{
+                        color: hp === v ? "#FFFFFF" : colors.ink.primary,
+                      }}
+                    >
                       {v}
                     </Text>
                   </Pressable>
                 ))}
               </View>
-            </View>
+            </Card>
 
-            <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3">
-              <Text className="text-ink text-sm mb-2">
+            <Card style={{ marginBottom: 12 }}>
+              <Text
+                className="mb-2"
+                style={{ fontSize: 14, color: colors.ink.primary }}
+              >
                 阶段（当前 Stage {currentStage}）
               </Text>
               <View className="flex-row gap-2">
@@ -205,73 +312,86 @@ export default function SettingsScreen() {
                   <Pressable
                     key={s}
                     onPress={() => devSetStage(s)}
-                    className={`flex-1 py-2 rounded-xl items-center ${
-                      currentStage === s ? "bg-accent" : "bg-hpEmpty"
-                    }`}
+                    className="flex-1 py-2 rounded-xl items-center"
+                    style={{
+                      backgroundColor:
+                        currentStage === s
+                          ? colors.brand.green
+                          : colors.bg.hpEmpty,
+                    }}
                   >
                     <Text
-                      className={
-                        currentStage === s ? "text-white" : "text-ink"
-                      }
+                      style={{
+                        color:
+                          currentStage === s ? "#FFFFFF" : colors.ink.primary,
+                      }}
                     >
                       Stage {s}
                     </Text>
                   </Pressable>
                 ))}
               </View>
-            </View>
+            </Card>
 
-            <Pressable
-              onPress={() => {
-                devResetToday();
-                Alert.alert("已重置", "今日三餐状态已清空。");
-              }}
-              className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3"
+            {/* 重置 / 清空动作（共用一个 Card 容器分隔线分项） */}
+            <Card style={{ paddingVertical: 0, paddingHorizontal: 20 }}>
+              {[
+                {
+                  label: "重置今日三餐",
+                  onPress: () => {
+                    devResetToday();
+                    Alert.alert("已重置", "今日三餐状态已清空。");
+                  },
+                },
+                {
+                  label: "重置 onboarding（清全部数据）",
+                  onPress: async () => {
+                    await resetAll();
+                    router.replace("/onboarding/eating");
+                  },
+                },
+                {
+                  label: "清空饱腹度评分",
+                  onPress: () => {
+                    useStore.getState().__dev_clearFullnessHistory();
+                    Alert.alert("已清空", "饱腹度评分历史已清空。");
+                  },
+                },
+                {
+                  label: "清空餐次记录",
+                  onPress: () => {
+                    useStore.getState().__dev_clearMealRecords();
+                    Alert.alert("已清空", "餐次记录历史已清空。");
+                  },
+                },
+                {
+                  label: "清空对话历史",
+                  onPress: () => {
+                    useStore.getState().__dev_clearDialogueHistory();
+                    Alert.alert("已清空", "对话历史已清空。");
+                  },
+                },
+              ].map((row, i, arr) => (
+                <View key={row.label}>
+                  <Pressable
+                    onPress={row.onPress}
+                    style={{ paddingVertical: 14 }}
+                  >
+                    <Text style={{ fontSize: 15, color: colors.ink.primary }}>
+                      {row.label}
+                    </Text>
+                  </Pressable>
+                  {i < arr.length - 1 && <Divider />}
+                </View>
+              ))}
+            </Card>
+
+            <Text
+              className="mt-4 mb-2"
+              style={{ fontSize: 14, color: colors.ink.primary }}
             >
-              <Text className="text-ink">重置今日三餐</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={async () => {
-                await resetAll();
-                router.replace("/onboarding/eating");
-              }}
-              className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3"
-            >
-              <Text className="text-ink">重置 onboarding（清全部数据）</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => {
-                useStore.getState().__dev_clearFullnessHistory();
-                Alert.alert("已清空", "饱腹度评分历史已清空。");
-              }}
-              className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3"
-            >
-              <Text className="text-ink">清空饱腹度评分</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => {
-                useStore.getState().__dev_clearMealRecords();
-                Alert.alert("已清空", "餐次记录历史已清空。");
-              }}
-              className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3"
-            >
-              <Text className="text-ink">清空餐次记录</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => {
-                useStore.getState().__dev_clearDialogueHistory();
-                Alert.alert("已清空", "对话历史已清空。");
-              }}
-              className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mb-3"
-            >
-              <Text className="text-ink">清空对话历史</Text>
-            </Pressable>
-
-            <Text className="text-ink text-sm mb-2">立即触发餐次提醒（5 秒后弹）</Text>
+              立即触发餐次提醒（5 秒后弹）
+            </Text>
             <View className="flex-row gap-2 mb-3">
               {(["breakfast", "lunch", "dinner"] as MealSlot[]).map((s) => (
                 <Pressable
@@ -283,11 +403,17 @@ export default function SettingsScreen() {
                       s,
                       line?.text ?? "该吃饭啦～"
                     );
-                    Alert.alert("已安排", `5 秒后会弹出${SLOT_LABEL[s]}测试推送。可以把 app 切到后台观察。`);
+                    Alert.alert(
+                      "已安排",
+                      `5 秒后会弹出${SLOT_LABEL[s]}测试推送。可以把 app 切到后台观察。`
+                    );
                   }}
-                  className="flex-1 py-2 rounded-xl items-center bg-hpEmpty"
+                  className="flex-1 py-2 rounded-xl items-center"
+                  style={{ backgroundColor: colors.bg.hpEmpty }}
                 >
-                  <Text className="text-ink">{SLOT_LABEL[s]}</Text>
+                  <Text style={{ color: colors.ink.primary }}>
+                    {SLOT_LABEL[s]}
+                  </Text>
                 </Pressable>
               ))}
             </View>

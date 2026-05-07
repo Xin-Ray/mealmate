@@ -766,3 +766,33 @@ silent 调度精确触发留 v0.5（结合服务端推送）。
 | dialogueHistory shape 升级 | ✅ Commit 1 |
 | photo flow 接 fullness + 通过餐双消息 + +5 | ✅ Commit 2 |
 | missed-scan 自动扣 -10 + 双消息 + missed modal 触发 | ✅ Commit 3 |
+
+---
+
+## v0.4 实施 #14 / §11.K 第 9 项：「我的」页 token 化（2026-05-07）
+
+### 改造
+
+settings.tsx 全屏重写：
+- 整页 bg 用 `colors.bg.page`
+- 所有卡片块用 `<Card>`（v0.4 抽好的 ui/ 组件）— 推送时间 / 名字 / 偏好 / 关于 / 开发者面板各自一卡
+- 同一卡内多行用 `<Divider>` 内联组件分隔（vertical line `colors.border.card`，宽度抵消 Card 内 px 让分隔贴边）
+- Section 标题统一用 `<SectionLabel>` 内联组件（`colors.ink.sub`，12pt，上下间距统一）
+- 顶部页面标题改成"我的"（24pt semibold `colors.ink.primary`），不再是"设置"也不再带"返回"按钮（底 tab 已经导航）
+- HP 5 档 / Stage 切换的高亮用 `colors.brand.green`（不再是 `accent` 橙色，跟 stage 2 主页 CTA 同源）
+- 偏好开关副标更新："温柔模式"提示文字改成"错过一餐时只扣 5 HP（默认 -10）"，对齐 v0.4 §11.F.2 的新数值
+- "立即触发餐次提醒" 3 个按钮 + 5 个清空动作合并到一个 Card 内用 Divider 分项（少了 5 个独立 Card 视觉碎片）
+
+### 保留全部功能
+
+- 推送时间编辑（DateTimePicker）
+- 机器人名字
+- 温柔模式 / 称重跳过照片
+- 关于（隐私 / 求助）→ Alert 占位
+- 危险区 → 删除账号
+- 开发者面板（仅 `__DEV__`）：HP 5 档 / Stage 切换 / 重置今日 / 重置 onboarding / 清空体重 / 清空饱腹 / 清空餐次 / 清空对话 / 触发推送
+
+### ⏳ 待 xin 复核
+
+- 「我的」页 Figma frame 链接尚未给。v0.4 仅做 token 化，未做像素级对齐 Figma。
+  v0.5 收到 Figma frame 后再精对齐（间距 / 字号 / icon）。
