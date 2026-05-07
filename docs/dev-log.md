@@ -390,3 +390,22 @@ dev panel 切 Stage 2 → 首页立刻切到全新 stage 2 视觉（条件渲染
 ### 验
 
 `tsc --noEmit` 0 错。Metro reload 后老用户首次启动会触发 v1→v2 migrate（hp×6.67 一次性），后续读写都是 0–100；新用户从 `initialState.hp=67` 起步。
+
+---
+
+## v0.4 资源：HP band mascot + missed/reminder（2026-05-07）
+
+`app/assets/mascot/` 下 6 张 PNG，来自 Figma export：
+
+| 文件 | Figma node-id | 用途 | md5 (前 8) | 大小 |
+|---|---|---|---|---|
+| `full.png` | 5:45 | 血量 8–10 颗心（HP ≥ 80） | `baaa78ed` | 225 KB |
+| `stable.png` | 5:14 | 血量 5–7 颗心（HP 50–80） | `b980dc9a` | 201 KB |
+| `low.png` | 1:305 | 血量 2–4 颗心（HP 30–50） | `30e50001` | 209 KB |
+| `critical.png` | 1:332 | 血量 1 颗心（HP < 30） | `c04b872f` | 273 KB |
+| `missed.png` | （早前 Figma export，独立资源） | MissedMealModal 用 | `a1167e34` | 52 KB |
+| `reminder.png` | （早前 Figma export，独立资源） | MealReminderModal 用 | `0004dca8` | 33 KB |
+
+历史曲折：第一次拿到 4 张 band mascot ID 都返回同一张占位 PNG（md5 一致）；xin 在 Figma 重新合并/拆分后给了 4 个新 node-id（5:45 / 5:14 / 1:305 / 1:332），重下 md5 全不同 ✅。
+
+**未接入**：HomeStage2 仍用 `<Mascot stage={2}>` emoji 占位。HP 阈值表（hp.ts 的 `HP_BANDS`）也未按新心数划分（xin 提到 8-10/5-7/2-4/1，与 v0.4 §11.B 当前 ≥80 / 50-80 / 30-50 / <30 略有差别），等 xin 给完整文案 + 阈值后整合接入。
