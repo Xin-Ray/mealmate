@@ -1,4 +1,4 @@
-import { View, Text, Image } from "react-native";
+import { View, Text, Image, type ImageSourcePropType } from "react-native";
 import { colors } from "@src/theme/tokens";
 import type { FeedItem } from "@src/data/feed";
 import type { MealSlot } from "@src/types";
@@ -53,13 +53,17 @@ const HpBadge = ({ delta }: { delta: number }) => (
   </View>
 );
 
-type Props = { item: FeedItem };
+type Props = {
+  item: FeedItem;
+  /** 自定义 mascot 头像（如 records tab 用 records.png）；缺省走 home 用的 full.png */
+  mascotSource?: ImageSourcePropType;
+};
 
-export default function TodayRecordRow({ item }: Props) {
+export default function TodayRecordRow({ item, mascotSource }: Props) {
   // mascot 头像（卡外）
   const Avatar = (
     <Image
-      source={HEAD_AVATAR}
+      source={mascotSource ?? HEAD_AVATAR}
       style={{ width: 60, height: 60 }}
       resizeMode="contain"
     />
