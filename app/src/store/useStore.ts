@@ -46,9 +46,12 @@ const FRESH_TODAY: TodayMeals = {
   dinner: "pending",
 };
 
+export type TransitionKind = "start" | "end";
+export type TransitionRecord = { stage: number; kind: TransitionKind };
+
 type State = {
   hp: number;
-  currentStage: 1 | 2;
+  currentStage: 1 | 2 | 3 | 4 | 5;
   companionLv: number;
   robotName: string;
   gentleMode: boolean;
@@ -68,6 +71,10 @@ type State = {
   dialogueHistory: DialogueRecord[]; // 倒序时间排序，最多 50 条
   disappearWarningLastShownAt: number | null; // ms timestamp
   onboardingDone: boolean;
+  // 阶段过渡屏已看记录（v7）：每条 = {stage, kind}。用于幂等触发 stage start/end modal。
+  // 新用户首次进入 stage 1 → 自动弹 stage 1 start；advance 时弹 prev end；以此类推。
+  // 老用户（v6 → v7 migrate）会按 currentStage 回填，避免补弹历史 modal。
+  transitionsSeen: TransitionRecord[];
 };
 
 type Actions = {
@@ -97,14 +104,19 @@ type Actions = {
   // 饱腹度（stage 1+2，§11.D.1）
   addFullnessRecord: (input: { mealSlot: MealSlot; score: FullnessScore }) => void;
 
+  // 阶段过渡屏触发逻辑
+  markTransitionSeen: (stage: number, kind: TransitionKind) => void;
+  hasSeenTransition: (stage: number, kind: TransitionKind) => boolean;
+
   // Dev-only：bypass 业务规则的直接 setter，仅在 __DEV__ 守卫的开发者面板里调用
   __dev_setHp: (n: number) => void;
-  __dev_setStage: (s: 1 | 2) => void;
+  __dev_setStage: (s: 1 | 2 | 3 | 4 | 5) => void;
   __dev_resetToday: () => void;
   __dev_clearWeightHistory: () => void;
   __dev_clearFullnessHistory: () => void;
   __dev_clearMealRecords: () => void;
   __dev_clearDialogueHistory: () => void;
+  __dev_resetTransitions: () => void;
 };
 
 const todayKey = () => {
@@ -134,6 +146,7 @@ const initialState: State = {
   dialogueHistory: [],
   disappearWarningLastShownAt: null,
   onboardingDone: false,
+  transitionsSeen: [],
 };
 
 const HISTORY_KEEP_DAYS = 30;
@@ -301,6 +314,16 @@ export const useStore = create<State & Actions>()(
         });
       },
 
+      markTransitionSeen: (stage, kind) =>
+        set((s) => {
+          if (s.transitionsSeen.some((t) => t.stage === stage && t.kind === kind)) {
+            return s;
+          }
+          return { transitionsSeen: [...s.transitionsSeen, { stage, kind }] };
+        }),
+      hasSeenTransition: (stage, kind) =>
+        get().transitionsSeen.some((t) => t.stage === stage && t.kind === kind),
+
       __dev_setHp: (n) => set({ hp: clampHp(n) }),
       __dev_setStage: (s) => set({ currentStage: s }),
       __dev_resetToday: () =>
@@ -309,11 +332,12 @@ export const useStore = create<State & Actions>()(
       __dev_clearFullnessHistory: () => set({ fullnessHistory: [] }),
       __dev_clearMealRecords: () => set({ mealRecords: [] }),
       __dev_clearDialogueHistory: () => set({ dialogueHistory: [] }),
+      __dev_resetTransitions: () => set({ transitionsSeen: [] }),
     }),
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 6,
+      version: 7,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
@@ -321,6 +345,9 @@ export const useStore = create<State & Actions>()(
       //          bump version 让仪表板更清晰）
       // v5 → v6: hotfix#13 起始 HP stage 1=60 / stage 2=50。老用户 hp 保留当前
       //          不动（不破坏进度），只新用户从 60 起步。version bump only。
+      // v6 → v7: 加 transitionsSeen []（阶段过渡屏）。老用户按 currentStage 回填，
+      //          避免补弹历史 stage start/end modal —— 已经进入 stage N 的用户视为
+      //          已看过 stage 1..(N-1) 的 start+end 以及 stage N 的 start。
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as State & Actions;
@@ -346,6 +373,17 @@ export const useStore = create<State & Actions>()(
         }
         // v4 → v5: noop（acknowledged 缺失自动 undefined → 视为未确认）
         // v5 → v6: noop（老用户 hp 保留）
+        if (version < 7 && !Array.isArray(ps.transitionsSeen)) {
+          const stage = typeof ps.currentStage === "number" ? ps.currentStage : 1;
+          const seen: TransitionRecord[] = [];
+          for (let i = 1; i < stage; i++) {
+            seen.push({ stage: i, kind: "start" });
+            seen.push({ stage: i, kind: "end" });
+          }
+          // 当前 stage 的 start 也视为已看（老用户已经在用 stage N，不应该被打断）
+          seen.push({ stage, kind: "start" });
+          ps.transitionsSeen = seen;
+        }
         return persistedState as State & Actions;
       },
     }
