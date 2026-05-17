@@ -28,6 +28,11 @@ import type {
 export const HP_MAX = 100;
 export const HP_MEAL_PHOTO_GAIN = 5;
 export const HP_MEAL_MISSED_LOSS = 10;
+// 各 stage 起始 HP（v0.4 hotfix#13，xin 拍板）
+// stage 1: 60（6 颗爱心，鼓励起步）
+// stage 2: 50（5 颗爱心，从 stage 1 advance 上来后重置）
+export const HP_INITIAL_STAGE_1 = 60;
+export const HP_INITIAL_STAGE_2 = 50;
 
 const DEFAULT_SCHEDULES: MealSchedule = {
   breakfast: "07:30",
@@ -113,7 +118,7 @@ const todayKey = () => {
 const clampHp = (n: number) => Math.max(0, Math.min(HP_MAX, n));
 
 const initialState: State = {
-  hp: 67, // 0–100 标度，约对应老 0–15 的 10（PRD §四 阶段一初始 HP）
+  hp: HP_INITIAL_STAGE_1, // stage 1 起步 60 / 6 hearts（hotfix#13）
   currentStage: 1,
   companionLv: 1,
   robotName: "小满",
@@ -188,7 +193,12 @@ export const useStore = create<State & Actions>()(
         });
         if (newHp >= HP_MAX && s.currentStage === 1) {
           // 满 HP → 推进阶段（Stage 2 占位页）
-          set({ currentStage: 2, companionLv: s.companionLv + 1 });
+          // hotfix#13：advance 时 HP 重置为 stage 2 起始值（50 / 5 hearts）
+          set({
+            currentStage: 2,
+            companionLv: s.companionLv + 1,
+            hp: HP_INITIAL_STAGE_2,
+          });
         }
       },
 
@@ -216,7 +226,11 @@ export const useStore = create<State & Actions>()(
       },
 
       advanceStage: () =>
-        set((s) => ({ currentStage: s.currentStage === 1 ? 2 : s.currentStage })),
+        set((s) =>
+          s.currentStage === 1
+            ? { currentStage: 2, hp: HP_INITIAL_STAGE_2 }
+            : { currentStage: s.currentStage }
+        ),
 
       pushDialogue: (input) =>
         set((s) => {
@@ -299,12 +313,14 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 5,
+      version: 6,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
       // v4 → v5: MealRecord 加可选 acknowledged 字段（缺失视为 false，无需主动写入；
       //          bump version 让仪表板更清晰）
+      // v5 → v6: hotfix#13 起始 HP stage 1=60 / stage 2=50。老用户 hp 保留当前
+      //          不动（不破坏进度），只新用户从 60 起步。version bump only。
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as State & Actions;
@@ -329,6 +345,7 @@ export const useStore = create<State & Actions>()(
           }
         }
         // v4 → v5: noop（acknowledged 缺失自动 undefined → 视为未确认）
+        // v5 → v6: noop（老用户 hp 保留）
         return persistedState as State & Actions;
       },
     }

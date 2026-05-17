@@ -1,23 +1,25 @@
-import { ScrollView, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useStore } from "@src/store/useStore";
-import HpHeartsCard from "@src/components/ui/HpHeartsCard";
-import StatusTitle from "@src/components/ui/StatusTitle";
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
+import HpHeartsContent from "@src/components/ui/HpHeartsContent";
 import WeekStrip from "@src/components/WeekStrip";
+import { useStore } from "@src/store/useStore";
+import { getHpBand } from "@src/theme/hp";
 import { colors } from "@src/theme/tokens";
+import { Image, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-// Stage 1 主页（v0.4 §11.C）：与 Stage 2 共用 ui/ 组件库。
-// 差异：① 状态文案用 stage 1 调性（getHpBand(hp, 1)），mascot 用 full.png 兜底
-//       ② 不显示体重模块（stage 1 未解锁）
-//       ③ 顶部多一行周视图（stage 1 特有）
+// Stage 1 主页（v0.4 §11.C hotfix#13）：与 Stage 2 共用 hero 骨架。
+// 差异：① 状态文案/mascot 走 stage 1 调性（getHpBand(hp, 1)），mascot 兜底 full.png
+//       ② 不显示体重模块（stage 1 未解锁体重）
+//       ③ 顶部多一行 WeekStrip 周视图（stage 1 特有）
 
 export default function HomeStage1() {
   const hp = useStore((s) => s.hp);
   const todayMeals = useStore((s) => s.todayMeals);
   const todayKey = useStore((s) => s.todayKey);
   const mealHistory = useStore((s) => s.mealHistory);
+
+  const band = getHpBand(hp, 1);
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
@@ -29,22 +31,114 @@ export default function HomeStage1() {
           history={mealHistory}
         />
 
-        {/* 2. 状态大标题 + Mascot（stage 1 调性） */}
-        <View className="mt-5">
-          <StatusTitle hp={hp} stage={1} />
+        {/* 2. Hero：mascot card（mascot 右对齐 + 文字 overlay 左上）+ 心形 absolute 浮卡跨底 */}
+        <View style={{ marginTop: 20, marginBottom: 32 /* 16 心形浮卡溢出 + 16 后续间距 */ }}>
+          {/* mascot card：30 圆角 / overflow hidden / aspectRatio 524:461 */}
+          <View
+            style={{
+              backgroundColor: colors.bg.card,
+              borderColor: colors.border.card,
+              borderWidth: 1,
+              borderRadius: 30,
+              overflow: "hidden",
+              aspectRatio: 524 / 461,
+              position: "relative",
+            }}
+          >
+            <View
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: 0,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: "100%",
+                  aspectRatio: band.mascotAspect,
+                  transform: [{ translateY: 0 }],
+                }}
+              >
+                <Image
+                  source={band.mascot}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+            {/* 文字 overlay 左上 */}
+            <View
+              style={{
+                position: "absolute",
+                top: 28,
+                left: 24,
+                maxWidth: "55%",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 30,
+                  fontWeight: "600",
+                  color: "#3D683F",
+                  lineHeight: 36,
+                }}
+              >
+                {band.title}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 16,
+                  color: "#6E6F6C",
+                  marginTop: 10,
+                  lineHeight: 22,
+                }}
+              >
+                {band.subtitle}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 15,
+                  color: "#666663",
+                  marginTop: 4,
+                  lineHeight: 20,
+                }}
+              >
+                {band.hint}
+              </Text>
+            </View>
+          </View>
+
+          {/* 心形浮卡：absolute 跨 mascot 底沿（自带 bg + border） */}
+          <View
+            style={{
+              position: "absolute",
+              bottom: -16,
+              left: 16,
+              right: 16,
+              backgroundColor: "#FDFCF6",
+              borderColor: "#D2DEB9",
+              borderWidth: 1,
+              borderRadius: 30,
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+            }}
+          >
+            <HpHeartsContent hp={hp} />
+          </View>
         </View>
 
-        {/* 3. HP 心形条 */}
-        <View style={{ marginTop: 20 }}>
-          <HpHeartsCard hp={hp} />
-        </View>
-
-        {/* 4. 提醒卡（active reminder / missed incomplete / 隐藏 三态） */}
+        {/* 3. 提醒卡（active reminder / missed incomplete / 隐藏 三态） */}
         <View style={{ marginTop: 16 }}>
           <HomeMealStatusSlot />
         </View>
 
-        {/* 5. 今日记录（与 records tab 同 selector，最近 3 条预览） */}
+        {/* 4. 今日记录（与 records tab 同 selector，最近 3 条预览） */}
         <HomeRecordsSection />
       </ScrollView>
     </SafeAreaView>
