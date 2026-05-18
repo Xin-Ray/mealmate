@@ -1,15 +1,21 @@
-// 阶段开始过渡屏（5 阶段共享）
+// 阶段开始过渡屏（5 阶段共享，v0.5 唯一保留的是 stage-1-start）
 //
 // 视觉模板：Figma 100:977（stage 1 start）
-// 布局：ScrollView + 底部 sticky CTA。
+// v0.5 Plan B 重构：
+//   - SafeAreaView + ScrollView flex:1 + position:absolute footer 三层布局
+//   - 按钮永远在视口底部可见（不会被内容推到屏外）
+//   - ScrollView contentContainerStyle paddingBottom 给 footer 让位
+//   - footer paddingBottom 用 useSafeAreaInsets 兜底 home indicator 高度
+//
+// 内容（从上到下）：
 //   1. Hero：左 pill + 标题 + 副标 + 描述 / 右 emoji illustration
 //   2. Stats card（3 列：初始 HP / 通关分数 / 关键）
-//   3. "本阶段重点" 区块 + 3 个 Rule cards（竖排，icon + 标题 + 描述）
+//   3. "本阶段重点" + 3 个 Rule cards
 //   4. Note banner（柔绿背景 + leaf icon + 文案）
-//   5. 底部 sticky 主 CTA「开始阶段 N」
+//   底部 sticky 按钮「开始阶段 N」
 
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii, spacing } from "@src/theme/tokens";
 import type { StageStartConfig } from "@src/data/stageTransitions";
 
@@ -18,17 +24,26 @@ type Props = {
   onStart: () => void;
 };
 
+const FOOTER_BTN_HEIGHT = 52; // 按钮自身高度 + 上下 padding 大致估算
+const FOOTER_BUFFER = 24;     // 内容与按钮之间的安全距离
+
 export default function StageStartScreen({ theme, onStart }: Props) {
+  const insets = useSafeAreaInsets();
+  const footerBottomPadding = Math.max(insets.bottom, spacing.md);
+  const scrollPaddingBottom =
+    FOOTER_BTN_HEIGHT + footerBottomPadding + spacing.md + FOOTER_BUFFER;
+
   return (
     <SafeAreaView
-      edges={["top", "bottom"]}
+      edges={["top"]}
       style={{ flex: 1, backgroundColor: colors.bg.page }}
     >
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: spacing.xl,
           paddingTop: spacing.lg,
-          paddingBottom: spacing.xxl + 64 + spacing.lg, // 给 sticky CTA 留位
+          paddingBottom: scrollPaddingBottom,
         }}
       >
         {/* 1. Hero */}
@@ -237,7 +252,7 @@ export default function StageStartScreen({ theme, onStart }: Props) {
         <View
           style={{
             marginTop: spacing.xl,
-            backgroundColor: "#F0F5E6", // 柔绿（greenSoft 的更浅版本，避免覆盖 HpHeartsCard 色）
+            backgroundColor: "#F0F5E6",
             borderColor: "#D2DEB9",
             borderWidth: 1,
             borderRadius: radii.lg,
@@ -262,7 +277,7 @@ export default function StageStartScreen({ theme, onStart }: Props) {
         </View>
       </ScrollView>
 
-      {/* 5. Sticky bottom CTA */}
+      {/* sticky bottom 按钮 — 绝对定位，永远视口底部可见 */}
       <View
         style={{
           position: "absolute",
@@ -271,7 +286,7 @@ export default function StageStartScreen({ theme, onStart }: Props) {
           bottom: 0,
           paddingHorizontal: spacing.xl,
           paddingTop: spacing.md,
-          paddingBottom: spacing.xl, // SafeAreaView edges 已含 bottom，这里再加视觉留白
+          paddingBottom: footerBottomPadding,
           backgroundColor: colors.bg.page,
           borderTopColor: colors.border.card,
           borderTopWidth: 1,

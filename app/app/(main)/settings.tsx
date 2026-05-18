@@ -476,11 +476,11 @@ export default function SettingsScreen() {
               </Pressable>
 
               <Text className="mb-2" style={{ fontSize: 12, color: colors.ink.sub }}>
-                跳 modal（单测，不改 state）
+                跳屏（单测，不改 state；v0.5 Plan B 走 /(stage)/）
               </Text>
               <Pressable
                 onPress={() =>
-                  router.push("/(modal)/stage-1-start" as never)
+                  router.replace("/(stage)/stage-1-start" as never)
                 }
                 className="py-2 rounded-xl items-center mb-2"
                 style={{ backgroundColor: colors.bg.hpEmpty }}
@@ -494,7 +494,7 @@ export default function SettingsScreen() {
                   <Pressable
                     key={`end-${n}`}
                     onPress={() =>
-                      router.push(`/(modal)/stage-${n}-end` as never)
+                      router.replace(`/(stage)/stage-${n}-end` as never)
                     }
                     className="flex-1 py-2 rounded-xl items-center"
                     style={{ backgroundColor: colors.bg.hpEmpty }}
@@ -512,7 +512,7 @@ export default function SettingsScreen() {
                   <Pressable
                     key={`demote-${n}`}
                     onPress={() =>
-                      router.push(`/(modal)/stage-${n}-demote` as never)
+                      router.replace(`/(stage)/stage-${n}-demote` as never)
                     }
                     className="flex-1 py-2 rounded-xl items-center"
                     style={{ backgroundColor: "#FFEFD8" }}

@@ -1,14 +1,21 @@
 // 阶段结束过渡屏（5 阶段共享）
 //
 // 视觉模板：Figma 100:5373（stage 1 end）
-// 布局：ScrollView + 底部 sticky CTA。
+// v0.5 Plan B 重构：
+//   - SafeAreaView + ScrollView flex:1 + position:absolute footer 三层布局
+//   - 按钮永远在视口底部可见
+//   - NextStepCard 视觉降级 —— 之前用饱和绿色 + 右箭头，被 xin 误以为按钮
+//     现在改成浅米色 / 浅绿底 + ink 深色文字 + 无箭头 + 加"👇 完成本阶段后将进入"前缀
+//     看起来明确是"预告说明"不是按钮
+//
+// 内容（从上到下）：
 //   1. Hero：左 pill「阶段 N · 名称」+ 标题「阶段 N 完成」+ 副标 + 描述 / 右 emoji illustration
 //   2. AccomplishmentsSection：3 项（绿勾 icon + 标题 + 描述）
-//   3. NextStepCard：荧光绿底「下一阶段：XXX」+ 简介 + arrow（stage 5 无）
-//   4. 底部 sticky 主 CTA「开始阶段 N+1」/ 末阶段「完成旅程」
+//   3. NextStepCard：预告下一阶段（stage 5 无）—— 浅米色卡，非按钮
+//   底部 sticky 按钮「完成」
 
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii, spacing } from "@src/theme/tokens";
 import type { StageEndConfig } from "@src/data/stageTransitions";
 
@@ -17,17 +24,26 @@ type Props = {
   onContinue: () => void;
 };
 
+const FOOTER_BTN_HEIGHT = 52;
+const FOOTER_BUFFER = 24;
+
 export default function StageEndScreen({ theme, onContinue }: Props) {
+  const insets = useSafeAreaInsets();
+  const footerBottomPadding = Math.max(insets.bottom, spacing.md);
+  const scrollPaddingBottom =
+    FOOTER_BTN_HEIGHT + footerBottomPadding + spacing.md + FOOTER_BUFFER;
+
   return (
     <SafeAreaView
-      edges={["top", "bottom"]}
+      edges={["top"]}
       style={{ flex: 1, backgroundColor: colors.bg.page }}
     >
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: spacing.xl,
           paddingTop: spacing.lg,
-          paddingBottom: spacing.xxl + 64 + spacing.lg,
+          paddingBottom: scrollPaddingBottom,
         }}
       >
         {/* 1. Hero */}
@@ -182,59 +198,55 @@ export default function StageEndScreen({ theme, onContinue }: Props) {
           ))}
         </View>
 
-        {/* 3. Next stage card */}
+        {/* 3. Next stage card —— 视觉降级（v0.5 Plan B bug3 fix）
+            之前用饱和绿色 + 右箭头，被误以为按钮。
+            现在改成浅米色 + ink 深色文字 + 无箭头 + "👇 完成本阶段后将进入" 前缀，
+            明确是预告说明，不是按钮（避免和底部 sticky 按钮混淆） */}
         {theme.nextStage ? (
           <View
             style={{
               marginTop: spacing.xl,
-              backgroundColor: colors.brand.greenSoft,
+              backgroundColor: "#F0F5E6", // 浅绿米（同 note banner 调，弱化）
+              borderColor: "#D2DEB9",
+              borderWidth: 1,
               borderRadius: radii.lg,
               padding: spacing.lg,
-              flexDirection: "row",
-              alignItems: "center",
             }}
           >
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: "#FFFFFF",
-                  opacity: 0.85,
-                }}
-              >
-                下一阶段
-              </Text>
-              <Text
-                style={{
-                  marginTop: 4,
-                  fontSize: 20,
-                  fontWeight: "700",
-                  color: "#FFFFFF",
-                }}
-              >
-                阶段 {theme.nextStage.number} · {theme.nextStage.name}
-              </Text>
-              <Text
-                style={{
-                  marginTop: 6,
-                  fontSize: 13,
-                  color: "#FFFFFF",
-                  lineHeight: 18,
-                  opacity: 0.92,
-                }}
-              >
-                {theme.nextStage.description}
-              </Text>
-            </View>
-            <Text style={{ fontSize: 28, color: "#FFFFFF", marginLeft: spacing.md }}>
-              →
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "500",
+                color: colors.ink.sub,
+              }}
+            >
+              👇 完成本阶段后将进入
+            </Text>
+            <Text
+              style={{
+                marginTop: 6,
+                fontSize: 18,
+                fontWeight: "700",
+                color: colors.brand.greenDark,
+              }}
+            >
+              阶段 {theme.nextStage.number} · {theme.nextStage.name}
+            </Text>
+            <Text
+              style={{
+                marginTop: 6,
+                fontSize: 13,
+                color: colors.ink.primary,
+                lineHeight: 18,
+              }}
+            >
+              {theme.nextStage.description}
             </Text>
           </View>
         ) : null}
       </ScrollView>
 
-      {/* 4. Sticky bottom CTA */}
+      {/* sticky bottom 按钮 — 永远视口底部可见 */}
       <View
         style={{
           position: "absolute",
@@ -243,7 +255,7 @@ export default function StageEndScreen({ theme, onContinue }: Props) {
           bottom: 0,
           paddingHorizontal: spacing.xl,
           paddingTop: spacing.md,
-          paddingBottom: spacing.xl,
+          paddingBottom: footerBottomPadding,
           backgroundColor: colors.bg.page,
           borderTopColor: colors.border.card,
           borderTopWidth: 1,

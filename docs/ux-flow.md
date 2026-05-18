@@ -13,18 +13,19 @@ flowchart TD
 
   hasOnboarded -- 是 --> mainEntry((main)/home<br/>底部 4 tab)
 
-  %% Stage transition modals - 触发自 (main)/_layout useEffect
-  mainEntry -- stage 1 start 未看 --> stage1Start[/(modal)/stage-1-start<br/>fullScreenModal/]
-  stage1Start -.开始阶段 1.-> mainEntry
+  %% Stage transition screens (v0.5 Plan B：移出 (modal) group → (stage) group 普通 page)
+  %% (main)/_layout useEffect 用 router.replace 切到 (stage)，按钮再 router.replace 回 (main)/home
+  mainEntry -- stage 1 start 未看<br/>router.replace --> stage1Start[/(stage)/stage-1-start<br/>page slide_from_right/]
+  stage1Start -.开始阶段 1<br/>router.replace.-> mainEntry
 
-  mainEntry -- advance 触发<br/>transitionsPending push end --> stageEnd[/(modal)/stage-N-end<br/>fullScreenModal/]
-  stageEnd -.完成.-> mainEntry
+  mainEntry -- advance 触发<br/>transitionsPending push end<br/>router.replace --> stageEnd[/(stage)/stage-N-end<br/>page slide_from_right/]
+  stageEnd -.完成<br/>router.replace.-> mainEntry
 
-  %% Demote flow - HP<0 触发（feature/stage-transitions v0.5 加，stage{2-5}-start 已删）
+  %% Demote flow - HP<0 触发
   hpNeg([HP < 0]) --> demoteStage[demoteStage<br/>HP→90<br/>stage>1: 退到 N-1<br/>stage=1: 不变 stage]
-  demoteStage --> stageDemote[/(modal)/stage-N-demote<br/>fullScreenModal/]
-  demoteStage --> failureRec[(pushDialogue<br/>kind=failure<br/>body=阶段 N 失败一次)]
-  stageDemote -.我知道了.-> mainEntry
+  demoteStage --> stageDemote[/(stage)/stage-N-demote<br/>page slide_from_right/]
+  demoteStage --> failureRec[(pushDialogue<br/>kind=failure<br/>body=阶段 N 失败一次<br/>stageWhenFailed=N)]
+  stageDemote -.继续 / 我知道了<br/>router.replace.-> mainEntry
   failureRec --> feedList
 
   %% Stage 1 demote 特殊：support tone（PRD §11.L 安全规则）
@@ -107,13 +108,21 @@ flowchart TD
 
 | modal | 触发 | 关闭 | 备注 |
 |---|---|---|---|
-| `/(modal)/photo` | 通知点击 / 首页 "去拍照" CTA | 用户关闭 / 完成 result phase | 4 phase：intro/preview/uploading/result |
+| `/(modal)/photo` | 通知点击 / 首页 "去拍照" 按钮 | 用户关闭 / 完成 result phase | 4 phase：intro/preview/uploading/result |
 | `/(modal)/weight-entry` | Stage 2 体重模块点击 | 用户关闭 / 完成 result phase | 4 phase 同上；KeyboardAvoidingView |
 | `/(modal)/meal-reminder` | 通知点击（少用，主入口走 photo） | "去拍照" / "稍后再说" | mascot reminder.png |
 | `/(modal)/meal-missed` | runMissedScan 命中 | "我知道了" → ack | mascot missed.png + "-10" badge |
-| `/(modal)/stage-1-start` | 新用户首次进 home（transitionsSeen 检查） | "开始阶段 1" | fullScreenModal；唯一保留的 start modal |
-| `/(modal)/stage-{1..5}-end` | advanceStage → transitionsPending push | "完成" 关闭回 home（不再串接 next-stage start）| fullScreenModal |
-| `/(modal)/stage-{1..5}-demote` | demoteStage（HP<0 触发）→ transitionsPending push | stage 2-5: "继续"；stage 1: "我知道了"（support 调，PRD §11.L）| fullScreenModal；stage 1 走 support 调（建议医生）|
+
+### (stage) group — 全屏 page（v0.5 Plan B，普通 navigation 不弹 modal）
+
+| 屏 | 触发 | 离开 | 备注 |
+|---|---|---|---|
+| `/(stage)/stage-1-start` | 新用户首次进 home（transitionsSeen 检查）| 点 "开始阶段 1" 按钮 → `router.replace('/(main)/home')` | 唯一保留的 start 屏 |
+| `/(stage)/stage-{1..5}-end` | advanceStage → transitionsPending push | 点 "完成" 按钮 → `router.replace('/(main)/home')` | 不再串接 next-stage start；包含 NextStepCard 预告下一阶段（非按钮）|
+| `/(stage)/stage-{1..5}-demote` | demoteStage（HP<0 触发）→ transitionsPending push | stage 2-5 "继续" / stage 1 "我知道了" → `router.replace('/(main)/home')` | stage 1 走 support 调（PRD §11.L 建议医生）|
+
+布局规则：所有 (stage) 屏统一 `SafeAreaView + ScrollView flex:1 + position:absolute footer` —
+按钮永远在视口底部可见，内容长时 ScrollView 滚动不会盖住按钮（contentContainerStyle paddingBottom 给 footer 让位）。
 
 ### 后台触发链
 

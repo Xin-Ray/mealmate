@@ -568,9 +568,19 @@ selector：`buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })
 **实现层面**：
 
 - `StageDemoteConfig.tone?: 'demote' | 'support'`（仅 stage 1 用 `'support'`）
-- `useStore.demoteStage()` 内除 push transitionsPending 外还 `pushDialogue({ kind: 'failure', body: '阶段 N 失败一次' })`
-- `DialogueKind` 加 `'failure'`
+- `useStore.demoteStage()` 内除 push transitionsPending 外还 `pushDialogue({ kind: 'failure', body: '阶段 N 失败一次', stageWhenFailed: N })`
+- `DialogueKind` 加 `'failure'`；`DialogueRecord` 加可选 `stageWhenFailed?: number`
 - `RecordCard` / `TodayRecordRow` 检测 `dialogue.kind === 'failure'` → 走暖橘卡分支
+
+**架构层面（v0.5 Plan B 重构）**：
+
+11 个 stage 过渡屏（1 start + 5 end + 5 demote）放在独立 `app/(stage)/` group，**不在 `(modal)` group 里**：
+
+- (modal) group root 配 `presentation:'modal'`（photo / weight-entry 等用），从下弹起；stage 屏混在里面会被强制 modal 视觉 + 按钮被 layout 推到屏外
+- (stage) group root 配 `presentation:'card' + animation:'slide_from_right'`，普通 page 切换
+- 进入：`(main)/_layout` useEffect 用 `router.replace('/(stage)/...')` 替换整个 (main)
+- 离开：屏内按钮 `router.replace('/(main)/home')` 切回 home tab，无 modal 关闭动画
+- 屏 layout：`SafeAreaView + ScrollView flex:1 + position:absolute footer`，按钮永远视口底部可见
 
 **留账**：
 

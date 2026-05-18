@@ -54,12 +54,13 @@ export default function MainLayout() {
   const consumeTransition = useStore((s) => s.consumeTransition);
 
   useEffect(() => {
-    // 延迟一帧等 (main) navigator 挂载完，避免在 mount 同帧 push modal
+    // 延迟一帧等 (main) navigator 挂载完，避免在 mount 同帧 navigate
     const t = setTimeout(() => {
       // 1. 优先消费 pending 队首（advance/demote 触发）
+      //    用 router.replace 切到 (stage) 全屏 page（v0.5 Plan B），按钮再 replace 回 home
       if (transitionsPending.length > 0) {
         const next = transitionsPending[0];
-        router.push(`/(modal)/stage-${next.stage}-${next.kind}` as never);
+        router.replace(`/(stage)/stage-${next.stage}-${next.kind}` as never);
         consumeTransition();
         return;
       }
@@ -68,7 +69,7 @@ export default function MainLayout() {
         currentStage === 1 &&
         !transitionsSeen.some((t) => t.stage === 1 && t.kind === "start")
       ) {
-        router.push(`/(modal)/stage-1-start` as never);
+        router.replace(`/(stage)/stage-1-start` as never);
       }
     }, 0);
     return () => clearTimeout(t);

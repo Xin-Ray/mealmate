@@ -1,17 +1,22 @@
 // 阶段降级过渡屏（5 阶段共享）
 //
 // 触发：HP 降到 < 0 时由 store 的 demoteStage 推 transitionsPending → (main)/_layout
-// consumer 弹此屏。
+// consumer 切到此屏。
 //
 // 视觉与 StageStartScreen / StageEndScreen 区分：
 //   - 强调"重整 / 鼓励"调性，避免任何负面用词
-//   - 主色用橘黄 brand.accent（区别 end 的绿色 CTA）—— 但 CTA 仍然是 brand.green
+//   - 主色用橘黄 brand.accent（区别 end 的绿色 CTA）—— 但按钮仍然是 brand.green
 //     保持品牌一致（橘色只用在 badge / icon circle / 装饰）
-//   - illustration 用 🌧️ 占位（雨 = 低谷，但带"会过去"的暗示）
-//   - 没有 nextStage 卡，也没有 stats 卡 —— 只有 hero + encouragements + CTA
+//   - illustration 用 🌧️ 占位
+//   - 没有 nextStage 卡，没有 stats 卡 —— 只有 hero + encouragements + 按钮
+//
+// v0.5 Plan B 重构：
+//   - SafeAreaView + ScrollView flex:1 + position:absolute footer 三层布局
+//   - 按钮永远在视口底部可见
+//   - 通过 useSafeAreaInsets 兜底 home indicator
 
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radii, spacing } from "@src/theme/tokens";
 import type { StageDemoteConfig } from "@src/data/stageTransitions";
 
@@ -20,17 +25,26 @@ type Props = {
   onContinue: () => void;
 };
 
+const FOOTER_BTN_HEIGHT = 52;
+const FOOTER_BUFFER = 24;
+
 export default function StageDemoteScreen({ theme, onContinue }: Props) {
+  const insets = useSafeAreaInsets();
+  const footerBottomPadding = Math.max(insets.bottom, spacing.md);
+  const scrollPaddingBottom =
+    FOOTER_BTN_HEIGHT + footerBottomPadding + spacing.md + FOOTER_BUFFER;
+
   return (
     <SafeAreaView
-      edges={["top", "bottom"]}
+      edges={["top"]}
       style={{ flex: 1, backgroundColor: colors.bg.page }}
     >
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: spacing.xl,
           paddingTop: spacing.lg,
-          paddingBottom: spacing.xxl + 64 + spacing.lg,
+          paddingBottom: scrollPaddingBottom,
         }}
       >
         {/* 1. Hero（橘色 badge 区分 end 屏的绿色） */}
@@ -39,7 +53,7 @@ export default function StageDemoteScreen({ theme, onContinue }: Props) {
             <View
               style={{
                 alignSelf: "flex-start",
-                backgroundColor: "#FFEFD8", // 浅橘 pill 底
+                backgroundColor: "#FFEFD8",
                 borderColor: colors.brand.accent,
                 borderWidth: 1,
                 borderRadius: radii.pill,
@@ -144,7 +158,7 @@ export default function StageDemoteScreen({ theme, onContinue }: Props) {
                   width: 32,
                   height: 32,
                   borderRadius: radii.pill,
-                  backgroundColor: colors.brand.accent, // 橘色 icon circle
+                  backgroundColor: colors.brand.accent,
                   alignItems: "center",
                   justifyContent: "center",
                   marginRight: spacing.md,
@@ -186,7 +200,7 @@ export default function StageDemoteScreen({ theme, onContinue }: Props) {
         </View>
       </ScrollView>
 
-      {/* 3. Sticky bottom CTA（保持品牌绿 - 一致性优先） */}
+      {/* sticky bottom 按钮（保持品牌绿 - 一致性优先） */}
       <View
         style={{
           position: "absolute",
@@ -195,7 +209,7 @@ export default function StageDemoteScreen({ theme, onContinue }: Props) {
           bottom: 0,
           paddingHorizontal: spacing.xl,
           paddingTop: spacing.md,
-          paddingBottom: spacing.xl,
+          paddingBottom: footerBottomPadding,
           backgroundColor: colors.bg.page,
           borderTopColor: colors.border.card,
           borderTopWidth: 1,

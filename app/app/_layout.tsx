@@ -91,10 +91,16 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: "#FFF8F1" },
           }}
         >
-          {/* (modal) group 用 modal presentation 呈现 */}
+          {/* (modal) group 用 modal presentation 呈现（photo / weight-entry / meal-* 等） */}
           <Stack.Screen
             name="(modal)"
             options={{ presentation: "modal", headerShown: false }}
+          />
+          {/* (stage) group 用普通 page presentation（v0.5 Plan B：阶段过渡屏移出 modal）
+              内部 Stack 自带 slide_from_right 动画，按钮 router.replace 直接切回 (main)/home */}
+          <Stack.Screen
+            name="(stage)"
+            options={{ headerShown: false }}
           />
         </Stack>
       </SafeAreaProvider>
