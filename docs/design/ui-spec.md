@@ -1,6 +1,3 @@
-> ⚠️ **已迁移**：本文件内容已搬到 [`docs/design/ui-spec.md`](./design/ui-spec.md)（docs/ 结构重组，详见 [`docs/README.md`](./README.md)）。
-> 此处为兼容旧链接保留，新改动请在新位置进行。
-
 # MealMate Design System
 
 > 这份是 mealmate 视觉与交互的 source of truth。所有 RN 组件、Figma 设计、未来添加的页面都基于这份 tokens 实施。

@@ -1,6 +1,3 @@
-> ⚠️ **已迁移**：本文件内容已搬到 [`docs/product/business-model.md`](./product/business-model.md)（docs/ 结构重组，详见 [`docs/README.md`](./README.md)）。
-> 此处为兼容旧链接保留，新改动请在新位置进行。
-
 # MealMate 商业模式简报
 
 MealMate 不应该只被定义为一个健康饮食记录工具，而应该定位为一个**陪伴式健康饮食养成系统**。它的核心价值不是单纯记录用户吃了什么，而是通过 AI 分析、角色陪伴和成长机制，帮助用户长期坚持健康饮食。
