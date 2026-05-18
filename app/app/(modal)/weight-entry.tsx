@@ -109,8 +109,9 @@ export default function WeightEntryScreen() {
       setPhase("result");
 
       // LLM 升级（如果开关开 + 有 key）
+      // generateMascotLine 当前 prompt 模板只支持 stage 1+2；3-5 fallback 到 stage 2
       generateMascotLine({
-        stage,
+        stage: (Math.min(stage, 2) as 1 | 2),
         hp: afterHp,
         band,
         robotName: useStore.getState().robotName,

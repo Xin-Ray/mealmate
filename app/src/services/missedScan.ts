@@ -96,9 +96,11 @@ export function runMissedScan(): MealSlot[] {
       mealSlot: slot,
       hpDelta: -hpLoss,
     });
+    // REMIND_BY_STAGE 现仅有 stage 1+2 的提醒池；3-5 阶段 fallback 到 stage 2 文案
+    const stageKey = (Math.min(fresh.currentStage, 2) as 1 | 2);
     fresh.pushDialogue({
       kind: "remind",
-      body: pickRandom(REMIND_BY_STAGE[fresh.currentStage]),
+      body: pickRandom(REMIND_BY_STAGE[stageKey]),
       mealSlot: slot,
     });
   }

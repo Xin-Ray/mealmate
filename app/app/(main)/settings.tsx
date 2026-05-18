@@ -308,7 +308,7 @@ export default function SettingsScreen() {
                 阶段（当前 Stage {currentStage}）
               </Text>
               <View className="flex-row gap-2">
-                {([1, 2] as const).map((s) => (
+                {([1, 2, 3, 4, 5] as const).map((s) => (
                   <Pressable
                     key={s}
                     onPress={() => devSetStage(s)}
@@ -326,7 +326,7 @@ export default function SettingsScreen() {
                           currentStage === s ? "#FFFFFF" : colors.ink.primary,
                       }}
                     >
-                      Stage {s}
+                      {s}
                     </Text>
                   </Pressable>
                 ))}
@@ -417,6 +417,115 @@ export default function SettingsScreen() {
                 </Pressable>
               ))}
             </View>
+
+            {/* Transitions 测试（feature/stage-transitions） */}
+            <Text
+              className="mt-4 mb-2"
+              style={{ fontSize: 14, color: colors.ink.primary }}
+            >
+              Transitions 测试（HP 边界 + modal）
+            </Text>
+            <Card style={{ marginBottom: 12 }}>
+              <Text className="mb-2" style={{ fontSize: 12, color: colors.ink.sub }}>
+                触发真实流程（改 store + 弹 modal）
+              </Text>
+              <View className="flex-row gap-2 mb-2">
+                <Pressable
+                  onPress={() => useStore.getState().advanceStage()}
+                  className="flex-1 py-2 rounded-xl items-center"
+                  style={{ backgroundColor: colors.brand.green }}
+                >
+                  <Text style={{ color: "#FFFFFF", fontSize: 13 }}>
+                    advance ↑
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => useStore.getState().demoteStage()}
+                  className="flex-1 py-2 rounded-xl items-center"
+                  style={{ backgroundColor: colors.brand.accent }}
+                >
+                  <Text style={{ color: "#FFFFFF", fontSize: 13 }}>
+                    demote ↓
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => useStore.getState().__dev_resetTransitions()}
+                  className="flex-1 py-2 rounded-xl items-center"
+                  style={{ backgroundColor: colors.bg.hpEmpty }}
+                >
+                  <Text style={{ color: colors.ink.primary, fontSize: 13 }}>
+                    reset seen
+                  </Text>
+                </Pressable>
+              </View>
+              {/* 一键场景：stage 1 失败（按 PRD §11.L 测试支持调 modal + failure 留账） */}
+              <Pressable
+                onPress={() => {
+                  const s = useStore.getState();
+                  s.__dev_setStage(1);
+                  s.demoteStage();
+                }}
+                className="py-2 rounded-xl items-center mb-3"
+                style={{ backgroundColor: "#FFEFD8" }}
+              >
+                <Text
+                  style={{ color: colors.brand.accentDark, fontSize: 13 }}
+                >
+                  模拟 stage 1 失败（support modal + failure 留账）
+                </Text>
+              </Pressable>
+
+              <Text className="mb-2" style={{ fontSize: 12, color: colors.ink.sub }}>
+                跳屏（单测，不改 state；v0.5 Plan B 走 /(stage)/）
+              </Text>
+              <Pressable
+                onPress={() =>
+                  router.replace("/(stage)/stage-1-start" as never)
+                }
+                className="py-2 rounded-xl items-center mb-2"
+                style={{ backgroundColor: colors.bg.hpEmpty }}
+              >
+                <Text style={{ color: colors.ink.primary, fontSize: 13 }}>
+                  stage-1-start
+                </Text>
+              </Pressable>
+              <View className="flex-row gap-2 mb-2">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Pressable
+                    key={`end-${n}`}
+                    onPress={() =>
+                      router.replace(`/(stage)/stage-${n}-end` as never)
+                    }
+                    className="flex-1 py-2 rounded-xl items-center"
+                    style={{ backgroundColor: colors.bg.hpEmpty }}
+                  >
+                    <Text
+                      style={{ color: colors.ink.primary, fontSize: 12 }}
+                    >
+                      {n} end
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View className="flex-row gap-2">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Pressable
+                    key={`demote-${n}`}
+                    onPress={() =>
+                      router.replace(`/(stage)/stage-${n}-demote` as never)
+                    }
+                    className="flex-1 py-2 rounded-xl items-center"
+                    style={{ backgroundColor: "#FFEFD8" }}
+                  >
+                    <Text
+                      style={{ color: colors.brand.accentDark, fontSize: 12 }}
+                    >
+                      {n} dem
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Card>
           </>
         )}
       </ScrollView>

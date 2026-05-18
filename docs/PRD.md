@@ -543,3 +543,49 @@ selector：`buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })
 8. "状态不好"主页变体
 9. 我的页（settings）UI 微调对齐
 10. stage2.tsx 删除 + 路由清理 + dev-log 收尾
+
+---
+
+### 11.L Stage 1 HP→0 行为：建议医生 + 记录失败
+
+> 引用：§八 安全与伦理边界 §1 / §11.G "状态不好"自然渲染。
+> 适用版本：feature/stage-transitions（v0.5 计划）。
+
+**背景**：v0.5 引入 HP<0 触发的 `demoteStage` 流程。对 Stage 2-5 用户，逻辑是"退回上一阶段 + HP 重置 90 + 弹 stage-N-demote modal 文案『回到阶段 N-1，请继续努力』"。
+
+但 **Stage 1 用户 HP 降到 0 是一个重要信号** —— 暗示用户在「按时吃齐三餐」这件最基础的事上正在挣扎。继续走"加油从头来"鼓励调，违反 §八 第 1 条「永远不把 HP 下降描述为『你失败了』」之外的另一面：**也不能假装一切只是"再来一次"的小波动**。
+
+**规则**：
+
+1. **modal 文案升级为 support 调**（区别 stage 2-5 的 demote 调）：
+   - 标题：「需要支持」（不是「失败」/「重整」）
+   - 副标：「吃饭这件事，你不需要一个人扛」
+   - body：「如果最近持续感到吃饭困难、力不从心，请考虑联系饮食方面的专业医生或营养师。他们能给你更适合的支持。」
+   - CTA：「我知道了」（柔和绿色，不是红警示色）
+   - mascot：🌫️（更轻；不用 ❌ / 💔 / 红色调）
+2. **不变 currentStage**（stay at 1），HP 重置到 90 —— 不让用户感觉"退无可退"
+3. **同时往 dialogueHistory 落一条 `kind: 'failure'` 记录**：body = "阶段 1 失败一次"（仅作为客观留账，不用作激励 / 排行）
+4. **records / home feed 渲染该条用暖橘卡 + 💭 icon + 无 HP +/- badge** —— 视觉上把它跟普通错过餐区分开
+5. **stage 2-5 demote 也落 failure 记录**（body = "阶段 N 失败一次"，N=失败时所在 stage），但不走 support tone modal（PRD §11.L 的 support 升级只适用于 stage 1）
+
+**实现层面**：
+
+- `StageDemoteConfig.tone?: 'demote' | 'support'`（仅 stage 1 用 `'support'`）
+- `useStore.demoteStage()` 内除 push transitionsPending 外还 `pushDialogue({ kind: 'failure', body: '阶段 N 失败一次', stageWhenFailed: N })`
+- `DialogueKind` 加 `'failure'`；`DialogueRecord` 加可选 `stageWhenFailed?: number`
+- `RecordCard` / `TodayRecordRow` 检测 `dialogue.kind === 'failure'` → 走暖橘卡分支
+
+**架构层面（v0.5 Plan B 重构）**：
+
+11 个 stage 过渡屏（1 start + 5 end + 5 demote）放在独立 `app/(stage)/` group，**不在 `(modal)` group 里**：
+
+- (modal) group root 配 `presentation:'modal'`（photo / weight-entry 等用），从下弹起；stage 屏混在里面会被强制 modal 视觉 + 按钮被 layout 推到屏外
+- (stage) group root 配 `presentation:'card' + animation:'slide_from_right'`，普通 page 切换
+- 进入：`(main)/_layout` useEffect 用 `router.replace('/(stage)/...')` 替换整个 (main)
+- 离开：屏内按钮 `router.replace('/(main)/home')` 切回 home tab，无 modal 关闭动画
+- 屏 layout：`SafeAreaView + ScrollView flex:1 + position:absolute footer`，按钮永远视口底部可见
+
+**留账**：
+
+- ⏳ 正式上线前需 xin 联合饮食方面专业人士复核文案（医生 / 营养师推荐资源、当地拨打号码、是否要加 "求助资源" 链接到 settings）
+- ⏳ 是否进一步在 settings 加常驻"求助资源"入口（§八 第 6 条 mention 过）

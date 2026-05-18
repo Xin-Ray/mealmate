@@ -31,6 +31,54 @@ const SCORE_EMOJI: Record<3 | 5 | 8, string> = {
 export default function RecordCard({ item }: Props) {
   if (item.kind === "dialogue") {
     const r = item.record;
+    // failure 专属渲染（PRD §11.L）：暖橘 / 米色调，无 HP badge，不显示绿色 +X
+    // 区别普通 dialogue —— 这是把 demote 事件留账的痕迹，不是常规对话。
+    if (r.kind === "failure") {
+      return (
+        <Card
+          style={{
+            marginBottom: 8,
+            backgroundColor: "#FFF7E8",
+            borderColor: colors.brand.accent,
+          }}
+        >
+          <View className="flex-row items-start gap-3">
+            <View
+              className="items-center justify-center rounded-xl"
+              style={{
+                width: 48,
+                height: 48,
+                backgroundColor: "#FFEFD8",
+                borderWidth: 1,
+                borderColor: colors.brand.accent,
+              }}
+            >
+              <Text style={{ fontSize: 22 }}>💭</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="text-sub text-xs">{fmtTime(item.ts)}</Text>
+              <Text
+                className="mt-0.5"
+                style={{
+                  fontSize: 16,
+                  fontWeight: "600",
+                  color: colors.brand.accentDark,
+                  lineHeight: 22,
+                }}
+              >
+                {r.body}
+              </Text>
+              <Text
+                className="mt-0.5"
+                style={{ fontSize: 13, color: colors.ink.sub }}
+              >
+                HP 已重置到 90
+              </Text>
+            </View>
+          </View>
+        </Card>
+      );
+    }
     return (
       <Card style={{ marginBottom: 8 }}>
         <View className="flex-row items-start gap-3">

@@ -57,7 +57,9 @@ export type DialogueKind =
   | "meal_missed" // §11.F.2 第一条："你错过了一餐..."
   | "encourage"   // §11.F.1 第二条 鼓励
   | "remind"      // §11.F.2 第二条 "贵在坚持..."
-  | "mock";       // v0.3 mock dialogues 池里的过渡内容
+  | "mock"        // v0.3 mock dialogues 池里的过渡内容
+  | "failure";    // §11.L feature/stage-transitions：HP<0 触发 demote 时落一条
+                  //   body = "阶段 N 失败一次"，feed 专属渲染（暖橘卡）
 
 export type DialogueRecord = {
   id: string;
@@ -67,4 +69,7 @@ export type DialogueRecord = {
   hpDelta?: number;      // 仅与 HP 联动的卡片显示 badge
   mealSlot?: MealSlot;
   photoUri?: string;
+  // 仅 kind='failure' 用：失败时所在的阶段（demote 前的 currentStage）
+  // 让未来查询 / 统计可以按阶段聚合（不必从 body 字符串解析）
+  stageWhenFailed?: number;
 };
