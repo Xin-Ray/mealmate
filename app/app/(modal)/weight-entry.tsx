@@ -17,9 +17,11 @@ import { useStore } from "@src/store/useStore";
 import { hpBandFromValue } from "@src/data/dialogues";
 import { generateMascotLine } from "@src/services/mascotLlm";
 import { pickImageWithFallback, type Source } from "@src/services/imagePicker";
+import { recognizeWeightKg } from "@src/services/weightOcr";
 import type { HpBand } from "@src/types";
 
 type Phase = "intro" | "preview" | "uploading" | "result";
+type OcrStatus = "idle" | "recognizing" | "done" | "failed";
 
 // 体重模块自带的简单文案池（按 HP band），不动 dialogues.ts 的类型
 const WEIGHT_LINES: Record<HpBand, string[]> = {
@@ -58,6 +60,8 @@ export default function WeightEntryScreen() {
   const [lastSource, setLastSource] = useState<Source>("camera");
   const [kgInput, setKgInput] = useState<string>("");
   const [line, setLine] = useState<string>("");
+  const [ocrStatus, setOcrStatus] = useState<OcrStatus>("idle");
+  const ocrAbortRef = useRef<AbortController | null>(null);
 
   // HP +0.5 弹跳
   const scale = useRef(new Animated.Value(1)).current;
@@ -70,12 +74,36 @@ export default function WeightEntryScreen() {
     }
   }, [phase, scale]);
 
+  const runOcr = (uri: string) => {
+    // 取消上一轮（用户连拍）
+    ocrAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    ocrAbortRef.current = ctrl;
+    setOcrStatus("recognizing");
+    setKgInput("");
+    recognizeWeightKg(uri, ctrl.signal).then((kg) => {
+      if (ctrl.signal.aborted) return;
+      if (kg !== null) {
+        setKgInput(String(kg));
+        setOcrStatus("done");
+      } else {
+        setOcrStatus("failed");
+      }
+    });
+  };
+
+  // 卸载时取消未完成的 OCR
+  useEffect(() => {
+    return () => ocrAbortRef.current?.abort();
+  }, []);
+
   const pickImage = async (source: Source) => {
     setLastSource(source);
     const picked = await pickImageWithFallback(source);
     if (picked) {
       setImageUri(picked.uri);
       setPhase("preview");
+      runOcr(picked.uri);
     }
   };
 
@@ -125,6 +153,7 @@ export default function WeightEntryScreen() {
     if (skipPhoto) {
       // 跳过照片模式没有"重拍"概念，让用户重新输入数字即可——清空输入
       setKgInput("");
+      setOcrStatus("idle");
     } else {
       pickImage(lastSource);
     }
@@ -209,15 +238,34 @@ export default function WeightEntryScreen() {
               </View>
             )}
 
-            <Text className="text-sub text-xs mt-6 mb-2">体重（kg）</Text>
+            {ocrStatus === "recognizing" ? (
+              <Text className="text-sub text-xs mt-6 mb-2">正在识别秤面…</Text>
+            ) : ocrStatus === "done" ? (
+              <Text className="text-ok text-xs mt-6 mb-2">
+                识别到这个数字，确认或修改后保存
+              </Text>
+            ) : ocrStatus === "failed" ? (
+              <Text className="text-warn text-xs mt-6 mb-2">
+                没识别出来，麻烦手填一下
+              </Text>
+            ) : (
+              <Text className="text-sub text-xs mt-6 mb-2">体重（kg）</Text>
+            )}
             <TextInput
               value={kgInput}
-              onChangeText={setKgInput}
+              onChangeText={(t) => {
+                setKgInput(t);
+                // 用户开始编辑就清掉 OCR 状态提示，避免文案错位
+                if (ocrStatus === "done" || ocrStatus === "failed") {
+                  setOcrStatus("idle");
+                }
+              }}
               keyboardType="decimal-pad"
               placeholder="例如 60.5"
               className="bg-white border border-cardBorder rounded-2xl px-5 py-3 text-ink text-2xl font-semibold w-40 text-center"
               maxLength={6}
               autoFocus={skipPhoto || imageUri !== null}
+              editable={ocrStatus !== "recognizing"}
             />
             {kgInput.length > 0 && !kgValid && (
               <Text className="text-bad text-xs mt-2">请输入 20–250 之间的数字</Text>
