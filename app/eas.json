@@ -1,6 +1,8 @@
 {
   "cli": {
-    "version": ">= 16.0.0"
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote",
+    "promptToConfigurePushNotifications": false
   },
   "build": {
     "development": {
@@ -28,8 +30,8 @@
     "production": {
       "ios": {
         "appleId": "767483570xray@gmail.com",
-        "ascAppId": "TODO_FROM_APP_STORE_CONNECT",
-        "appleTeamId": "Z6KP7G5V5W"
+        "ascAppId": "6770576845",
+        "appleTeamId": "TSVHR7Y28M"
       }
     }
   }
