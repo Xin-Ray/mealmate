@@ -6,13 +6,15 @@ import {
 } from "@src/store/selectors/reminder";
 import MealReminderCard from "@src/components/ui/MealReminderCard";
 import MealIncompleteCard from "@src/components/ui/MealIncompleteCard";
+import NextMealCard from "@src/components/ui/NextMealCard";
 
-// 首页第二板块容器（v0.4 hotfix）
+// 首页第二板块容器
 //
 // 渲染规则（参考 §11.F + Figma 12:119 / 10:116）：
 // 1. 当前在某 mealWindow 内 + 该 slot 今日未 done → <MealReminderCard>
 // 2. 否则有未 ack 的 missed slot → <MealIncompleteCard>
-// 3. 否则 null（首页不占位）
+// 3. 否则 → <NextMealCard>（v0.5 加：显示下一顿倒计时 + 今日三餐进度星，
+//    替代之前的 null 隐藏分支）
 
 export default function HomeMealStatusSlot() {
   const router = useRouter();
@@ -51,5 +53,5 @@ export default function HomeMealStatusSlot() {
     );
   }
 
-  return null;
+  return <NextMealCard />;
 }

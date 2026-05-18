@@ -589,3 +589,30 @@ selector：`buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })
 
 - ⏳ 正式上线前需 xin 联合饮食方面专业人士复核文案（医生 / 营养师推荐资源、当地拨打号码、是否要加 "求助资源" 链接到 settings）
 - ⏳ 是否进一步在 settings 加常驻"求助资源"入口（§八 第 6 条 mention 过）
+
+---
+
+### 11.M NextMealCard 第二板块默认态（v0.5 feature/next-meal-card）
+
+之前 `<HomeMealStatusSlot>` 的"无活动 reminder + 无未 ack missed" 分支返回 null（首页不占位）。这片空白没传递任何状态信息 —— 用户看不到"下一顿是什么时候"或"今天吃了哪几顿"。
+
+**改：** 该分支改成显示 `<NextMealCard>`。
+
+**显示内容**：
+
+- 顶部小字 "距离下一顿"
+- 大字（明天）？slot 中文名 + "还有 HH:MM:SS"（每秒 tick）
+- 3 颗星（早 / 午 / 晚）按当日 status：done → ⭐ / missed → ⭐ opacity 0.3 / pending → ☆
+
+**下一顿判定**（`src/store/selectors/mealStars.ts`）：
+
+1. 顺序扫 [早, 午, 晚]：第一个 `now < schedule + 90min`（窗末）的 slot
+2. 三个都过窗末 → 明天早餐
+
+**与 §11.F 互动**：
+
+- 进入 reminder 窗（schedule - 90min ~ schedule + 90min 且 slot 未 done）→ `<MealReminderCard>` 接管，NextMealCard 收起
+- 窗末过 + slot 未 ack missed → `<MealIncompleteCard>` 接管
+- 否则 NextMealCard 显示
+
+NextMealCard 没有按钮 —— 是状态展示卡，不是行动卡（与 ReminderCard 的"去拍照"按钮区分）。
