@@ -2,6 +2,42 @@
 
 按版本归类，倒序排列。详细技术过程见 [`docs/dev/dev-log.md`](../dev/dev-log.md)。
 
+## v1.0.0 — 2026-05-18
+
+**主题**：正式 release —— EAS Build + TestFlight 准备就绪。
+
+main HEAD `87b0f21`（merge: feat/weight-ocr → main，YOLO food detection + retake button）。
+
+### 累计 main 上 commit（v0.4 之后到 v1.0）
+
+约 18 个 feature/fix commit + 5 个 merge commit，覆盖：
+
+- **Stage 1 hotfix** — HomeStage1 对齐 Stage 2 hero + 初始 HP 60 / Stage 2 50 + persist v5→v6 migrate
+- **Stage Transitions**（11 屏）— stage-1-start + 5 个 stage-N-end + 5 个 stage-N-demote；transitionsPending 队列 + addHp 统一边界（>=100→advanceStage / <0→demoteStage）；Plan B 重构：移出 (modal) → (stage) group + ScrollView+sticky footer + NextStepCard 视觉降级
+- **Stage 1 HP→0 安全规则**（PRD §11.L）— support 调 modal "需要支持" + 建议联系医生 / 营养师 + 暖橘 + 🌫️ mascot；同时 pushDialogue kind=failure 留账
+- **NextMealCard** — home 第二板块默认 fallback（替代 null 隐藏分支）：下一顿倒计时 + 3 颗星今日进度
+- **Weight OCR**（Gemini 2.5 Flash Vision）— 体重秤拍照自动 OCR kg 数字 + null 兜底手填
+- **YOLO Food Detection** — photo 拍照打卡接 self-host backend `/detect`，result 屏显示识别 chips；fail-soft（后端挂时仍打卡）；加 **重拍按钮 + confirmedOnce 守卫**
+- **Docs 大重组** — `docs/{product,design,api,architecture,dev,deploy}` 6 大类 + UX flow mermaid 图
+
+### Persist 版本
+
+`mealmate-store` schema bump 累计：v1 → **v9**（含 transitionsSeen / transitionsPending / stageWhenFailed 字段）。老用户全部 migrate 兼容。
+
+### Native 依赖
+
+⚠️ 这一版**没引入新 native module**。Weight OCR 和 YOLO Food Detection 都用 `fetch` + `FormData` + `Blob`/`FileReader`（RN 原生）。**iPhone 已装的 dev build 摇手机 reload 即可拉到新 JS bundle 用**。
+
+### EAS Build 准备
+
+- `app/app.json`：`version: 1.0.0` + `ios.buildNumber: "1"` + `bundleIdentifier: com.xinray.mealmate`
+- `app/package.json`：`version: 1.0.0`（之前就是）
+- `app/eas.json`：新建，含 `development` / `preview` / `production` 3 个 profile + `submit.production.ios`（ascAppId 留 TODO，等 xin 在 App Store Connect 建 app record 后填）
+- icon 1024×1024 ✓，splash-icon 1024×1024 ✓
+- 真实 `eas build` 还没跑（需要 xin 亲自 login + 输 Apple credentials）—— 见 [`docs/deploy/release.md`](../deploy/release.md)
+
+---
+
 ## v0.4 — 2026-05-01 → 2026-05-07
 
 **主题**：视觉对齐 Figma + IA 重构 + 餐后消息规则。
