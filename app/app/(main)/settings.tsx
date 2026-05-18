@@ -429,7 +429,7 @@ export default function SettingsScreen() {
               <Text className="mb-2" style={{ fontSize: 12, color: colors.ink.sub }}>
                 触发真实流程（改 store + 弹 modal）
               </Text>
-              <View className="flex-row gap-2 mb-3">
+              <View className="flex-row gap-2 mb-2">
                 <Pressable
                   onPress={() => useStore.getState().advanceStage()}
                   className="flex-1 py-2 rounded-xl items-center"
@@ -458,6 +458,22 @@ export default function SettingsScreen() {
                   </Text>
                 </Pressable>
               </View>
+              {/* 一键场景：stage 1 失败（按 PRD §11.L 测试支持调 modal + failure 留账） */}
+              <Pressable
+                onPress={() => {
+                  const s = useStore.getState();
+                  s.__dev_setStage(1);
+                  s.demoteStage();
+                }}
+                className="py-2 rounded-xl items-center mb-3"
+                style={{ backgroundColor: "#FFEFD8" }}
+              >
+                <Text
+                  style={{ color: colors.brand.accentDark, fontSize: 13 }}
+                >
+                  模拟 stage 1 失败（support modal + failure 留账）
+                </Text>
+              </Pressable>
 
               <Text className="mb-2" style={{ fontSize: 12, color: colors.ink.sub }}>
                 跳 modal（单测，不改 state）

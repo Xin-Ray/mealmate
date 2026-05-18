@@ -282,8 +282,8 @@ export const useStore = create<State & Actions>()(
 
       demoteStage: () => {
         const s = get();
-        if (s.currentStage > 1) {
-          const oldStage = s.currentStage;
+        const oldStage = s.currentStage;
+        if (oldStage > 1) {
           const newStage = (oldStage - 1) as 1 | 2 | 3 | 4 | 5;
           set({
             currentStage: newStage,
@@ -294,7 +294,7 @@ export const useStore = create<State & Actions>()(
             ],
           });
         } else {
-          // stage 1：不变 stage，hp 重置到 90，弹 stage-1-demote 鼓励
+          // stage 1：不变 stage，hp 重置到 90，弹 stage-1-demote（按 PRD §11.L 走 support tone）
           set({
             hp: HP_RESET_ON_DEMOTE,
             transitionsPending: [
@@ -303,6 +303,12 @@ export const useStore = create<State & Actions>()(
             ],
           });
         }
+        // 失败留账：往 dialogueHistory 推一条 kind='failure'，feed 里专属暖橘卡显示
+        // body 含失败时所在的阶段编号；feed 渲染端会另显示"HP 已重置到 90"副标。
+        get().pushDialogue({
+          kind: "failure",
+          body: `阶段 ${oldStage} 失败一次`,
+        });
       },
 
       consumeTransition: () =>

@@ -57,7 +57,9 @@ export type DialogueKind =
   | "meal_missed" // §11.F.2 第一条："你错过了一餐..."
   | "encourage"   // §11.F.1 第二条 鼓励
   | "remind"      // §11.F.2 第二条 "贵在坚持..."
-  | "mock";       // v0.3 mock dialogues 池里的过渡内容
+  | "mock"        // v0.3 mock dialogues 池里的过渡内容
+  | "failure";    // §11.L feature/stage-transitions：HP<0 触发 demote 时落一条
+                  //   body = "阶段 N 失败一次"，feed 专属渲染（暖橘卡）
 
 export type DialogueRecord = {
   id: string;

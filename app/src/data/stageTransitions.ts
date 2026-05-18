@@ -77,6 +77,11 @@ export type StageDemoteConfig = {
   encouragementTitle: string;
   encouragements: StageAccomplishment[];
   ctaLabel: string;
+  // 调性：
+  //   - 'demote'（默认，stage 2-5）："回到阶段 N-1，请继续努力"
+  //   - 'support'（仅 stage 1，按 PRD §11.L 安全规则）："建议联系医生 / 营养师"
+  //     stage 1 用户 HP 降到 0 暗示他们正在挣扎，不能仅靠"加油从头来"鼓励
+  tone?: "demote" | "support";
 };
 
 // 注意：start 只在 stage 1 有；end + demote 五阶段都有
@@ -158,32 +163,37 @@ export const STAGE_TRANSITIONS: Record<
       ctaLabel: "完成",
     },
     demote: {
+      // ⚠️ Stage 1 demote 特殊 —— 按 PRD §11.L 安全规则（也参见 §八 / §11.G）：
+      // stage 1 用户 HP 降到 0 暗示他们在吃饭这件事上正在挣扎。不能只用
+      // "加油从头来"鼓励，要建议联系专业医生 / 营养师，明确"你不需要一个人扛"。
+      // 视觉沿用暖橘 / 米色（不用红色），mascot 用 🌫️（更轻，不太悲伤）。
       stage: 1,
-      badge: "阶段 1 · 重整",
-      title: "加油，从头开始也没关系",
-      subtitle: "别灰心，今天重新来",
+      badge: "阶段 1 · 关心",
+      title: "需要支持",
+      subtitle: "吃饭这件事，你不需要一个人扛",
       description:
-        "状态低谷是节奏的一部分。伙伴给你重置到 HP 90，先不计较过去，从下一餐重新开始。",
-      illustration: "🌧️",
-      encouragementTitle: "重新出发",
+        "如果最近持续感到吃饭困难、力不从心，请考虑联系饮食方面的专业医生或营养师。他们能给你更适合的支持。",
+      illustration: "🌫️",
+      encouragementTitle: "记住",
       encouragements: [
         {
           icon: "→",
-          title: "HP 重置到 90",
-          description: "给你一个充足的缓冲，今天先把节奏接回来。",
+          title: "联系专业支持",
+          description: "饮食方面的医生 / 注册营养师 / 心理咨询师都可以。",
         },
         {
           icon: "→",
-          title: "不计较过去",
-          description: "已经错过的不再扣分，从下一餐开始算。",
+          title: "和身边的人说说",
+          description: "不必硬扛 —— 一句话也好，让信任的人知道你的状态。",
         },
         {
           icon: "→",
-          title: "需要更轻的话",
-          description: "随时去设置打开温柔模式，扣分减半。",
+          title: "HP 已重置到 90",
+          description: "我们给你一个缓冲，但伙伴不是替代专业支持的角色。",
         },
       ],
-      ctaLabel: "我准备好了",
+      ctaLabel: "我知道了",
+      tone: "support",
     },
   },
 

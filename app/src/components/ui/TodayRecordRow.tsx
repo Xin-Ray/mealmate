@@ -69,6 +69,55 @@ export default function TodayRecordRow({ item, mascotSource }: Props) {
     />
   );
 
+  // failure 专属渲染（PRD §11.L）：暖橘卡 + 💭 icon 替代 mascot + 无 HP badge
+  if (item.kind === "dialogue" && item.record.kind === "failure") {
+    const r = item.record;
+    return (
+      <View className="flex-row items-start mb-3" style={{ gap: 10 }}>
+        <View
+          className="items-center justify-center rounded-xl"
+          style={{
+            width: 60,
+            height: 60,
+            backgroundColor: "#FFEFD8",
+            borderWidth: 1,
+            borderColor: colors.brand.accent,
+          }}
+        >
+          <Text style={{ fontSize: 32 }}>💭</Text>
+        </View>
+        <View
+          className="flex-1 rounded-2xl overflow-hidden"
+          style={{
+            backgroundColor: "#FFF7E8",
+            borderColor: colors.brand.accent,
+            borderWidth: 1,
+          }}
+        >
+          <View className="px-4 py-3">
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "600",
+                color: colors.brand.accentDark,
+                lineHeight: 20,
+              }}
+            >
+              {r.body}
+            </Text>
+            <Text
+              className="mt-1"
+              style={{ fontSize: 12, color: colors.ink.sub }}
+            >
+              HP 已重置到 90
+            </Text>
+            <Text className="text-sub text-xs mt-1">{fmtTime(item.ts)}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   if (item.kind === "fullness") {
     const r = item.record;
     return (
