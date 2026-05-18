@@ -132,6 +132,29 @@
   | slot | MealSlot | ✓ | 错过的那一餐 |
   | onAcknowledge | () => void | ✓ | 点 "我知道了" 触发，应调 `acknowledgeMissedMeal` |
 
+### NextMealCard
+
+- 文件：`app/src/components/ui/NextMealCard.tsx`
+- 来自：v0.5 feature/next-meal-card —— 填充 `<HomeMealStatusSlot>` 之前 null 的分支
+- 用在：`<HomeMealStatusSlot>`（default fallback：无 active reminder + 无未 ack missed 时显示）
+- 无 props（内部读 store 的 `mealSchedules` 和 `todayMeals`）
+
+  视觉：米色（`#FBFAF1`）+ 浅绿边（`#E2E8CF`）+ 30 圆角（同 MealReminderCard 配色，无 mascot）。
+  - 顶部小字 "距离下一顿"
+  - 大字标题：(明天)？slot 中文名 + "还有"
+  - 巨大倒计时 36pt `colors.brand.greenDark` + tabular-nums 等宽数字（防跳）
+  - 3 颗星行（早 / 午 / 晚）+ 短标签：
+    - done → ⭐ opacity 1（金）
+    - missed → ⭐ opacity 0.3（看着灰）
+    - pending → ☆ opacity 0.6（空心 muted 色）
+
+  倒计时逻辑（在 `src/store/selectors/mealStars.ts`）：
+  1. 顺序扫 [早, 午, 晚]：第一个 `now < schedule + 90min`（窗末）的 slot
+  2. 三个都过窗末 → 明天早餐
+
+  内部 useEffect setInterval 每秒 tick 重渲染（cleanup 清 interval）。
+  无按钮 —— 只是状态显示卡（不是行动卡）。
+
   视觉：暖白底（`#FEFBF6`） + 浅橙边（`#FDE7D4`） + 23 圆角；橘色警示标题 "未完成（血量大幅减少）"；mascot missed.png；红色 "-10" badge `#F16758`；CTA 50 高 `#508729` bg "我知道了"。
 
 ### TodayRecordRow
