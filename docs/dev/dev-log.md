@@ -3,6 +3,18 @@
 > 简明记录每次会话/阶段的进度、验收发现和环境坑。  
 > 产品需求详见 [`PRD.md`](./PRD.md)，技术选型见 [`tech-research.md`](./tech-research.md)。
 
+## v1.0.0 — 准备 release，commit 87b0f21（2026-05-18）
+
+main HEAD `87b0f21` 标记为正式 v1.0.0 release。
+
+- `app/app.json`：version 0.1.0 → 1.0.0；加 `ios.buildNumber: "1"`
+- `app/package.json`：1.0.0（之前就是）
+- `app/eas.json`：新建（development / preview / production 3 profile + submit.production.ios，ascAppId 留 TODO 等 xin 在 ASC 建 app record 后填）
+- icon `assets/images/icon.png` 1024×1024 ✓
+- splash `assets/images/splash-icon.png` 1024×1024 ✓
+- 文档：`docs/product/changelog.md` 加 v1.0.0 entry / `docs/product/roadmap.md` 标 Released ✓ + v1.1 stub / `docs/deploy/release.md` 写完整 EAS+TestFlight+App Store 流程 + xin next-step 清单 / `docs/deploy/environments.md` 写 v1.0 客户端 only + v1.1+ Worker 代理预案 / `README.md` 顶部加 status badge
+- ⚠️ 未跑真实 `eas build` —— 需要 xin 注册 Apple Developer + 在 ASC 建 app record + `eas login` 后亲自跑（CLI 交互式问 credentials）。详见 release.md 末尾清单。
+
 ---
 
 ## 时间线

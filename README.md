@@ -1,6 +1,10 @@
 # mealmate
 
+**Status**: `v1.0.0` — building for TestFlight  ·  main `87b0f21`  ·  iOS only
+
 一款**陪伴式饮食习惯养成 App**：由一只有"HP"的机器人伙伴陪你按时吃饭、吃饱吃好，通过五阶段目标（坚持 → 量化 → 健康增重 → 营养 → 持之以恒），帮助饮食不规律、恢复期或需要健康增重的人群重建三餐节奏。
+
+> 上架进度：见 [`docs/deploy/release.md`](./docs/deploy/release.md) 的 next-step 清单。
 
 ## 项目结构
 
