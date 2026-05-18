@@ -1302,3 +1302,52 @@ preview phase + 软键盘弹起：
 - ✅ **确定按钮在键盘上方完全可见 + 可点**（之前被遮）
 - ✅ 重选按钮也在键盘上方可见
 - ✅ 数字键盘正常显示
+
+---
+
+## v0.4 hotfix #12：体重秤 OCR — Gemini Vision（2026-05-17）
+
+### 背景与方案选型
+
+xin 反馈：餐次拍照走 YOLO 食物识别，体重秤拍照希望也能识别秤面数字，不要让用户手填。
+
+**候选方案对比：**
+
+| 方案 | 准确度（7 段 LCD） | 接入成本 | 选 |
+|---|---|---|---|
+| Tesseract / PaddleOCR 默认模型 | 差（7 段字体非训练分布） | 中 | ❌ |
+| ssocr / PaddleOCR LCD 模型 self-host 到 YOLO 后端 | 好 | 大（模型选型 + 部署） | 后备 |
+| Gemini 2.5 Flash Vision | 优 | 极小（已有 key） | ✅ |
+
+mealmate 已经把 Gemini key 接进来（mascotLlm），体重打卡 1 次/天频次极低，复用同一条链路最划算。Worker 代理上线前同样需要做 —— 跟 mascot LLM 一起搬。
+
+### 改动
+
+1. `app/src/services/weightOcr.ts`（新建）
+   - 复用 `EXPO_PUBLIC_GEMINI_KEY`，端点切到 `gemini-2.5-flash`（**非 lite**：vision OCR flash 更稳）
+   - Prompt 锁死「只输出数字，保留一位小数，不要单位」+ `unknown` 兜底
+   - 自己做 `fetch + FileReader.readAsDataURL` 把 RN URI 转 base64（不引入 expo-file-system 新依赖）
+   - 后端范围校验 20–250，超出 → 视为识别失败，返回 `null`
+   - 支持 `AbortController` —— 用户连拍 / 离开屏幕时取消旧请求
+   - `temperature=0` `maxOutputTokens=20`，把胡说概率压到底
+2. `app/app/(modal)/weight-entry.tsx`
+   - 加 `OcrStatus = "idle" | "recognizing" | "done" | "failed"` + `ocrAbortRef`
+   - `pickImage` 后 `setPhase("preview")` 紧接着 `runOcr(uri)`；卸载 / 重拍都 abort
+   - 识别中 TextInput `editable={false}`；状态文案替换 `体重（kg）` label：
+     - recognizing → `正在识别秤面…`
+     - done → `识别到这个数字，确认或修改后保存`（ok 绿）
+     - failed → `没识别出来，麻烦手填一下`（warn 黄）
+   - 用户开始编辑就把 ocrStatus 归零，避免「识别到这个数字」hint 跟着用户改后的值飘
+   - 「确定」按钮、范围 20–250 校验、HP +0.5、result phase 都不动 —— OCR 只 prefill，**用户仍要按确定才落账**
+
+### 设计决策
+
+- **不加专属环境开关**：`EXPO_PUBLIC_LLM_ENABLED=false` 不影响 OCR。理由：LLM_ENABLED 是为了文案那条调用频次高的链路做配额闸（mascot 每屏都可能拉），OCR 1 次/天 × DAU 量级跟它不在一个数量级，没必要门一起关。无 key 时 OCR 自动 `null` fallback 到纯手填，跟 mascot 一致。
+- **后端 20–250 校验提前到 service 层**：模型偶尔会被秤面其它数字（年份 / 校准码）骗一下，让上层 UI 直接拿到 `null` 比拿到一个奇怪值要稳。
+- **fetch + FileReader base64**：项目目前没装 `expo-file-system`，加新依赖代价比手写 base64 转换大；fetch+FileReader 在 RN 是稳定 API。
+
+### 验收 TODO
+
+- ⏳ 真机拍真实电子秤照片测准确率（debug log 已经接 `[weightOcr]` 前缀，console 里能看）
+- ⏳ 如果准确率有问题，下一招：让 Gemini 先返回 LCD bbox → 裁切 → 再识别（two-pass）
+- ⏳ Worker 代理迁移时把 `weightOcr.ts` 的 endpoint 一起换
