@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useStore, HP_MEAL_PHOTO_GAIN } from "@src/store/useStore";
 import FullnessRatingPicker from "@src/components/ui/FullnessRatingPicker";
 import { pickImageWithFallback, type Source } from "@src/services/imagePicker";
+import { detectFood, type Detection } from "@src/services/foodDetection";
 import type { FullnessScore, MealSlot } from "@src/types";
 
 type Phase = "intro" | "preview" | "uploading" | "result";
@@ -60,6 +61,10 @@ export default function PhotoScreen() {
   const [lastSource, setLastSource] = useState<Source>("camera");
   const [doneLine, setDoneLine] = useState<string>("");
   const [encourageLine, setEncourageLine] = useState<string>("");
+  const [detections, setDetections] = useState<Detection[]>([]);
+  const [detectError, setDetectError] = useState<string | null>(null);
+  // 同一次进入 photo modal 内是否已经打过卡：防止"重拍"导致重复 +HP / 重复推 dialogue。
+  const [confirmedOnce, setConfirmedOnce] = useState(false);
   const [selectedFullness, setSelectedFullness] = useState<FullnessScore | undefined>(
     () =>
       fullnessHistory.find((r) => r.date === todayKey && r.mealSlot === realSlot)
@@ -87,11 +92,25 @@ export default function PhotoScreen() {
     }
   };
 
-  // preview → 用户点"确定" → 进 uploading → 模拟上传 → result
+  // preview → 用户点"确定" → uploading（真识别）→ result
   // §11.F.1：通过餐 +5 HP，push 两条 dialogue（done line + encourage line）
-  const onConfirm = () => {
+  // 识别成功/失败都进 result，失败不阻塞打卡（只在 UI 提示）
+  const onConfirm = async () => {
+    if (!imageUri) return;
     setPhase("uploading");
-    setTimeout(() => {
+    setDetectError(null);
+    setDetections([]);
+
+    try {
+      const resp = await detectFood(imageUri);
+      setDetections(resp.detections);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setDetectError(msg);
+    }
+
+    // 重拍场景：本次 modal 已经打过卡，跳过 +HP 和 dialogue，只更新识别结果
+    if (!confirmedOnce) {
       markMealDone(realSlot, { photoUri: imageUri ?? undefined });
 
       const doneBody = pickRandom(DONE_LINE_BY_SLOT[realSlot]);
@@ -111,8 +130,18 @@ export default function PhotoScreen() {
       });
       setDoneLine(doneBody);
       setEncourageLine(encourageBody);
-      setPhase("result");
-    }, 900);
+      setConfirmedOnce(true);
+    }
+
+    setPhase("result");
+  };
+
+  // 在 result 页点"重拍" → 回 intro，清掉本张图和识别结果，confirmedOnce 保留
+  const onRetake = () => {
+    setImageUri(null);
+    setDetections([]);
+    setDetectError(null);
+    setPhase("intro");
   };
 
   const onSelectFullness = (score: FullnessScore) => {
@@ -222,6 +251,32 @@ export default function PhotoScreen() {
               )}
             </View>
 
+            {detections.length > 0 && (
+              <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mt-3 w-full">
+                <Text className="text-sub text-xs mb-2">识别到</Text>
+                <View className="flex-row flex-wrap">
+                  {detections.map((d, i) => (
+                    <View
+                      key={`${d.label}-${i}`}
+                      className="bg-bg rounded-full px-3 py-1 mr-2 mb-2"
+                    >
+                      <Text className="text-ink text-sm">
+                        {d.label} · {Math.round(d.confidence * 100)}%
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {detectError && detections.length === 0 && (
+              <View className="bg-white border border-cardBorder rounded-2xl px-5 py-3 mt-3 w-full">
+                <Text className="text-sub text-xs">
+                  识别服务没连上，餐已打卡。{"\n"}({detectError})
+                </Text>
+              </View>
+            )}
+
             <Text className="text-ink text-sm font-semibold mt-6 self-start">
               这餐吃得怎么样？
             </Text>
@@ -239,6 +294,13 @@ export default function PhotoScreen() {
               <Text className="text-white font-semibold">
                 {selectedFullness === undefined ? "跳过，先回首页" : "完成"}
               </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={onRetake}
+              className="rounded-2xl py-4 px-8 bg-white border border-cardBorder mt-3 w-full items-center"
+            >
+              <Text className="text-ink font-semibold">重拍一张</Text>
             </Pressable>
           </View>
         )}
