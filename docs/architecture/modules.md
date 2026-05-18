@@ -1,6 +1,3 @@
-> ⚠️ **已迁移**：本文件内容已搬到 [`docs/architecture/modules.md`](./architecture/modules.md)（docs/ 结构重组，详见 [`docs/README.md`](./README.md)）。
-> 此处为兼容旧链接保留，新改动请在新位置进行。
-
 # mealmate 组件库
 
 > v0.4 §11.K 第 3 项后期抽出，集中可复用 UI 组件 + 业务模块。

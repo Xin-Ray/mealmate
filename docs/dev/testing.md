@@ -1,6 +1,3 @@
-> ⚠️ **已迁移**：本文件内容已搬到 [`docs/dev/testing.md`](./dev/testing.md)（docs/ 结构重组，详见 [`docs/README.md`](./README.md)）。
-> 此处为兼容旧链接保留，新改动请在新位置进行。
-
 # v0.4 待测清单
 
 > **v0.4 全部 10 项已收尾（2026-05-07）**，xin 可一次性重 build + 真机/simulator 测试用。

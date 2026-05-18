@@ -1,9 +1,3 @@
-> ⚠️ **已迁移**：
-> - 原始时间线 verbatim 保留在 [`docs/dev/dev-log.md`](./dev/dev-log.md)
-> - 按版本归类的 changelog 在 [`docs/product/changelog.md`](./product/changelog.md)
->
-> 此处为兼容旧链接保留，新改动请在新位置进行。
-
 # mealmate 开发日志
 
 > 简明记录每次会话/阶段的进度、验收发现和环境坑。  

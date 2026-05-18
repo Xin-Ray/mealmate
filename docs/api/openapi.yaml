@@ -1,0 +1,60 @@
+# MealMate API — stub
+#
+# **状态**：v0.5+ 实施 Cloudflare Worker 时填充。当前 v0.4 客户端 only，无后端。
+#
+# 计划接口：
+#   - POST /v1/llm/generate    Mascot 文案生成（代理 Gemini / Claude）
+#   - POST /v1/vision/classify 食物图片分类 + 营养估算（v0.5+ Pro）
+#   - GET  /v1/user/me         当前用户资料
+#   - POST /v1/sync/meal       上传 MealRecord 增量
+#   - POST /v1/sync/weight     上传 WeightRecord 增量
+#   - POST /v1/sync/fullness   上传 FullnessRecord 增量
+#   - GET  /v1/report/weekly   服务端生成周报
+
+openapi: 3.1.0
+info:
+  title: MealMate API (stub)
+  version: 0.0.0-planning
+  description: |
+    占位 spec —— v0.5+ Cloudflare Worker 实施时填充。
+    当前所有客户端数据本地存（AsyncStorage / Zustand persist），无任何网络调用。
+servers:
+  - url: https://api.mealmate.app/v1
+    description: production（未上线）
+  - url: https://staging-api.mealmate.app/v1
+    description: staging（未上线）
+
+paths:
+  /llm/generate:
+    post:
+      summary: Mascot 文案生成（代理 LLM）
+      description: |
+        当前客户端走的兜底文案池（src/data/dialogues.ts）。
+        v0.5+ 启用此接口后：客户端传 stage / hp / band / robotName / recentAction，
+        Worker 加 system prompt 调 Gemini/Claude，返回单句台词。
+      x-status: stub
+  /vision/classify:
+    post:
+      summary: 食物图片分类 + 营养估算
+      description: v0.5+ Pro 功能。当前不实施。
+      x-status: stub
+  /user/me:
+    get:
+      summary: 当前用户资料
+      x-status: stub
+  /sync/meal:
+    post:
+      summary: 上传 MealRecord 增量
+      x-status: stub
+  /sync/weight:
+    post:
+      summary: 上传 WeightRecord 增量
+      x-status: stub
+  /sync/fullness:
+    post:
+      summary: 上传 FullnessRecord 增量
+      x-status: stub
+  /report/weekly:
+    get:
+      summary: 服务端生成周报
+      x-status: stub

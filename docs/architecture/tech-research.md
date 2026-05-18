@@ -1,6 +1,3 @@
-> ⚠️ **已迁移**：本文件内容已搬到 [`docs/architecture/tech-research.md`](./architecture/tech-research.md)（docs/ 结构重组，详见 [`docs/README.md`](./README.md)）。
-> 此处为兼容旧链接保留，新改动请在新位置进行。
-
 # mealmate 技术选型调研
 
 > 调研时间：2026-04-21

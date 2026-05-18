@@ -1,6 +1,3 @@
-> ⚠️ **已迁移**：本文件内容已搬到 [`docs/product/prd.md`](./product/prd.md)（docs/ 结构重组，详见 [`docs/README.md`](./README.md)）。
-> 此处为兼容旧链接保留，新改动请在新位置进行。
-
 # mealmate 产品需求文档（PRD v0.4）
 
 > 初版起草：2026-04-21（v0.1）
