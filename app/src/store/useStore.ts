@@ -305,9 +305,11 @@ export const useStore = create<State & Actions>()(
         }
         // 失败留账：往 dialogueHistory 推一条 kind='failure'，feed 里专属暖橘卡显示
         // body 含失败时所在的阶段编号；feed 渲染端会另显示"HP 已重置到 90"副标。
+        // stageWhenFailed 是显式字段，便于未来按阶段聚合查询（无需从 body 解析）
         get().pushDialogue({
           kind: "failure",
           body: `阶段 ${oldStage} 失败一次`,
+          stageWhenFailed: oldStage,
         });
       },
 
@@ -406,7 +408,7 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 8,
+      version: 9,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
@@ -421,6 +423,9 @@ export const useStore = create<State & Actions>()(
       //          后 transitionsSeen 现在只用来追踪 stage-1-start；advance/demote 都
       //          走 pending 队列。已存的 transitionsSeen 不动（向后兼容，里面 end
       //          条目无害）。
+      // v8 → v9: DialogueRecord 加可选 stageWhenFailed（仅 kind='failure' 用）。
+      //          老 failure 记录缺 stageWhenFailed → undefined，feed 渲染仍可从 body
+      //          字符串读"阶段 N 失败一次"（向后兼容）。version bump only。
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as State & Actions;
@@ -461,6 +466,7 @@ export const useStore = create<State & Actions>()(
           // 新字段默认空队列；老用户没有"待弹"的过渡 modal
           ps.transitionsPending = [];
         }
+        // v8 → v9: noop。stageWhenFailed 是可选字段，缺失视为 undefined（feed 仍可从 body 读）
         return persistedState as State & Actions;
       },
     }

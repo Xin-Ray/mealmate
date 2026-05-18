@@ -69,4 +69,7 @@ export type DialogueRecord = {
   hpDelta?: number;      // 仅与 HP 联动的卡片显示 badge
   mealSlot?: MealSlot;
   photoUri?: string;
+  // 仅 kind='failure' 用：失败时所在的阶段（demote 前的 currentStage）
+  // 让未来查询 / 统计可以按阶段聚合（不必从 body 字符串解析）
+  stageWhenFailed?: number;
 };

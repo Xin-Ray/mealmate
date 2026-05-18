@@ -1,5 +1,6 @@
-// 阶段 5 降级过渡屏路由（fullScreenModal）
-// 触发：HP<0 时由 store demoteStage 推到 transitionsPending，(main)/_layout consumer 弹此屏
+// 阶段 5 降级过渡屏路由（card presentation + slide_from_right）
+// 触发：HP<0 时由 store demoteStage 推 transitionsPending → (main)/_layout consumer 弹此屏
+// CTA → router.replace('/(main)/home')（v0.5 bug1 fix）
 import { useRouter } from "expo-router";
 import StageDemoteScreen from "@src/components/stage/StageDemoteScreen";
 import { STAGE_TRANSITIONS } from "@src/data/stageTransitions";
@@ -9,7 +10,7 @@ export default function Stage5DemoteRoute() {
   return (
     <StageDemoteScreen
       theme={STAGE_TRANSITIONS[5].demote}
-      onContinue={() => router.dismiss()}
+      onContinue={() => router.replace("/(main)/home" as never)}
     />
   );
 }

@@ -1,4 +1,6 @@
-// 阶段 1 开始过渡屏路由（fullScreenModal）
+// 阶段 1 开始过渡屏路由（card presentation + slide_from_right）
+// 触发：新用户首次进 home，(main)/_layout 检测 transitionsSeen 无 stage-1-start 记录 → push
+// CTA "开始阶段 1" → markTransitionSeen + replace 到 home（一次性，幂等检查走 transitionsSeen）
 import { useRouter } from "expo-router";
 import StageStartScreen from "@src/components/stage/StageStartScreen";
 import { STAGE_TRANSITIONS } from "@src/data/stageTransitions";
@@ -13,7 +15,7 @@ export default function Stage1StartRoute() {
       theme={STAGE_TRANSITIONS[1].start!}
       onStart={() => {
         markTransitionSeen(1, "start");
-        router.dismiss();
+        router.replace("/(main)/home" as never);
       }}
     />
   );
