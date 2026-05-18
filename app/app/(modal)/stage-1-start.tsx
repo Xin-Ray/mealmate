@@ -9,7 +9,8 @@ export default function Stage1StartRoute() {
   const markTransitionSeen = useStore((s) => s.markTransitionSeen);
   return (
     <StageStartScreen
-      theme={STAGE_TRANSITIONS[1].start}
+      // stage 1 是唯一保留 start config 的阶段（其它阶段已删 start）
+      theme={STAGE_TRANSITIONS[1].start!}
       onStart={() => {
         markTransitionSeen(1, "start");
         router.dismiss();

@@ -11,10 +11,9 @@ import { useStore } from "@src/store/useStore";
 // unfocused 色 #B4B4B4。
 //
 // 阶段过渡屏触发（feature/stage-transitions）：
-// 每当 currentStage 或 transitionsSeen 变化时检查：
-//   1. 任何先前 stage 的 end 未看 → 按序优先弹（advance 时触发 prev end）
-//   2. 当前 stage 的 start 未看 → 弹 start
-// 入口幂等：dismiss 时 markTransitionSeen，再触发不会重弹。
+//   1. transitionsPending 队首（HP 边界触发的 end/demote）→ push 对应 modal + 立即 consume
+//   2. 否则：当前 stage 是 1 且 stage-1-start 未看 → 弹 stage-1-start（一次性）
+// stage{2-5}-start 已删；advance 后 end modal CTA 直接关闭回 home，不串接 start。
 
 const ICONS: Record<string, { on: ImageSourcePropType; off: ImageSourcePropType }> = {
   home: {
@@ -51,30 +50,29 @@ export default function MainLayout() {
   const router = useRouter();
   const currentStage = useStore((s) => s.currentStage);
   const transitionsSeen = useStore((s) => s.transitionsSeen);
+  const transitionsPending = useStore((s) => s.transitionsPending);
+  const consumeTransition = useStore((s) => s.consumeTransition);
 
   useEffect(() => {
     // 延迟一帧等 (main) navigator 挂载完，避免在 mount 同帧 push modal
     const t = setTimeout(() => {
-      // 先弹任何先前 stage 的 end（advance 时的链式触发）
-      for (let s = 1; s < currentStage; s++) {
-        const seenEnd = transitionsSeen.some(
-          (t) => t.stage === s && t.kind === "end"
-        );
-        if (!seenEnd) {
-          router.push(`/(modal)/stage-${s}-end` as never);
-          return;
-        }
+      // 1. 优先消费 pending 队首（advance/demote 触发）
+      if (transitionsPending.length > 0) {
+        const next = transitionsPending[0];
+        router.push(`/(modal)/stage-${next.stage}-${next.kind}` as never);
+        consumeTransition();
+        return;
       }
-      // 再弹当前 stage 的 start
-      const seenStart = transitionsSeen.some(
-        (t) => t.stage === currentStage && t.kind === "start"
-      );
-      if (!seenStart) {
-        router.push(`/(modal)/stage-${currentStage}-start` as never);
+      // 2. 否则 stage-1-start 一次性触发（基于 transitionsSeen）
+      if (
+        currentStage === 1 &&
+        !transitionsSeen.some((t) => t.stage === 1 && t.kind === "start")
+      ) {
+        router.push(`/(modal)/stage-1-start` as never);
       }
     }, 0);
     return () => clearTimeout(t);
-  }, [currentStage, transitionsSeen, router]);
+  }, [currentStage, transitionsSeen, transitionsPending, consumeTransition, router]);
 
   return (
     <Tabs

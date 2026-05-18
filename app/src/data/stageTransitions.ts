@@ -1,12 +1,18 @@
-// 五阶段过渡屏数据（每阶段 start + end 各一屏 = 10 屏）
+// 五阶段过渡屏数据
 //
-// 视觉模板来自 Figma 100:977（stage 1 start）/ 100:5373（stage 1 end）。
-// stage 2-5 文案由 PRD §4 五阶段定义合成（PRD 阶段 4/5 标 TBD，按候选方向给占位）。
+// 模型简化（v0.5 task：删 stage-{2-5}-start）：
+//   - stage 1 start：唯一的"开始屏"，新用户首次进 home 一次性弹
+//   - stage N end（1-5）：advance 时弹（CTA 关闭直接回 home，不再串接 start）
+//   - stage N demote（1-5）：HP < 0 时弹
+//     · stage 1 demote 特殊：不变 stage，鼓励调（"加油，从头开始也没关系"）
+//     · stage 2-5 demote：currentStage 回退到 N-1，文案 "回到阶段 N-1，请继续努力"
+//
+// 视觉模板：start/end 同 v0.4（Figma 100:977 / 100:5373）。
+//   demote 用橘色调色板（StageDemoteScreen，区别 end 的绿色调），鼓励性 mascot。
 // 数值统一 0–100 标度（与 useStore HP_MAX=100 对齐）。
-//
-// asset：illustration / icon 暂用 emoji 占位（PRD §11 视觉资源后续按 Figma 替换）
+// asset：illustration / icon 暂用 emoji 占位（后续按 Figma 替换）
 
-import { HP_INITIAL_STAGE_1, HP_INITIAL_STAGE_2 } from "@src/store/useStore";
+import { HP_INITIAL_STAGE_1 } from "@src/store/useStore";
 
 export type StageNumber = 1 | 2 | 3 | 4 | 5;
 
@@ -17,7 +23,7 @@ export type StageStat = {
 };
 
 export type StageRule = {
-  icon: string; // emoji 占位
+  icon: string;
   title: string;
   description: string;
 };
@@ -30,24 +36,24 @@ export type StageAccomplishment = {
 
 export type StageStartConfig = {
   stage: StageNumber;
-  name: string; // "坚持" / "量化"
-  badge: string; // pill 文案 "阶段 N · 坚持"
-  title: string; // "阶段 N 开始"
+  name: string;
+  badge: string;
+  title: string;
   subtitle: string;
   description: string;
-  illustration: string; // emoji 占位
+  illustration: string;
   stats: [StageStat, StageStat, StageStat];
   rulesTitle: string;
   rules: StageRule[];
   noteBanner: { icon: string; text: string };
-  ctaLabel: string; // "开始阶段 N"
+  ctaLabel: string;
 };
 
 export type StageEndConfig = {
   stage: StageNumber;
   name: string;
-  badge: string; // "阶段 N · 坚持"
-  title: string; // "阶段 N 完成"
+  badge: string;
+  title: string;
   subtitle: string;
   description: string;
   illustration: string;
@@ -58,13 +64,25 @@ export type StageEndConfig = {
     name: string;
     description: string;
   };
-  ctaLabel: string; // "开始阶段 N+1" / 末阶段 "完成旅程"
+  ctaLabel: string;
 };
 
-// 五阶段 start + end 完整配置
+export type StageDemoteConfig = {
+  stage: StageNumber;
+  badge: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  illustration: string;
+  encouragementTitle: string;
+  encouragements: StageAccomplishment[];
+  ctaLabel: string;
+};
+
+// 注意：start 只在 stage 1 有；end + demote 五阶段都有
 export const STAGE_TRANSITIONS: Record<
   StageNumber,
-  { start: StageStartConfig; end: StageEndConfig }
+  { start?: StageStartConfig; end: StageEndConfig; demote: StageDemoteConfig }
 > = {
   1: {
     start: {
@@ -137,49 +155,39 @@ export const STAGE_TRANSITIONS: Record<
         name: "量化",
         description: "在「吃上」之后学会「吃饱」，引入饱腹度与体重追踪。",
       },
-      ctaLabel: "开始阶段 2",
+      ctaLabel: "完成",
+    },
+    demote: {
+      stage: 1,
+      badge: "阶段 1 · 重整",
+      title: "加油，从头开始也没关系",
+      subtitle: "别灰心，今天重新来",
+      description:
+        "状态低谷是节奏的一部分。伙伴给你重置到 HP 90，先不计较过去，从下一餐重新开始。",
+      illustration: "🌧️",
+      encouragementTitle: "重新出发",
+      encouragements: [
+        {
+          icon: "→",
+          title: "HP 重置到 90",
+          description: "给你一个充足的缓冲，今天先把节奏接回来。",
+        },
+        {
+          icon: "→",
+          title: "不计较过去",
+          description: "已经错过的不再扣分，从下一餐开始算。",
+        },
+        {
+          icon: "→",
+          title: "需要更轻的话",
+          description: "随时去设置打开温柔模式，扣分减半。",
+        },
+      ],
+      ctaLabel: "我准备好了",
     },
   },
 
   2: {
-    start: {
-      stage: 2,
-      name: "量化",
-      badge: "阶段 2 · 量化",
-      title: "阶段 2 开始",
-      subtitle: "从「吃上」到「吃饱」",
-      description:
-        "拍完照后再打一个饱腹度评分。每天 21 点前还要上传一张体重秤照片。",
-      illustration: "⚖️",
-      stats: [
-        { label: "初始 HP", value: String(HP_INITIAL_STAGE_2), sub: "5 颗爱心" },
-        { label: "通关分数", value: "100", sub: "满 HP 解锁下一阶段" },
-        { label: "关键", value: "吃饱 + 称重", sub: "硬时间窗" },
-      ],
-      rulesTitle: "本阶段重点",
-      rules: [
-        {
-          icon: "🍚",
-          title: "饱腹度 ≥ 7 才加分",
-          description: "每餐 0–10 评分，10 = 此生最饱；≥ 7 才算「吃饱」。",
-        },
-        {
-          icon: "⏱",
-          title: "硬时间窗",
-          description: "早餐 09:00 前 / 午餐 14:00 前 / 晚餐 18:00 前。",
-        },
-        {
-          icon: "⚖️",
-          title: "每日称重",
-          description: "21:00 前上传体重秤照片，未传 -10 HP。",
-        },
-      ],
-      noteBanner: {
-        icon: "🌱",
-        text: "体重数字只是参考——伙伴在意的是你今天吃饱了没。",
-      },
-      ctaLabel: "开始阶段 2",
-    },
     end: {
       stage: 2,
       name: "量化",
@@ -212,49 +220,39 @@ export const STAGE_TRANSITIONS: Record<
         name: "健康增重",
         description: "在吃饱之上引入规律运动，目标是健康地长 1kg。",
       },
-      ctaLabel: "开始阶段 3",
+      ctaLabel: "完成",
+    },
+    demote: {
+      stage: 2,
+      badge: "阶段 2 · 重整",
+      title: "回到阶段 1，请继续努力",
+      subtitle: "节奏掉了不要紧",
+      description:
+        "HP 一度降到 0 以下，伙伴先把你拉回阶段 1（坚持），等节奏稳了再回来。HP 重置到 90。",
+      illustration: "🌧️",
+      encouragementTitle: "回到阶段 1",
+      encouragements: [
+        {
+          icon: "→",
+          title: "回到「坚持」阶段",
+          description: "重新聚焦在按时吃齐三餐这件事上。",
+        },
+        {
+          icon: "→",
+          title: "HP 重置到 90",
+          description: "给你一个起步缓冲。",
+        },
+        {
+          icon: "→",
+          title: "再攒到 100 就回来",
+          description: "走过一遍的路，第二遍会快很多。",
+        },
+      ],
+      ctaLabel: "继续",
     },
   },
 
   3: {
-    start: {
-      stage: 3,
-      name: "健康增重",
-      badge: "阶段 3 · 健康增重",
-      title: "阶段 3 开始",
-      subtitle: "吃饭、运动两不误",
-      description:
-        "本阶段「吃」是基本盘，不再加分；加分主要靠每周健康增重和规律运动。",
-      illustration: "💪",
-      stats: [
-        { label: "初始 HP", value: "50", sub: "5 颗爱心" },
-        { label: "通关分数", value: "100", sub: "运动 + 增重双轨" },
-        { label: "关键", value: "每周 +1kg", sub: "+ 运动 3 次 × 3 小时" },
-      ],
-      rulesTitle: "本阶段重点",
-      rules: [
-        {
-          icon: "📈",
-          title: "每周 +1kg 体重",
-          description: "健康范围内净增 1kg，+20 HP。",
-        },
-        {
-          icon: "🏃",
-          title: "每周运动 3 次 × 3 小时",
-          description: "每完成一次 +5 HP，当周未运动 -5 HP。",
-        },
-        {
-          icon: "❌",
-          title: "跳过 / 没吃饱 -10 HP",
-          description: "饱腹度 < 7 视为没吃饱，按跳过处理。",
-        },
-      ],
-      noteBanner: {
-        icon: "🌱",
-        text: "健康增重不等于硬塞——伙伴只在意你「持续地」往前走。",
-      },
-      ctaLabel: "开始阶段 3",
-    },
     end: {
       stage: 3,
       name: "健康增重",
@@ -287,49 +285,39 @@ export const STAGE_TRANSITIONS: Record<
         name: "营养",
         description: "从「吃多少」走到「吃什么」，关注三餐的营养均衡。",
       },
-      ctaLabel: "开始阶段 4",
+      ctaLabel: "完成",
+    },
+    demote: {
+      stage: 3,
+      badge: "阶段 3 · 重整",
+      title: "回到阶段 2，请继续努力",
+      subtitle: "先稳「吃饱」这件事",
+      description:
+        "增重 + 运动的节奏暂时掉了，伙伴把你拉回阶段 2（量化），先把饱腹度和称重稳住再回来。HP 重置到 90。",
+      illustration: "🌧️",
+      encouragementTitle: "回到阶段 2",
+      encouragements: [
+        {
+          icon: "→",
+          title: "回到「量化」阶段",
+          description: "暂时不要求每周增重，先保证吃饱 + 称重。",
+        },
+        {
+          icon: "→",
+          title: "HP 重置到 90",
+          description: "给你一个起步缓冲。",
+        },
+        {
+          icon: "→",
+          title: "运动节奏休息一下",
+          description: "等饱腹度回到 ≥ 7 再考虑加回运动。",
+        },
+      ],
+      ctaLabel: "继续",
     },
   },
 
   4: {
-    start: {
-      stage: 4,
-      name: "营养",
-      badge: "阶段 4 · 营养",
-      title: "阶段 4 开始",
-      subtitle: "关注吃的「质量」",
-      description:
-        "每餐快速给食物打个轻量标签（主食 / 蛋白 / 蔬果），追踪一周的营养画像。",
-      illustration: "🥗",
-      stats: [
-        { label: "初始 HP", value: "50", sub: "5 颗爱心" },
-        { label: "通关分数", value: "100", sub: "营养标签完整度" },
-        { label: "关键", value: "均衡 > 完美", sub: "不强求精确克数" },
-      ],
-      rulesTitle: "本阶段重点",
-      rules: [
-        {
-          icon: "🏷",
-          title: "三类标签 +5 HP",
-          description: "餐后标记主食 / 蛋白 / 蔬果，全选 +5 HP。",
-        },
-        {
-          icon: "🚫",
-          title: "整天缺类 -5 HP",
-          description: "整天没有蛋白 / 蔬果 / 主食任一类，扣 5 HP。",
-        },
-        {
-          icon: "🗓",
-          title: "周营养画像",
-          description: "周报新增一张「均衡度饼图」，跟你聊聊本周怎么吃的。",
-        },
-      ],
-      noteBanner: {
-        icon: "🌱",
-        text: "标签不需要精确——能记起来就比不记好，不必追完美。",
-      },
-      ctaLabel: "开始阶段 4",
-    },
     end: {
       stage: 4,
       name: "营养",
@@ -362,49 +350,39 @@ export const STAGE_TRANSITIONS: Record<
         name: "持之以恒",
         description: "没有新规则，只剩你和伙伴一起把习惯过成日子。",
       },
-      ctaLabel: "开始阶段 5",
+      ctaLabel: "完成",
+    },
+    demote: {
+      stage: 4,
+      badge: "阶段 4 · 重整",
+      title: "回到阶段 3，请继续努力",
+      subtitle: "营养追踪可以暂时放一放",
+      description:
+        "营养标签的节奏跟不上很正常。伙伴把你拉回阶段 3（健康增重），先把吃饱 + 运动的循环稳住。HP 重置到 90。",
+      illustration: "🌧️",
+      encouragementTitle: "回到阶段 3",
+      encouragements: [
+        {
+          icon: "→",
+          title: "回到「健康增重」",
+          description: "重新聚焦在每周增重 + 运动节奏。",
+        },
+        {
+          icon: "→",
+          title: "HP 重置到 90",
+          description: "给你一个起步缓冲。",
+        },
+        {
+          icon: "→",
+          title: "营养标签下次再来",
+          description: "等基本盘稳了，营养画像自然就跟上。",
+        },
+      ],
+      ctaLabel: "继续",
     },
   },
 
   5: {
-    start: {
-      stage: 5,
-      name: "持之以恒",
-      badge: "阶段 5 · 持之以恒",
-      title: "阶段 5 开始",
-      subtitle: "和伙伴一起，过成日子",
-      description:
-        "本阶段没有新规则。继续按你已经习惯的节奏吃饭，伙伴会陪你走得更远。",
-      illustration: "🌳",
-      stats: [
-        { label: "初始 HP", value: "50", sub: "5 颗爱心" },
-        { label: "通关分数", value: "—", sub: "没有终点" },
-        { label: "关键", value: "持续", sub: "回流 > 完美" },
-      ],
-      rulesTitle: "本阶段重点",
-      rules: [
-        {
-          icon: "🔁",
-          title: "保持节奏",
-          description: "之前的规则全部继承，不再叠加新约束。",
-        },
-        {
-          icon: "📔",
-          title: "月度自我小结",
-          description: "每月固定日，伙伴陪你回顾一个月的状态。",
-        },
-        {
-          icon: "🤝",
-          title: "回流不羞耻",
-          description: "中断几天再回来也没关系，伙伴永远在原地等你。",
-        },
-      ],
-      noteBanner: {
-        icon: "🌱",
-        text: "你已经走完了所有「关」——剩下的，是把习惯活成自己的一部分。",
-      },
-      ctaLabel: "开始阶段 5",
-    },
     end: {
       stage: 5,
       name: "持之以恒",
@@ -433,6 +411,34 @@ export const STAGE_TRANSITIONS: Record<
         },
       ],
       ctaLabel: "完成旅程",
+    },
+    demote: {
+      stage: 5,
+      badge: "阶段 5 · 重整",
+      title: "回到阶段 4，请继续努力",
+      subtitle: "长期阶段也允许波动",
+      description:
+        "习惯没有终点。HP 一度降到 0 以下，伙伴把你拉回阶段 4（营养），重新把节奏对齐一下。HP 重置到 90。",
+      illustration: "🌧️",
+      encouragementTitle: "回到阶段 4",
+      encouragements: [
+        {
+          icon: "→",
+          title: "回到「营养」阶段",
+          description: "重新关注三餐的营养结构。",
+        },
+        {
+          icon: "→",
+          title: "HP 重置到 90",
+          description: "给你一个起步缓冲。",
+        },
+        {
+          icon: "→",
+          title: "回流不羞耻",
+          description: "阶段五的精神就是「断了也能回来」。",
+        },
+      ],
+      ctaLabel: "继续",
     },
   },
 };

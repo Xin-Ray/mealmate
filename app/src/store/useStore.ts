@@ -46,7 +46,7 @@ const FRESH_TODAY: TodayMeals = {
   dinner: "pending",
 };
 
-export type TransitionKind = "start" | "end";
+export type TransitionKind = "start" | "end" | "demote";
 export type TransitionRecord = { stage: number; kind: TransitionKind };
 
 type State = {
@@ -71,10 +71,15 @@ type State = {
   dialogueHistory: DialogueRecord[]; // 倒序时间排序，最多 50 条
   disappearWarningLastShownAt: number | null; // ms timestamp
   onboardingDone: boolean;
-  // 阶段过渡屏已看记录（v7）：每条 = {stage, kind}。用于幂等触发 stage start/end modal。
-  // 新用户首次进入 stage 1 → 自动弹 stage 1 start；advance 时弹 prev end；以此类推。
-  // 老用户（v6 → v7 migrate）会按 currentStage 回填，避免补弹历史 modal。
+  // 阶段过渡屏已看记录（v7）：用于 stage 1 start 一次性触发判断。
+  // 老用户（v6 → v7 migrate）按 currentStage 回填，避免补弹历史 modal。
   transitionsSeen: TransitionRecord[];
+  // 阶段过渡待弹队列（v8）：HP 触发 advance/demote 时由 advanceStage/demoteStage 推
+  // 一条 {stage, kind}。(main)/_layout consumer 取队首 push 对应 modal 然后 consume。
+  // 与 transitionsSeen 关系：seen 是"已看过哪些"的幂等记录，pending 是"还要弹什么"
+  // 的一次性队列。stage-1-start 走 seen；end/demote 走 pending（每次 advance/demote
+  // 都重新触发一次，而不是只看一次）。
+  transitionsPending: TransitionRecord[];
 };
 
 type Actions = {
@@ -104,7 +109,15 @@ type Actions = {
   // 饱腹度（stage 1+2，§11.D.1）
   addFullnessRecord: (input: { mealSlot: MealSlot; score: FullnessScore }) => void;
 
-  // 阶段过渡屏触发逻辑
+  // HP 边界统一处理：>=100 → advanceStage；<0 → demoteStage；其他 clamp+set
+  addHp: (delta: number) => void;
+  // 阶段降级（HP<0 触发）：stage>1 → 退到 stage-1 + hp=90；stage=1 → 不变 stage + hp=90
+  // 都会推一条 {stage: 原 stage, kind: "demote"} 到 transitionsPending
+  demoteStage: () => void;
+  // 弹出 transitionsPending 队首（modal consumer 在 push 后立刻调用）
+  consumeTransition: () => void;
+
+  // 阶段过渡屏触发逻辑（保留：stage-1-start 走 seen / 一次性）
   markTransitionSeen: (stage: number, kind: TransitionKind) => void;
   hasSeenTransition: (stage: number, kind: TransitionKind) => boolean;
 
@@ -147,7 +160,11 @@ const initialState: State = {
   disappearWarningLastShownAt: null,
   onboardingDone: false,
   transitionsSeen: [],
+  transitionsPending: [],
 };
+
+// HP 重置到 90（demote 之后）—— stage>1 退到 N-1 也用 90，stage 1 不变 stage 也用 90
+const HP_RESET_ON_DEMOTE = 90;
 
 const HISTORY_KEEP_DAYS = 30;
 
@@ -187,7 +204,6 @@ export const useStore = create<State & Actions>()(
       markMealDone: (slot, options) => {
         const s = get();
         if (s.todayMeals[slot] === "done") return;
-        const newHp = clampHp(s.hp + HP_MEAL_PHOTO_GAIN);
         const ts = Date.now();
         const date = s.todayKey;
         const record: MealRecord = {
@@ -199,20 +215,12 @@ export const useStore = create<State & Actions>()(
           hpDelta: HP_MEAL_PHOTO_GAIN,
           photoUri: options?.photoUri,
         };
+        // 先把 done 状态和记录落进 store，再走 HP 边界（advance 会改 hp）
         set({
-          hp: newHp,
           todayMeals: { ...s.todayMeals, [slot]: "done" },
           mealRecords: [...s.mealRecords, record],
         });
-        if (newHp >= HP_MAX && s.currentStage === 1) {
-          // 满 HP → 推进阶段（Stage 2 占位页）
-          // hotfix#13：advance 时 HP 重置为 stage 2 起始值（50 / 5 hearts）
-          set({
-            currentStage: 2,
-            companionLv: s.companionLv + 1,
-            hp: HP_INITIAL_STAGE_2,
-          });
-        }
+        get().addHp(HP_MEAL_PHOTO_GAIN);
       },
 
       markMealMissed: (slot) => {
@@ -231,19 +239,74 @@ export const useStore = create<State & Actions>()(
           ts,
           hpDelta: delta,
         };
+        // 先落 record + 标 missed，再走 HP 边界（demote 会改 hp + stage）
         set({
-          hp: clampHp(s.hp + delta),
           todayMeals: { ...s.todayMeals, [slot]: "missed" },
           mealRecords: [...s.mealRecords, record],
         });
+        get().addHp(delta);
       },
 
-      advanceStage: () =>
-        set((s) =>
-          s.currentStage === 1
-            ? { currentStage: 2, hp: HP_INITIAL_STAGE_2 }
-            : { currentStage: s.currentStage }
-        ),
+      addHp: (delta) => {
+        const s = get();
+        const unclamped = s.hp + delta;
+        if (unclamped >= HP_MAX) {
+          // 先 set 到上限再 advance（advance 会重置 hp 到下一阶段起始）
+          set({ hp: HP_MAX });
+          get().advanceStage();
+        } else if (unclamped < 0) {
+          // 直接 demote（demote 内部把 hp 重置到 90）
+          get().demoteStage();
+        } else {
+          set({ hp: clampHp(unclamped) });
+        }
+      },
+
+      advanceStage: () => {
+        const s = get();
+        if (s.currentStage >= 5) return; // 已到顶
+        const oldStage = s.currentStage;
+        const newStage = (oldStage + 1) as 1 | 2 | 3 | 4 | 5;
+        // stage 2-5 起始 HP 都用 stage-2 init（50）
+        const initHp = newStage === 2 ? HP_INITIAL_STAGE_2 : 50;
+        set({
+          currentStage: newStage,
+          companionLv: s.companionLv + 1,
+          hp: initHp,
+          transitionsPending: [
+            ...s.transitionsPending,
+            { stage: oldStage, kind: "end" },
+          ],
+        });
+      },
+
+      demoteStage: () => {
+        const s = get();
+        if (s.currentStage > 1) {
+          const oldStage = s.currentStage;
+          const newStage = (oldStage - 1) as 1 | 2 | 3 | 4 | 5;
+          set({
+            currentStage: newStage,
+            hp: HP_RESET_ON_DEMOTE,
+            transitionsPending: [
+              ...s.transitionsPending,
+              { stage: oldStage, kind: "demote" },
+            ],
+          });
+        } else {
+          // stage 1：不变 stage，hp 重置到 90，弹 stage-1-demote 鼓励
+          set({
+            hp: HP_RESET_ON_DEMOTE,
+            transitionsPending: [
+              ...s.transitionsPending,
+              { stage: 1, kind: "demote" },
+            ],
+          });
+        }
+      },
+
+      consumeTransition: () =>
+        set((s) => ({ transitionsPending: s.transitionsPending.slice(1) })),
 
       pushDialogue: (input) =>
         set((s) => {
@@ -337,7 +400,7 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 7,
+      version: 8,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
@@ -348,6 +411,10 @@ export const useStore = create<State & Actions>()(
       // v6 → v7: 加 transitionsSeen []（阶段过渡屏）。老用户按 currentStage 回填，
       //          避免补弹历史 stage start/end modal —— 已经进入 stage N 的用户视为
       //          已看过 stage 1..(N-1) 的 start+end 以及 stage N 的 start。
+      // v7 → v8: 加 transitionsPending []（HP 边界触发的待弹队列）。删 stage{2-5}-start
+      //          后 transitionsSeen 现在只用来追踪 stage-1-start；advance/demote 都
+      //          走 pending 队列。已存的 transitionsSeen 不动（向后兼容，里面 end
+      //          条目无害）。
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as State & Actions;
@@ -383,6 +450,10 @@ export const useStore = create<State & Actions>()(
           // 当前 stage 的 start 也视为已看（老用户已经在用 stage N，不应该被打断）
           seen.push({ stage, kind: "start" });
           ps.transitionsSeen = seen;
+        }
+        if (version < 8 && !Array.isArray(ps.transitionsPending)) {
+          // 新字段默认空队列；老用户没有"待弹"的过渡 modal
+          ps.transitionsPending = [];
         }
         return persistedState as State & Actions;
       },
