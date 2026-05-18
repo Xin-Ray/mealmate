@@ -15,7 +15,7 @@
 //   底部 sticky 按钮「开始阶段 N」
 
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radii, spacing } from "@src/theme/tokens";
 import type { StageStartConfig } from "@src/data/stageTransitions";
 
@@ -24,18 +24,10 @@ type Props = {
   onStart: () => void;
 };
 
-const FOOTER_BTN_HEIGHT = 52; // 按钮自身高度 + 上下 padding 大致估算
-const FOOTER_BUFFER = 24;     // 内容与按钮之间的安全距离
-
 export default function StageStartScreen({ theme, onStart }: Props) {
-  const insets = useSafeAreaInsets();
-  const footerBottomPadding = Math.max(insets.bottom, spacing.md);
-  const scrollPaddingBottom =
-    FOOTER_BTN_HEIGHT + footerBottomPadding + spacing.md + FOOTER_BUFFER;
-
   return (
     <SafeAreaView
-      edges={["top"]}
+      edges={["top", "bottom"]}
       style={{ flex: 1, backgroundColor: colors.bg.page }}
     >
       <ScrollView
@@ -43,7 +35,7 @@ export default function StageStartScreen({ theme, onStart }: Props) {
         contentContainerStyle={{
           paddingHorizontal: spacing.xl,
           paddingTop: spacing.lg,
-          paddingBottom: scrollPaddingBottom,
+          paddingBottom: 120, // 给 sticky footer 让位（footer ~100，留 20 buffer）
         }}
       >
         {/* 1. Hero */}
@@ -284,24 +276,31 @@ export default function StageStartScreen({ theme, onStart }: Props) {
           left: 0,
           right: 0,
           bottom: 0,
-          paddingHorizontal: spacing.xl,
-          paddingTop: spacing.md,
-          paddingBottom: footerBottomPadding,
+          padding: 24,
           backgroundColor: colors.bg.page,
           borderTopColor: colors.border.card,
           borderTopWidth: 1,
         }}
       >
+        {/* 用 static style 替代 function-form（function-form 的 bg 在某些 RN 版本下不渲染）
+            press 反馈用 android_ripple + 透明度变化处理；hardcode #60883b 避开 tokens 解析问题 */}
         <Pressable
           onPress={onStart}
-          style={({ pressed }) => ({
-            backgroundColor: pressed ? "#4d6b2f" : colors.brand.green,
-            borderRadius: radii.pill,
+          style={{
+            backgroundColor: "#60883b",
+            borderRadius: 999,
             paddingVertical: 16,
-            alignItems: "center",
-          })}
+            width: "100%",
+          }}
         >
-          <Text style={{ fontSize: 17, fontWeight: "700", color: "#FFFFFF" }}>
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: "700",
+              color: "#FFFFFF",
+              textAlign: "center",
+            }}
+          >
             {theme.ctaLabel}
           </Text>
         </Pressable>

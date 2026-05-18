@@ -15,7 +15,7 @@
 //   底部 sticky 按钮「完成」
 
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radii, spacing } from "@src/theme/tokens";
 import type { StageEndConfig } from "@src/data/stageTransitions";
 
@@ -24,18 +24,10 @@ type Props = {
   onContinue: () => void;
 };
 
-const FOOTER_BTN_HEIGHT = 52;
-const FOOTER_BUFFER = 24;
-
 export default function StageEndScreen({ theme, onContinue }: Props) {
-  const insets = useSafeAreaInsets();
-  const footerBottomPadding = Math.max(insets.bottom, spacing.md);
-  const scrollPaddingBottom =
-    FOOTER_BTN_HEIGHT + footerBottomPadding + spacing.md + FOOTER_BUFFER;
-
   return (
     <SafeAreaView
-      edges={["top"]}
+      edges={["top", "bottom"]}
       style={{ flex: 1, backgroundColor: colors.bg.page }}
     >
       <ScrollView
@@ -43,7 +35,7 @@ export default function StageEndScreen({ theme, onContinue }: Props) {
         contentContainerStyle={{
           paddingHorizontal: spacing.xl,
           paddingTop: spacing.lg,
-          paddingBottom: scrollPaddingBottom,
+          paddingBottom: 120,
         }}
       >
         {/* 1. Hero */}
@@ -253,24 +245,30 @@ export default function StageEndScreen({ theme, onContinue }: Props) {
           left: 0,
           right: 0,
           bottom: 0,
-          paddingHorizontal: spacing.xl,
-          paddingTop: spacing.md,
-          paddingBottom: footerBottomPadding,
+          padding: 24,
           backgroundColor: colors.bg.page,
           borderTopColor: colors.border.card,
           borderTopWidth: 1,
         }}
       >
+        {/* static style 替代 function-form（function-form 的 bg 在 RN/Pressable 某些版本/场景下不渲染） */}
         <Pressable
           onPress={onContinue}
-          style={({ pressed }) => ({
-            backgroundColor: pressed ? "#4d6b2f" : colors.brand.green,
-            borderRadius: radii.pill,
+          style={{
+            backgroundColor: "#60883b",
+            borderRadius: 999,
             paddingVertical: 16,
-            alignItems: "center",
-          })}
+            width: "100%",
+          }}
         >
-          <Text style={{ fontSize: 17, fontWeight: "700", color: "#FFFFFF" }}>
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: "700",
+              color: "#FFFFFF",
+              textAlign: "center",
+            }}
+          >
             {theme.ctaLabel}
           </Text>
         </Pressable>
