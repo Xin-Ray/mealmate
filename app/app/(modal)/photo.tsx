@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, View, Text, Pressable, Image, Animated } from "react-native";
+import {
+  Alert,
+  Animated,
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useStore, HP_MEAL_PHOTO_GAIN } from "@src/store/useStore";
+import {
+  useStore,
+  HP_MEAL_PHOTO_GAIN,
+  HP_SNACK_GAIN,
+  SNACK_DAILY_LIMIT,
+} from "@src/store/useStore";
 import FullnessRatingPicker from "@src/components/ui/FullnessRatingPicker";
 import { pickImageWithFallback, type Source } from "@src/services/imagePicker";
 import { detectFood, type Detection } from "@src/services/foodDetection";
@@ -46,10 +59,18 @@ const ENCOURAGE_LINES = [
 const pickRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
 export default function PhotoScreen() {
-  const { slot } = useLocalSearchParams<{ slot: MealSlot }>();
+  // issue #3 加餐：snack='true' 时走加餐流（addSnack 而非 markMealDone，
+  // HP +10、不写 mealRecord、不需要 slot、跳过饱腹度选择）
+  const { slot, snack } = useLocalSearchParams<{
+    slot?: MealSlot;
+    snack?: string;
+  }>();
+  const isSnack = snack === "true";
   const realSlot: MealSlot = (slot as MealSlot) ?? "lunch";
+  const hpGain = isSnack ? HP_SNACK_GAIN : HP_MEAL_PHOTO_GAIN;
   const router = useRouter();
   const markMealDone = useStore((s) => s.markMealDone);
+  const addSnack = useStore((s) => s.addSnack);
   const robotName = useStore((s) => s.robotName);
   const pushDialogue = useStore((s) => s.pushDialogue);
   const addFullnessRecord = useStore((s) => s.addFullnessRecord);
@@ -97,6 +118,30 @@ export default function PhotoScreen() {
   // 识别成功/失败都进 result，失败不阻塞打卡（只在 UI 提示）
   const onConfirm = async () => {
     if (!imageUri) return;
+
+    // issue #3 加餐每日上限 2 次（防作弊）：snack 已满 → Alert + 回 home，
+    // 不进 uploading / 不写 HP / 不 push dialogue。SnackCard 已经在 home 上
+    // 把卡片置 disabled，这层是兜底（防 deep link 绕过 UI 直接进 photo modal）。
+    if (isSnack) {
+      const s = useStore.getState();
+      const today = s.todayKey;
+      const todayCount = s.dialogueHistory.filter((d) => {
+        if (d.kind !== "snack_done") return false;
+        const dd = new Date(d.ts);
+        const ymd = `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}-${String(dd.getDate()).padStart(2, "0")}`;
+        return ymd === today;
+      }).length;
+      if (todayCount >= SNACK_DAILY_LIMIT) {
+        Alert.alert("今日加餐已用完", "明天再来吧～", [
+          { text: "好的", onPress: () => router.back() },
+        ]);
+        return;
+      }
+    }
+
     setPhase("uploading");
     setDetectError(null);
     setDetections([]);
@@ -111,25 +156,33 @@ export default function PhotoScreen() {
 
     // 重拍场景：本次 modal 已经打过卡，跳过 +HP 和 dialogue，只更新识别结果
     if (!confirmedOnce) {
-      markMealDone(realSlot, { photoUri: imageUri ?? undefined });
+      if (isSnack) {
+        // 加餐流：addSnack 内部 push kind='snack_done' dialogue + HP +10
+        // 不写 mealRecord、不要 encourage 第二条、不需要 slot
+        addSnack({ photoUri: imageUri ?? undefined });
+        setDoneLine("加餐成功！随时拍照都算数～");
+        setEncourageLine("");
+      } else {
+        markMealDone(realSlot, { photoUri: imageUri ?? undefined });
 
-      const doneBody = pickRandom(DONE_LINE_BY_SLOT[realSlot]);
-      const encourageBody = pickRandom(ENCOURAGE_LINES);
+        const doneBody = pickRandom(DONE_LINE_BY_SLOT[realSlot]);
+        const encourageBody = pickRandom(ENCOURAGE_LINES);
 
-      pushDialogue({
-        kind: "meal_done",
-        body: doneBody,
-        mealSlot: realSlot,
-        hpDelta: HP_MEAL_PHOTO_GAIN,
-        photoUri: imageUri ?? undefined,
-      });
-      pushDialogue({
-        kind: "encourage",
-        body: encourageBody,
-        mealSlot: realSlot,
-      });
-      setDoneLine(doneBody);
-      setEncourageLine(encourageBody);
+        pushDialogue({
+          kind: "meal_done",
+          body: doneBody,
+          mealSlot: realSlot,
+          hpDelta: HP_MEAL_PHOTO_GAIN,
+          photoUri: imageUri ?? undefined,
+        });
+        pushDialogue({
+          kind: "encourage",
+          body: encourageBody,
+          mealSlot: realSlot,
+        });
+        setDoneLine(doneBody);
+        setEncourageLine(encourageBody);
+      }
       setConfirmedOnce(true);
     }
 
@@ -159,7 +212,9 @@ export default function PhotoScreen() {
         contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 48 }}
       >
         <View className="flex-row items-center justify-between">
-          <Text className="text-ink text-lg font-semibold">{slotLabel[realSlot]} · 记录</Text>
+          <Text className="text-ink text-lg font-semibold">
+            {isSnack ? "加餐 · 记录" : `${slotLabel[realSlot]} · 记录`}
+          </Text>
           <Pressable onPress={() => router.back()}>
             <Text className="text-sub text-sm">关闭</Text>
           </Pressable>
@@ -230,7 +285,7 @@ export default function PhotoScreen() {
             <Animated.View style={{ transform: [{ scale }] }}>
               <View className="bg-ok/20 rounded-full px-6 py-3 mb-4">
                 <Text className="text-ok text-base font-semibold">
-                  血量 +{HP_MEAL_PHOTO_GAIN}
+                  血量 +{hpGain}
                 </Text>
               </View>
             </Animated.View>
@@ -277,22 +332,31 @@ export default function PhotoScreen() {
               </View>
             )}
 
-            <Text className="text-ink text-sm font-semibold mt-6 self-start">
-              这餐吃得怎么样？
-            </Text>
-            <View className="w-full mt-2">
-              <FullnessRatingPicker
-                selectedScore={selectedFullness}
-                onSelect={onSelectFullness}
-              />
-            </View>
+            {/* 加餐流跳过饱腹度评分（snack 不算正餐，不影响"吃饱率"统计）*/}
+            {!isSnack && (
+              <>
+                <Text className="text-ink text-sm font-semibold mt-6 self-start">
+                  这餐吃得怎么样？
+                </Text>
+                <View className="w-full mt-2">
+                  <FullnessRatingPicker
+                    selectedScore={selectedFullness}
+                    onSelect={onSelectFullness}
+                  />
+                </View>
+              </>
+            )}
 
             <Pressable
               onPress={onFinish}
               className="rounded-2xl py-4 px-8 bg-accent mt-6 w-full items-center"
             >
               <Text className="text-white font-semibold">
-                {selectedFullness === undefined ? "跳过，先回首页" : "完成"}
+                {isSnack
+                  ? "完成"
+                  : selectedFullness === undefined
+                  ? "跳过，先回首页"
+                  : "完成"}
               </Text>
             </Pressable>
 

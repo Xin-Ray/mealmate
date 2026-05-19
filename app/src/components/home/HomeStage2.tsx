@@ -1,6 +1,7 @@
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import HpHeartsContent from "@src/components/ui/HpHeartsContent";
+import SnackCard from "@src/components/ui/SnackCard";
 import WeightCard from "@src/components/ui/WeightCard";
 import { useStore } from "@src/store/useStore";
 import { getHpBand } from "@src/theme/hp";
@@ -139,6 +140,18 @@ export default function HomeStage2() {
         {/* 3. 提醒卡（active reminder / missed incomplete / 隐藏 三态） */}
         <View style={{ marginTop: 16 }}>
           <HomeMealStatusSlot />
+        </View>
+
+        {/* 3.5 加餐卡（issue #3 v0.5+）：永远显示，随时记一笔 HP +10 */}
+        <View style={{ marginTop: 12 }}>
+          <SnackCard
+            onPress={() =>
+              router.push({
+                pathname: "/(modal)/photo",
+                params: { snack: "true" },
+              } as never)
+            }
+          />
         </View>
 
         {/* 4. 今日记录（与 records tab 同 selector，最近 3 条预览） */}

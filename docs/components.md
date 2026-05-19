@@ -135,6 +135,43 @@
   | slot | MealSlot | ✓ | 错过的那一餐 |
   | onAcknowledge | () => void | ✓ | 点 "我知道了" 触发，应调 `acknowledgeMissedMeal` |
 
+### SnackCard
+
+- 文件：`app/src/components/ui/SnackCard.tsx`
+- 来自：issue #3 v0.5+（2026-05-18）—— 永远显示，让用户随时记一笔加餐
+- 用在：HomeStage1 / HomeStage2 第 3.5 板块（HomeMealStatusSlot 之后、HomeRecordsSection 之前）
+- Props:
+
+  | name | type | required | 说明 |
+  |---|---|---|---|
+  | onPress | () => void | ✓ | 点击触发，应 `router.push({ pathname: '/(modal)/photo', params: { snack: 'true' } })` |
+
+  视觉：紧凑行式（**非全宽大卡**，避免跟 NextMealCard / ReminderCard 抢戏）。
+  - 浅米黄底 `#FBFAF1` + 浅绿边 `#E2E8CF` + 30 圆角（同 ReminderCard 配色）
+  - 左：44×44 圆 + 🍎 emoji（浅绿圆 `#F0F5E6`）
+  - 中：大字"加餐"（greenDark）+ 副标"拍一张，HP +10"（ink.sub）
+  - 右：`→` 箭头提示可点
+  - 按下 bg 变深 `#F2EDDB`（pressable 视觉反馈）
+
+  跟其他卡的区别：
+  - 永远显示（不依赖 missed / window 状态）
+  - 文案温和正向（PRD §八）—— 不写"奖励"/"完成"等强烈词
+  - **不写 mealRecord**（snack 不算正餐）—— 只 push dialogue `kind='snack_done'`
+
+  **每日上限 2 次**（`SNACK_DAILY_LIMIT`，防作弊通关）：
+
+  | 今日已加餐 | UI 状态 | 副标 |
+  |---|---|---|
+  | 0/2 | primary（米黄 + 🍎 + 绿 →）| "拍一张，HP +10" |
+  | 1/2 | primary（同上）| "再加一次，HP +10" |
+  | 2/2 | **disabled 灰版**（不响应点击 + 🍽️ icon + 无 →）| "明天再来" |
+
+  右上角角标永远显示"今日 N/2"。计数 = 当日 `dialogueHistory.filter(kind='snack_done' && dateOf(ts)===todayKey)`。
+
+  防御：`useStore.addSnack` 内部检查 `todayCount >= SNACK_DAILY_LIMIT` no-op；`photo.tsx` onConfirm 也独立检查（防 deep link 绕过 UI 直接进 photo modal）。
+
+  对应 store action：`addSnack({ photoUri? })` —— addHp(+10) + pushDialogue。
+
 ### NextMealCard
 
 - 文件：`app/src/components/ui/NextMealCard.tsx`

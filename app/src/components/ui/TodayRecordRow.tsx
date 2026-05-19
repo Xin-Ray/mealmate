@@ -69,6 +69,70 @@ export default function TodayRecordRow({ item, mascotSource }: Props) {
     />
   );
 
+  // snack_done 专属渲染（issue #3 v0.5+）：浅米黄卡 + 🍎 icon 替代 mascot + HP +10 badge
+  if (item.kind === "dialogue" && item.record.kind === "snack_done") {
+    const r = item.record;
+    return (
+      <View className="flex-row items-start mb-3" style={{ gap: 10 }}>
+        <View
+          className="items-center justify-center rounded-xl"
+          style={{
+            width: 60,
+            height: 60,
+            backgroundColor: "#F0F5E6",
+            borderWidth: 1,
+            borderColor: "#E2E8CF",
+          }}
+        >
+          <Text style={{ fontSize: 32 }}>🍎</Text>
+        </View>
+        <View
+          className="flex-1 rounded-2xl overflow-hidden"
+          style={{
+            backgroundColor: "#FBFAF1",
+            borderColor: "#E2E8CF",
+            borderWidth: 1,
+          }}
+        >
+          <View className="px-4 py-3">
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "600",
+                color: colors.brand.greenDark,
+                lineHeight: 20,
+              }}
+            >
+              加餐
+            </Text>
+            <Text
+              className="mt-1"
+              style={{ fontSize: 12, color: colors.ink.sub, lineHeight: 18 }}
+            >
+              {r.body}
+            </Text>
+            <View className="flex-row items-center justify-between mt-2">
+              <Text className="text-sub text-xs">{fmtTime(item.ts)}</Text>
+              {r.hpDelta !== undefined && r.hpDelta !== 0 && (
+                <View
+                  className="px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: `${colors.status.ok}33` }}
+                >
+                  <Text
+                    className="text-xs font-semibold"
+                    style={{ color: colors.status.ok }}
+                  >
+                    血量+{r.hpDelta}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   // failure 专属渲染（PRD §11.L）：暖橘卡 + 💭 icon 替代 mascot + 无 HP badge
   if (item.kind === "dialogue" && item.record.kind === "failure") {
     const r = item.record;

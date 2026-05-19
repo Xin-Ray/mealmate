@@ -33,6 +33,76 @@ export default function RecordCard({ item }: Props) {
     const r = item.record;
     // failure 专属渲染（PRD §11.L）：暖橘 / 米色调，无 HP badge，不显示绿色 +X
     // 区别普通 dialogue —— 这是把 demote 事件留账的痕迹，不是常规对话。
+    // snack_done 专属渲染（issue #3 v0.5+）：浅米黄 + 浅绿边 + 🍎 icon + HP +10 badge
+    // 区别 meal kind：snack 不在 mealRecords，没有 done/missed status；
+    // 也区别普通 dialogue：加餐是用户主动行为，应有"+X"反馈感
+    if (r.kind === "snack_done") {
+      return (
+        <Card
+          style={{
+            marginBottom: 8,
+            backgroundColor: "#FBFAF1",
+            borderColor: "#E2E8CF",
+          }}
+        >
+          <View className="flex-row items-start gap-3">
+            {r.photoUri ? (
+              <Image
+                source={{ uri: r.photoUri }}
+                style={{ width: 48, height: 48, borderRadius: 12 }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View
+                className="items-center justify-center rounded-xl"
+                style={{
+                  width: 48,
+                  height: 48,
+                  backgroundColor: "#F0F5E6",
+                }}
+              >
+                <Text style={{ fontSize: 22 }}>🍎</Text>
+              </View>
+            )}
+            <View className="flex-1">
+              <Text className="text-sub text-xs">{fmtTime(item.ts)}</Text>
+              <Text
+                className="mt-0.5"
+                style={{
+                  fontSize: 15,
+                  fontWeight: "600",
+                  color: colors.brand.greenDark,
+                  lineHeight: 22,
+                }}
+              >
+                加餐
+              </Text>
+              <Text
+                className="mt-0.5"
+                style={{ fontSize: 13, color: colors.ink.sub, lineHeight: 18 }}
+              >
+                {r.body}
+              </Text>
+            </View>
+            {r.hpDelta !== undefined && r.hpDelta !== 0 && (
+              <View
+                className="px-2 py-1 rounded-full"
+                style={{
+                  backgroundColor: `${colors.status.ok}33`,
+                }}
+              >
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: colors.status.ok }}
+                >
+                  血量+{r.hpDelta}
+                </Text>
+              </View>
+            )}
+          </View>
+        </Card>
+      );
+    }
     if (r.kind === "failure") {
       return (
         <Card
