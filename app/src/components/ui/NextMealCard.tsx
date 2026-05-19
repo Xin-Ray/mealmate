@@ -64,7 +64,7 @@ export default function NextMealCard() {
   }, []);
 
   const stars = selectTodayMealStars({ todayMeals });
-  const countdown = selectNextMealCountdown({ mealSchedules });
+  const countdown = selectNextMealCountdown({ mealSchedules, todayMeals });
 
   const slotLabel = SLOT_LABEL[countdown.slot];
   const prefix = countdown.isNextDay ? "明天" : "";

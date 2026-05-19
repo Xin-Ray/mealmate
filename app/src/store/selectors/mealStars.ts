@@ -45,22 +45,22 @@ export type NextMealCountdown = {
 /**
  * 下一顿倒计时：找到下一个"还能吃 / 还没到"的餐。
  *
- * 规则：
- * - 顺序扫描 [早, 午, 晚]：第一个满足 (now < windowEnd) 的 slot 即为下一顿
- *   · 它的 status 可以是 pending / done / missed —— 都不重要，关键是窗口还没结束
- *     （如果是 done/missed，提前进窗内时 HomeMealStatusSlot 会切到 ReminderCard
- *     / IncompleteCard；window 内但 NOT done/missed 时也是 ReminderCard）
- *   · NextMealCard 主要在「pre-window 阶段」显示倒计时；窗内时一般已被
- *     ReminderCard 接走
- * - 三个 slot 都过了窗末 → 目标是明天早餐
+ * 规则（fix issue #1，2026-05-18）：
+ * - 顺序扫描 [早, 午, 晚]：第一个满足 ① now < windowEnd ② todayMeals[slot] === 'pending'
+ *   的 slot 即为下一顿
+ *   · 跳过 done / missed —— 已完成或已错过的餐不再倒计时（之前算法只看 windowEnd
+ *     不看 status，导致 14:25 看到"距离午餐 X"，午餐 12:30 已 done 仍被挑中）
+ * - 三个 slot 都不满足 → 目标是明天早餐
  *
  * targetTs 用 schedule HH:MM 当日（不减 90min），最自然的"距离午餐还有 X"读感。
  */
 export function selectNextMealCountdown(
-  state: { mealSchedules: MealSchedule },
+  state: { mealSchedules: MealSchedule; todayMeals: TodayMeals },
   now: Date = new Date()
 ): NextMealCountdown {
   for (const slot of SLOTS) {
+    // fix #1：已 done / missed 跳过；只看 pending 状态的餐
+    if (state.todayMeals[slot] !== "pending") continue;
     const scheduleTime = parseHHmm(state.mealSchedules[slot], now);
     const windowEnd = new Date(
       scheduleTime.getTime() + WINDOW_MIN_AFTER * 60 * 1000
