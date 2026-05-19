@@ -1,9 +1,14 @@
-// 提醒卡 selectors（v0.4 hotfix）
+// 提醒卡 selectors（v0.4 hotfix；v10 起删 selectUnackMissedSlot）
 //
 // HomeMealStatusSlot 用：决定首页第二板块显示什么
 // - 当前在某 mealWindow 内 + 该 slot 今日未 done → MealReminderCard
-// - 否则有未 ack 的 missed slot → MealIncompleteCard
-// - 否则 null（不显示）
+// - 否则今日有 missed + 未 madeUp 的 slot → MealMakeUpCard（issue #3，selector
+//   走 mealStars.ts 的 selectMakeUpEligibleSlot）
+// - 否则 NextMealCard
+//
+// 历史：v9 之前还有 selectUnackMissedSlot + MealIncompleteCard 三态，
+// v10 issue #3 删了 IncompleteCard 改 MakeUpCard，IncompleteCard 那条
+// "我知道了算了"的路径也下线 —— 给用户补救机会而非 ack 算了。
 
 import type { MealRecord, MealSchedule, MealSlot } from "@src/types";
 
@@ -47,17 +52,5 @@ export function selectActiveReminderSlot(
   return null;
 }
 
-export type UnackMissed = {
-  slot: MealSlot;
-  date: string;
-};
-
-export function selectUnackMissedSlot(state: {
-  mealRecords: MealRecord[];
-}): UnackMissed | null {
-  const found = [...state.mealRecords]
-    .filter((r) => r.status === "missed" && !r.acknowledged)
-    .sort((a, b) => b.ts - a.ts)[0];
-  if (!found) return null;
-  return { slot: found.mealSlot, date: found.date };
-}
+// v10 删了 selectUnackMissedSlot / UnackMissed —— 见上方注释。
+// 找今日 missed + 未 madeUp 的 slot 现在用 mealStars.ts 的 selectMakeUpEligibleSlot。

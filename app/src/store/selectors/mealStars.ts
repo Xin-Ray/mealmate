@@ -6,11 +6,16 @@
 // 复用 reminder.ts 的 REMINDER_WINDOW_MIN（90min）作为窗口长度。
 // 这里只用 windowEnd 判定（schedule + 90min）—— pre-window 阶段不算"过窗"。
 
-import type { MealRecord, MealSchedule, MealSlot, TodayMeals } from "@src/types";
+import type {
+  MealRecord,
+  MealSchedule,
+  MealSlot,
+  TodayMeals,
+} from "@src/types";
 
 const WINDOW_MIN_AFTER = 90; // 跟 missedScan.ts 一致
 
-export type MealStar = "done" | "missed" | "pending";
+export type MealStar = "done" | "missed" | "pending" | "half";
 
 const SLOTS: MealSlot[] = ["breakfast", "lunch", "dinner"];
 
@@ -22,17 +27,58 @@ const parseHHmm = (hhmm: string, base: Date): Date => {
 };
 
 /**
- * 今日三餐进度星：直接读 todayMeals（store 维护的当日 status）
- * 'done' / 'missed' / 'pending' 一一对应。
+ * 今日三餐进度星：从 todayMeals 读基础 status，再用 mealRecords 升级
+ * missed → half（如果该 slot 今日有 madeUp record）。
+ *
+ * 状态语义（issue #3 v10）：
+ *   - 'done'    全亮金星 ⭐（正常拍照打卡）
+ *   - 'half'    半亮金星（missed 后补救成功，HP 净变化 0）
+ *   - 'missed'  灰星（missed 未补救）
+ *   - 'pending' 空心星 ☆（还没到 / 未拍）
  */
 export function selectTodayMealStars(state: {
   todayMeals: TodayMeals;
+  mealRecords: MealRecord[];
+  todayKey: string;
 }): Record<MealSlot, MealStar> {
-  return {
+  const stars: Record<MealSlot, MealStar> = {
     breakfast: state.todayMeals.breakfast,
     lunch: state.todayMeals.lunch,
     dinner: state.todayMeals.dinner,
   };
+  // missed → half 升级：查今日是否有该 slot 的 madeUp record
+  for (const slot of SLOTS) {
+    if (stars[slot] === "missed") {
+      const madeUp = state.mealRecords.some(
+        (r) =>
+          r.date === state.todayKey &&
+          r.mealSlot === slot &&
+          r.status === "missed" &&
+          r.madeUp
+      );
+      if (madeUp) stars[slot] = "half";
+    }
+  }
+  return stars;
+}
+
+/**
+ * 找今日可补救的 missed slot（status=missed + 未 madeUp）。
+ * 自动按 ts 倒序拿最近一条 —— 一天多个 missed 时优先补救最近的。
+ * "当天 23:59" 窗口隐式：mealRecords 按 date 字段隔离，跨日后 todayKey 变，
+ * 老 record 自动从 selector 视野消失。
+ */
+export function selectMakeUpEligibleSlot(state: {
+  mealRecords: MealRecord[];
+  todayKey: string;
+}): MealSlot | null {
+  const found = [...state.mealRecords]
+    .filter(
+      (r) =>
+        r.date === state.todayKey && r.status === "missed" && !r.madeUp
+    )
+    .sort((a, b) => b.ts - a.ts)[0];
+  return found?.mealSlot ?? null;
 }
 
 export type NextMealCountdown = {

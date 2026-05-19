@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { ScrollView, View, Text, Pressable, Image, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useStore, HP_MEAL_PHOTO_GAIN } from "@src/store/useStore";
+import {
+  useStore,
+  HP_MEAL_PHOTO_GAIN,
+  HP_MEAL_MAKEUP_GAIN,
+} from "@src/store/useStore";
 import FullnessRatingPicker from "@src/components/ui/FullnessRatingPicker";
 import { pickImageWithFallback, type Source } from "@src/services/imagePicker";
 import { detectFood, type Detection } from "@src/services/foodDetection";
@@ -46,10 +50,17 @@ const ENCOURAGE_LINES = [
 const pickRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
 export default function PhotoScreen() {
-  const { slot } = useLocalSearchParams<{ slot: MealSlot }>();
+  // issue #3：makeup='true' 时走补救流（调 makeUpMeal 而非 markMealDone，HP +10 不 +5）
+  const { slot, makeup } = useLocalSearchParams<{
+    slot: MealSlot;
+    makeup?: string;
+  }>();
   const realSlot: MealSlot = (slot as MealSlot) ?? "lunch";
+  const isMakeUp = makeup === "true";
+  const hpGain = isMakeUp ? HP_MEAL_MAKEUP_GAIN : HP_MEAL_PHOTO_GAIN;
   const router = useRouter();
   const markMealDone = useStore((s) => s.markMealDone);
+  const makeUpMeal = useStore((s) => s.makeUpMeal);
   const robotName = useStore((s) => s.robotName);
   const pushDialogue = useStore((s) => s.pushDialogue);
   const addFullnessRecord = useStore((s) => s.addFullnessRecord);
@@ -111,25 +122,39 @@ export default function PhotoScreen() {
 
     // 重拍场景：本次 modal 已经打过卡，跳过 +HP 和 dialogue，只更新识别结果
     if (!confirmedOnce) {
-      markMealDone(realSlot, { photoUri: imageUri ?? undefined });
+      if (isMakeUp) {
+        // issue #3 补救流：标 mealRecord madeUp + HP +10 + push 补救成功 dialogue
+        // 这里不再 markMealDone（不会再生成 done record），makeUpMeal 内部一次性完成
+        makeUpMeal(realSlot);
+        const slotName: Record<MealSlot, string> = {
+          breakfast: "早餐",
+          lunch: "午餐",
+          dinner: "晚餐",
+        };
+        const doneBody = `补救成功！${slotName[realSlot]}也算数～`;
+        setDoneLine(doneBody);
+        setEncourageLine("不急，吃上就好。");
+      } else {
+        markMealDone(realSlot, { photoUri: imageUri ?? undefined });
 
-      const doneBody = pickRandom(DONE_LINE_BY_SLOT[realSlot]);
-      const encourageBody = pickRandom(ENCOURAGE_LINES);
+        const doneBody = pickRandom(DONE_LINE_BY_SLOT[realSlot]);
+        const encourageBody = pickRandom(ENCOURAGE_LINES);
 
-      pushDialogue({
-        kind: "meal_done",
-        body: doneBody,
-        mealSlot: realSlot,
-        hpDelta: HP_MEAL_PHOTO_GAIN,
-        photoUri: imageUri ?? undefined,
-      });
-      pushDialogue({
-        kind: "encourage",
-        body: encourageBody,
-        mealSlot: realSlot,
-      });
-      setDoneLine(doneBody);
-      setEncourageLine(encourageBody);
+        pushDialogue({
+          kind: "meal_done",
+          body: doneBody,
+          mealSlot: realSlot,
+          hpDelta: HP_MEAL_PHOTO_GAIN,
+          photoUri: imageUri ?? undefined,
+        });
+        pushDialogue({
+          kind: "encourage",
+          body: encourageBody,
+          mealSlot: realSlot,
+        });
+        setDoneLine(doneBody);
+        setEncourageLine(encourageBody);
+      }
       setConfirmedOnce(true);
     }
 
@@ -159,7 +184,9 @@ export default function PhotoScreen() {
         contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 48 }}
       >
         <View className="flex-row items-center justify-between">
-          <Text className="text-ink text-lg font-semibold">{slotLabel[realSlot]} · 记录</Text>
+          <Text className="text-ink text-lg font-semibold">
+            {slotLabel[realSlot]} · {isMakeUp ? "补救" : "记录"}
+          </Text>
           <Pressable onPress={() => router.back()}>
             <Text className="text-sub text-sm">关闭</Text>
           </Pressable>
@@ -230,7 +257,7 @@ export default function PhotoScreen() {
             <Animated.View style={{ transform: [{ scale }] }}>
               <View className="bg-ok/20 rounded-full px-6 py-3 mb-4">
                 <Text className="text-ok text-base font-semibold">
-                  血量 +{HP_MEAL_PHOTO_GAIN}
+                  血量 +{hpGain}
                 </Text>
               </View>
             </Animated.View>

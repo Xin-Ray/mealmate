@@ -34,8 +34,9 @@ flowchart TD
   %% Home tab interactions
   mainEntry --> homeSlot{HomeMealStatusSlot}
   homeSlot -- 窗内未拍 --> reminderCard[MealReminderCard]
-  homeSlot -- 窗末未拍未 ack --> incompleteCard[MealIncompleteCard]
-  homeSlot -- default fallback<br/>无窗 / 已拍 / 已 ack --> nextMealCard[NextMealCard<br/>下一顿倒计时 + 3 ⭐]
+  homeSlot -- 今日 missed 未 madeUp --> makeUpCard[MealMakeUpCard<br/>issue #3 v10]
+  homeSlot -- default fallback<br/>无窗 / 已拍 / 已补救 --> nextMealCard[NextMealCard<br/>下一顿倒计时 + 3 ⭐]
+  makeUpCard -. 去拍照补救 .-> photoModal
 
   reminderCard -- 去拍照 --> photoModal[/(modal)/photo/]
   incompleteCard -- 我知道了 --> ackMissed[/acknowledgeMissedMeal/] --> mainEntry
@@ -95,7 +96,7 @@ flowchart TD
 - Stage 1 / Stage 2 两套主页（按 `currentStage` 选）
   - Stage 1：周视图 + hero card + 提醒卡 + 今日记录区
   - Stage 2：hero card（无周视图）+ 体重模块 + 提醒卡 + 今日记录区
-- 第二板块 `<HomeMealStatusSlot>` 三态：`<MealReminderCard>`（窗内）/ `<MealIncompleteCard>`（未 ack 错过）/ `<NextMealCard>`（v0.5 替代之前的 null —— 显示下一顿倒计时 + 3 颗星进度）
+- 第二板块 `<HomeMealStatusSlot>` 三态（v10 issue #3 起）：`<MealReminderCard>`（窗内）/ `<MealMakeUpCard>`（今日 missed 未 madeUp，让用户补救拍照 HP +10 净 0；替代 v9 之前的 MealIncompleteCard "我知道了算了"）/ `<NextMealCard>`（下一顿倒计时 + 3 颗星，新加 'half' 状态：补救成功的 missed → ⭐ opacity 0.5）
 - 第三板块 `<HomeRecordsSection>` 与 records tab 同 selector 共享
 
 ### Tab 切换

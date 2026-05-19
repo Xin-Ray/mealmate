@@ -39,11 +39,19 @@ const SLOT_SHORT: Record<MealSlot, string> = {
 
 function Star({ state }: { state: MealStar }) {
   // 用 emoji 占位：
-  //   done → ⭐（实心金）opacity 1
+  //   done   → ⭐（实心金）opacity 1
+  //   half   → ⭐ opacity 0.5（missed 后补救成功，半亮，issue #3）
   //   missed → ⭐ opacity 0.3（看着像灰星，避免负面强烈 ❌ 💔）
   //   pending → ☆（空心）opacity 0.6
   const glyph = state === "pending" ? "☆" : "⭐";
-  const opacity = state === "done" ? 1 : state === "missed" ? 0.3 : 0.6;
+  const opacity =
+    state === "done"
+      ? 1
+      : state === "half"
+      ? 0.5
+      : state === "missed"
+      ? 0.3
+      : 0.6;
   const color = state === "pending" ? colors.ink.muted : undefined; // ☆ 用 muted 灰
   return (
     <Text style={{ fontSize: 28, opacity, color, textAlign: "center" }}>
@@ -55,6 +63,8 @@ function Star({ state }: { state: MealStar }) {
 export default function NextMealCard() {
   const mealSchedules = useStore((s) => s.mealSchedules);
   const todayMeals = useStore((s) => s.todayMeals);
+  const mealRecords = useStore((s) => s.mealRecords);
+  const todayKey = useStore((s) => s.todayKey);
 
   // 每秒 tick：触发 re-render 重新计算 secondsRemaining
   const [, setTick] = useState(0);
@@ -63,7 +73,8 @@ export default function NextMealCard() {
     return () => clearInterval(id);
   }, []);
 
-  const stars = selectTodayMealStars({ todayMeals });
+  // 星状态：todayMeals 基础 status + mealRecords 升级 missed → half（issue #3）
+  const stars = selectTodayMealStars({ todayMeals, mealRecords, todayKey });
   const countdown = selectNextMealCountdown({ mealSchedules, todayMeals });
 
   const slotLabel = SLOT_LABEL[countdown.slot];

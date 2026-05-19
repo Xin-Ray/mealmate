@@ -49,6 +49,10 @@ export type MealRecord = {
   // status='missed' 用：用户在 home 上点过"我知道了" / missed modal "我知道了"。
   // 用来决定"未完成卡"是否还显示。done 状态忽略此字段。
   acknowledged?: boolean;
+  // issue #3 补救机制（v10）：missed 餐被用户补救拍照后置 true，HP +10 净变化 0。
+  // 仅 status='missed' 用；done 忽略。madeUpAt 是补救拍照时间 ms。
+  madeUp?: boolean;
+  madeUpAt?: number;
 };
 
 // 对话记录（PRD §11.F）— 每次推送鼓励/警示话落一条；feed 倒序展示

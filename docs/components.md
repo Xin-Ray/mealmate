@@ -123,17 +123,28 @@
 
   视觉：浅米黄底（`#FBFAF1`） + 浅绿边（`#E2E8CF`） + 30 圆角；标题 "{slot}时间到啦!" 24pt；mascot reminder.png；倒计时 36pt `#3A6436`；CTA 73 高 `#60883B` bg；底部小字提示。
 
-### MealIncompleteCard
+### MealIncompleteCard ⚠️ deleted (v10)
 
-- 文件：`app/src/components/ui/MealIncompleteCard.tsx`
-- 来自：v0.4 hotfix 按 Figma 10:116
-- 用在：`<HomeMealStatusSlot>`（条件分支）
+- ~~文件：`app/src/components/ui/MealIncompleteCard.tsx`~~ —— **已删**（issue #3 v10）
+- 替代：`<MealMakeUpCard>`（让用户补救而不是"我知道了"算了）
+
+### MealMakeUpCard
+
+- 文件：`app/src/components/ui/MealMakeUpCard.tsx`
+- 来自：issue #3（v10，2026-05-18）—— 替代 MealIncompleteCard
+- 用在：`<HomeMealStatusSlot>` 第二位（在 ReminderCard 之后、NextMealCard 之前）
 - Props:
 
   | name | type | required | 说明 |
   |---|---|---|---|
-  | slot | MealSlot | ✓ | 错过的那一餐 |
-  | onAcknowledge | () => void | ✓ | 点 "我知道了" 触发，应调 `acknowledgeMissedMeal` |
+  | slot | MealSlot | ✓ | 今日 missed 的那一餐 |
+  | onPressGoMakeUp | () => void | ✓ | 点"去拍照补救"触发，应 `router.push('/(modal)/photo?slot=X&makeup=true')` |
+
+  视觉：浅米黄底（`#FBFAF1`）+ 浅绿边（`#E2E8CF`）+ 23 圆角（同 ReminderCard 调）；标题 "错过的餐还能补" 绿色 `#3A6436`；mascot missed.png；副标 "现在吃也算，拍一张补救"；小字 "血量将恢复 +10"；绿色按钮 `#60883B` "去拍照补救"。
+
+  触发：selector `selectMakeUpEligibleSlot` —— 今日 mealRecords 里 `status='missed' && !madeUp` 的 record。跨日后 todayKey 变，旧 missed 自动从 selector 视野消失（"当天 23:59" 隐式上限）。
+
+  补救完成后：record 标 `madeUp=true, madeUpAt=Date.now()`，HP +10（净变化 0 抵消之前 missed -10）；NextMealCard 的星从 'missed'（⭐ opacity 0.3）升级为 'half'（⭐ opacity 0.5）。
 
 ### NextMealCard
 
@@ -196,12 +207,16 @@
 - 用在：HomeStage1 / HomeStage2 第二板块
 - 无 props；内部读 store + selectors
 
-  渲染规则：
+  渲染规则（v10 issue #3 起）：
   1. `selectActiveReminderSlot` 命中 → `<MealReminderCard>`
-  2. 否则 `selectUnackMissedSlot` 命中 → `<MealIncompleteCard>`
-  3. 否则 `null`（首页该位置不占空间）
+  2. 否则 `selectMakeUpEligibleSlot` 命中（今日 missed + 未 madeUp）→ `<MealMakeUpCard>`
+  3. 否则 → `<NextMealCard>`（下一顿倒计时 + 3 颗星）
 
-  selectors 在 `src/store/selectors/reminder.ts`，配合 store action `acknowledgeMissedMeal`。
+  selectors 分别在 `src/store/selectors/reminder.ts`（active reminder）和
+  `src/store/selectors/mealStars.ts`（makeUp eligible / today stars / countdown）。
+  配合 store action `makeUpMeal`（issue #3 加）。
+
+  历史：v9 之前第 2 步是 `selectUnackMissedSlot → MealIncompleteCard`（让用户"我知道了"算了），v10 改成给补救机会。
 
 ### RecordCard
 

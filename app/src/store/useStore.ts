@@ -28,6 +28,8 @@ import type {
 export const HP_MAX = 100;
 export const HP_MEAL_PHOTO_GAIN = 5;
 export const HP_MEAL_MISSED_LOSS = 10;
+// issue #3 补救：missed 餐被补救拍照后 HP +10（净变化 0 抵消之前 -10）
+export const HP_MEAL_MAKEUP_GAIN = 10;
 // 各 stage 起始 HP（v0.4 hotfix#13，xin 拍板）
 // stage 1: 60（6 颗爱心，鼓励起步）
 // stage 2: 50（5 颗爱心，从 stage 1 advance 上来后重置）
@@ -105,6 +107,9 @@ type Actions = {
 
   // 标记某条 missed record 已被用户确认（home incomplete 卡 / missed modal "我知道了"）
   acknowledgeMissedMeal: (slot: MealSlot, date: string) => void;
+  // issue #3 补救机制：找今日 slot 的 missed record 标 madeUp + HP +10
+  // + push 鼓励 dialogue。如果没有匹配 record 是 noop。
+  makeUpMeal: (slot: MealSlot) => void;
 
   // 饱腹度（stage 1+2，§11.D.1）
   addFullnessRecord: (input: { mealSlot: MealSlot; score: FullnessScore }) => void;
@@ -356,6 +361,45 @@ export const useStore = create<State & Actions>()(
       },
       setSkipWeightPhoto: (v) => set({ skipWeightPhoto: v }),
 
+      makeUpMeal: (slot) => {
+        const s = get();
+        const todayKey = s.todayKey;
+        // 找今日该 slot 最近一条 status='missed' 未 madeUp 的 record
+        let targetId: string | null = null;
+        for (let i = s.mealRecords.length - 1; i >= 0; i--) {
+          const r = s.mealRecords[i];
+          if (
+            r.date === todayKey &&
+            r.mealSlot === slot &&
+            r.status === "missed" &&
+            !r.madeUp
+          ) {
+            targetId = r.id;
+            break;
+          }
+        }
+        if (!targetId) return;
+        const now = Date.now();
+        set({
+          mealRecords: s.mealRecords.map((r) =>
+            r.id === targetId ? { ...r, madeUp: true, madeUpAt: now } : r
+          ),
+          hp: clampHp(s.hp + HP_MEAL_MAKEUP_GAIN),
+        });
+        // push 鼓励 dialogue（kind=meal_done 复用现有渲染）
+        const slotName: Record<MealSlot, string> = {
+          breakfast: "早餐",
+          lunch: "午餐",
+          dinner: "晚餐",
+        };
+        get().pushDialogue({
+          kind: "meal_done",
+          body: `补救成功！${slotName[slot]}也算数～`,
+          mealSlot: slot,
+          hpDelta: HP_MEAL_MAKEUP_GAIN,
+        });
+      },
+
       acknowledgeMissedMeal: (slot, date) =>
         set((s) => ({
           mealRecords: s.mealRecords.map((r) =>
@@ -408,7 +452,7 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 9,
+      version: 10,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
@@ -426,6 +470,9 @@ export const useStore = create<State & Actions>()(
       // v8 → v9: DialogueRecord 加可选 stageWhenFailed（仅 kind='failure' 用）。
       //          老 failure 记录缺 stageWhenFailed → undefined，feed 渲染仍可从 body
       //          字符串读"阶段 N 失败一次"（向后兼容）。version bump only。
+      // v9 → v10: MealRecord 加可选 madeUp / madeUpAt（issue #3 补救机制）。
+      //          老 missed record 缺这两字段 → 视为未补救（madeUp undefined = false），
+      //          selectMakeUpEligibleSlot 自动允许补救。version bump only。
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as State & Actions;
@@ -467,6 +514,8 @@ export const useStore = create<State & Actions>()(
           ps.transitionsPending = [];
         }
         // v8 → v9: noop。stageWhenFailed 是可选字段，缺失视为 undefined（feed 仍可从 body 读）
+        // v9 → v10: noop。MealRecord 加可选 madeUp / madeUpAt（issue #3 补救机制），
+        //          缺失视为 undefined（未补救），不影响老 missed record 渲染。
         return persistedState as State & Actions;
       },
     }

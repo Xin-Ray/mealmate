@@ -616,3 +616,30 @@ selector：`buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })
 - 否则 NextMealCard 显示
 
 NextMealCard 没有按钮 —— 是状态展示卡，不是行动卡（与 ReminderCard 的"去拍照"按钮区分）。
+
+---
+
+### 11.N 错过餐补救机制（v10 issue #3，2026-05-18）
+
+**背景**：错过餐窗（runMissedScan 自动 markMissed -10 HP）的用户，可能后来其实吃上了。之前 v9 行为是给个 `<MealIncompleteCard>` 让用户"我知道了"算了 —— 但用户希望能给一次补救机会：现在拍照，把扣的 10 HP 加回来，净变化 0。
+
+**实现**：
+
+1. **数据模型**：`MealRecord` 加 `madeUp?: boolean` + `madeUpAt?: number`（v9→v10 noop migrate）
+2. **新 store action `makeUpMeal(slot)`**：
+   - 找今日该 slot 最近一条 `status='missed' && !madeUp` 的 record
+   - 标 `madeUp=true, madeUpAt=now`
+   - HP `+10`（`HP_MEAL_MAKEUP_GAIN`，clamp 到 0–100）
+   - push `kind='meal_done'` dialogue body=`"补救成功！{slot}也算数～"` hpDelta=+10
+3. **新组件 `<MealMakeUpCard>`** 替代 `<MealIncompleteCard>` —— **删了** Incomplete 全部场景
+4. **新 selector `selectMakeUpEligibleSlot`**：今日 mealRecords 里 `status='missed' && !madeUp` 的最近一条
+5. **photo 流加 `makeup` param**：`router.push('/(modal)/photo?slot=X&makeup=true')` → onConfirm 调 `makeUpMeal` 而非 `markMealDone`，HP delta 显 +10，标题改 "{slot} · 补救"
+6. **星视觉加 'half' 状态**：补救成功的 missed → `<Star state='half'/>` → ⭐ opacity 0.5（区别 done 的 opacity 1 / missed 的 opacity 0.3）
+
+**判定窗口**：当天 23:59 隐式上限 —— record 按 `date` 字段隔离，跨日后 `todayKey` 变，旧 missed 自动从 selector 视野消失。
+
+**一天可补多次**：所有 missed 都能补（不限次数），已 ack 过的也能补（v10 起 acknowledged 字段对 MakeUp 流不起作用）。
+
+**与 §11.F 错过餐扫描的关系**：runMissedScan 仍正常跑（自动 markMissed + 双 dialogue + 弹 meal-missed modal）；用户从 modal "我知道了" 出来后，home 第二板块仍会显示 MakeUpCard 让他选择补救或不补救。
+
+**HP 数学**：错过 -10、补救 +10 → 净 0。等于"这餐没扣分但也没加分"（不补救的 done 是 +5，所以补救 < 正常 done 的 HP 收益，符合"晚于窗口完成应略有 penalty"的直觉）。
