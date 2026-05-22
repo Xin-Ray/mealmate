@@ -45,4 +45,4 @@ React Native 选定后，再选发行方式：
 ## 相关
 
 - [01-architecture.md](../01-architecture.md)
-- [ADR-0004](./0004-zustand-state.md)（状态管理选型相关）
+- [ADR-0003](./0003-minor-tech-choices.md)（zustand 等次要选型）

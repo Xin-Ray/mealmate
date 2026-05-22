@@ -1,132 +1,13 @@
 openapi: 3.1.0
 info:
-  title: mealmate external APIs
-  version: 0.5.0
+  title: mealmate API
+  version: 0.0.0-stub
   description: |
-    mealmate 是 client-only app，没有自家后端。当前依赖两个外部 API：
-    1. Gemini API（Google）—— LLM 文案 + Vision OCR
-    2. YOLO 后端（自建，xin 本地 / 远端）—— 食物识别
+    mealmate v0.5 是纯客户端 app，**没有自家 API**。
+    客户端直连两个外部依赖（Gemini / 自建 YOLO），详 ./api-guide.md。
 
-    v1.1+ 计划加 Cloudflare Worker 中间层代理 Gemini key（[ADR-0005](../07-adr/0005-llm-key-client-exposure.md)）。
+    v1.1 计划做单个 Cloudflare Worker 中间层，代理 Gemini key + Apple Sign In auth + 同步 mealmate-store。
+    OpenAPI 等 v1.1 设计定型后再写。
 
-servers:
-  - url: https://generativelanguage.googleapis.com
-    description: Gemini API（直连，v0.5）
-  - url: http://192.168.1.157:8000
-    description: 自建 YOLO 后端（xin 本地默认；可配 EXPO_PUBLIC_DETECT_API_BASE）
-
-paths:
-  /v1beta/models/gemini-2.5-flash:generateContent:
-    post:
-      summary: Gemini Vision OCR + LLM 文案
-      description: |
-        两种用途：
-        - 体重秤 OCR（Vision，附图）—— prompt 限 "读体重秤数字（kg），unknown 兜底"
-        - 鼓励 / 提醒文案生成（pure text）—— prompt 含 userName / stage / context
-      parameters:
-        - in: query
-          name: key
-          required: true
-          schema: { type: string }
-          description: Gemini API key（v0.5 客户端 bundle 暴露，v1.1 迁 Worker）
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [contents]
-              properties:
-                contents:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      role: { type: string, enum: [user] }
-                      parts:
-                        type: array
-                        items:
-                          oneOf:
-                            - type: object
-                              properties:
-                                text: { type: string }
-                            - type: object
-                              properties:
-                                inlineData:
-                                  type: object
-                                  properties:
-                                    mimeType: { type: string, example: image/jpeg }
-                                    data: { type: string, description: base64 }
-                generationConfig:
-                  type: object
-                  properties:
-                    temperature: { type: number, example: 0.7 }
-                    maxOutputTokens: { type: integer, example: 150 }
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  candidates:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        content:
-                          type: object
-                          properties:
-                            parts:
-                              type: array
-                              items:
-                                type: object
-                                properties:
-                                  text: { type: string }
-        '400': { description: 参数错 }
-        '429': { description: rate limit }
-        '500': { description: 服务异常 }
-
-  /detect:
-    post:
-      summary: YOLO 食物识别
-      description: |
-        上传图片，返回 detections list。fail-soft：12s timeout，挂了不阻塞 meal 打卡流程。
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: [image]
-              properties:
-                image:
-                  type: string
-                  format: binary
-      responses:
-        '200':
-          description: 成功（可能 detections 为空 list）
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  detections:
-                    type: array
-                    items:
-                      type: object
-                      required: [label, confidence]
-                      properties:
-                        label: { type: string, example: "rice" }
-                        confidence: { type: number, minimum: 0, maximum: 1 }
-                        bbox:
-                          type: array
-                          items: { type: number }
-                          minItems: 4
-                          maxItems: 4
-                          description: "[x, y, w, h] 0-1 normalized"
-        '500': { description: 模型加载 / 推理错 }
-        '504': { description: 客户端 12s timeout 触发（gateway 不存在；仅文档化客户端行为） }
-
+paths: {}
 components: {}

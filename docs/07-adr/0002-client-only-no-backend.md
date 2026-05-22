@@ -60,5 +60,5 @@ mealmate MVP 要管：HP / stage / 餐打卡 / 体重 / 推送提醒 / 文案生
 ## 相关
 
 - [ADR-0005](./0005-llm-key-client-exposure.md)（key 暴露后续）
-- [ADR-0006](./0006-local-notifications-not-apns.md)（本地通知）
+- [ADR-0003](./0003-minor-tech-choices.md)（本地通知 / YOLO 自建等次要选型）
 - [04-data-model/tables.md](../04-data-model/tables.md)（schema + 持久化策略）

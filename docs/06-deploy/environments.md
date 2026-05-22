@@ -67,7 +67,7 @@ EXPO_PUBLIC_DETECT_API_BASE=http://192.168.1.157:8000
 
 ## 推送
 
-- 当前用 expo-notifications **本地通知**，无服务器推送，不需要 APNs token 后端（[ADR-0006](../07-adr/0006-local-notifications-not-apns.md)）
+- 当前用 expo-notifications **本地通知**，无服务器推送，不需要 APNs token 后端（[ADR-0003](../07-adr/0003-minor-tech-choices.md) "本地通知"节）
 - v1.1+ 加 cloud sync 后再决定是否启用 APNs
 
 ## 域名

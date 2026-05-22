@@ -31,35 +31,37 @@ A: v1.0 已 ship 到 TestFlight（main HEAD 见 [`README.md`](../README.md) stat
 A: v1.1 主要做后端 —— Cloudflare Worker 代理（必须做的安全债，把 Gemini key 从客户端搬走，详 [`07-adr/0005-llm-key-client-exposure.md`](./07-adr/0005-llm-key-client-exposure.md)）、Apple Sign In、云同步（解决换机数据丢失）、Stage 3-5 的业务逻辑、Sentry 监控。
 
 **Q5: 技术栈为啥这样选？**
-A: Expo（vs bare RN）速度优先，EAS Build 一键发布；Zustand（vs Redux）轻量 + persist 中间件 boilerplate 少；无后端是 MVP 阶段省服务器 + 跑通核心闭环优先。详 [`07-adr/`](./07-adr/) 7 个决策记录。
+A: Expo（vs bare RN）速度优先，EAS Build 一键发布；Zustand（vs Redux）轻量 + persist 中间件 boilerplate 少；无后端是 MVP 阶段省服务器 + 跑通核心闭环优先。详 [`07-adr/`](./07-adr/) 4 个决策记录（Expo / 无后端 / 次要技术选型合集 / LLM key 暴露）。
 
 **Q6: 我从哪开始读？**
 A: 按角色：
-- **产品 / 老板** → 本文档（00）+ [02 业务流程](./02-business-flows/) + [`/docs/PRD.md`](./PRD.md) 详细
-- **设计** → [`/docs/design-system.md`](./design-system.md)（tokens）+ [02 业务流程](./02-business-flows/) 看交互
-- **测试** → [02 业务流程](./02-business-flows/) 每个流程都有"异常情况"+ [06 部署](./06-deploy/)
-- **新研发** → [01 架构](./01-architecture.md) + [03 模块](./03-modules/) + [04 数据模型](./04-data-model/) + [07 ADR](./07-adr/) 知道历史决策为什么这样
+- **产品 / 老板** → 本文档（00）+ [02 业务流程](./02-business-flows/) + [`PRD.md`](./PRD.md) 详细
+- **设计** → [`design-system.md`](./design-system.md)（tokens）+ [02 业务流程](./02-business-flows/) 看交互
+- **测试** → [02 业务流程](./02-business-flows/) 每个流程都有"异常"段 + [06 部署](./06-deploy/)
+- **新研发** → [01 架构](./01-architecture.md) + [03 模块](./03-modules/)（5 行索引指向代码）+ [04 数据](./04-data-model/)（指 `app/src/types/index.ts`）+ [07 ADR](./07-adr/) 重大决策
 
 ## 文档地图
 
 ```
 docs/
 ├── 00-readme.md              ← 你在这里
-├── 01-architecture.md        系统架构 + 数据流图
-├── 02-business-flows/        核心业务流程（每个一图，含正常/异常/状态变化）
-├── 03-modules/               9 个模块的固定模板说明
-├── 04-data-model/            zustand store schema 详解 + ER 图
-├── 05-api/                   接口（v1.1 Worker stub + 现有 Gemini/YOLO contract）
+├── 01-architecture.md        系统架构 + 关键原则
+├── 02-business-flows/        6 个核心流程（每个一张 mermaid + 正常 / 异常 / 状态）
+├── 03-modules/               9 个模块的 5 行索引（指向代码）
+├── 04-data-model/            字段简表 + 不变量（详 → app/src/types/index.ts）
+├── 05-api/                   v0.5 无后端，v1.1 Worker stub + Gemini / YOLO 简表
 ├── 06-deploy/                EAS Build / TestFlight / App Store
-├── 07-adr/                   7 条架构决策记录
+├── 07-adr/                   4 条重大决策（Expo / 无后端 / 次要技术合集 / LLM key 暴露）
 └── 08-faq.md                 常见问题 + 排查
 ```
 
-历史文档（v0.4-v1.0 期间用的）保留在 `docs/{product,design,api,architecture,dev,deploy}/` 子目录，顶部加迁移指引。
+> 一人公司 0-1 原则：文档**够用就行**。代码自解释的内容（详细模块逻辑 / ER / 完整 API）让代码自己说，文档只留指针 + 重大决策。
+
+历史文档保留在 `docs/{product,design,api,architecture,dev,deploy}/` 各子目录，顶部 `DEPRECATED.md` 指向新位置。
 
 ## 状态与版本
 
 - 当前 main HEAD：见 [`README.md`](../README.md) status badge
-- 持久化 schema 版本：**v9**（含 transitionsSeen / transitionsPending / stageWhenFailed；见 [`04-data-model/tables.md`](./04-data-model/tables.md) migrate 历史）
+- 持久化 schema 版本：**v9**（含 transitionsSeen / transitionsPending / stageWhenFailed；migrate 函数在 `app/src/store/useStore.ts`）
 - TestFlight build 1：2026-05-18 上线
 - 下次 production build：等 v1.1 完成后
