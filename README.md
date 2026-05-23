@@ -89,6 +89,97 @@ Stage 2 起记录体重（拍秤面 + Gemini Vision OCR）
 
 ---
 
+## 版本日志
+
+> 每版：**问题**（要解决什么）/ **目标**（这版要做什么）/ **进度**（✅ 做完验证 / 🟡 做了待验 / ⬜ 未做）
+
+### v0.1 — 2026-04-21
+- **问题**：项目零起步，技术栈未定
+- **目标**：PRD 起草 + 跨平台技术调研
+- **进度**：✅ 已完成 — `docs/PRD.md` + `docs/tech-research.md`；定 React Native + Expo
+
+### v0.2 — 2026-04-25 → 2026-04-28
+- **问题**：需要让 PRD 的"陪伴 + HP + 五阶段"概念跑起来看效果
+- **目标**：Stage 1 UI shell（mock 数据），跑通 onboarding + home + photo + settings 基本路径
+- **进度**：✅ 已完成 — Expo SDK 54 + Zustand persist + 4 onboarding 屏 + Mascot LLM 接入决策（24 条本地台词池）
+
+### v0.3 — 2026-05-01
+- **问题**：v0.2 只有 Stage 1 + 没真实推送；Stage 2 体重模块完全没做
+- **目标**：Stage 2 体重模块 + 三餐推送通知 + HP→100 advanceStage 触发
+- **进度**：✅ 已完成 — expo-notifications 三餐本地推送 + weight-entry modal + bundle id 改 `com.xinray.mealmate`
+- **副作用**：临时关 LLM（key 暴露安全顾虑），文案走本地池
+
+### v0.4 — 2026-05-01 → 2026-05-07
+- **问题**：UI 跟 Figma 设计不一致；首页臃肿单页面；错过餐没自动 mark
+- **目标**：IA 重构 4 tab（首页 / 记录 / 统计 / 我的）+ 视觉对齐 Figma + hero + 心形条 + 错过餐扫描
+- **进度**：✅ 已完成 — 17 commit + 13 个 hotfix；HP 标度 0-15 → 0-100 migrate；HP band mascot 4 张专属图；记录 / 统计 / 我的页 + (modal) group + 错过餐 runMissedScan
+
+### v0.5（合并进 v1.0，未单独 release）
+- **问题**：阶段进阶屏只有 Stage 2，没 demote / 没 stage 3-5；下一餐倒计时不会跳过已 done 餐；体重 / 食物识别全手动
+- **目标**：5 阶段转场（start/end/demote 11 屏）+ NextMealCard + Weight Gemini Vision OCR + YOLO 食物识别 + Stage 1 HP→0 走 support 调（§11.L）
+- **进度**：✅ 11 屏 + Plan B 重构（(stage) page presentation slide_from_right）+ stageWhenFailed 字段 + Issue #1 fix + 重拍按钮（Issue #2 fix）
+
+### v1.0.0 — 2026-05-18（TestFlight build 1）
+- **问题**：v0.4 → v0.5 累计很多功能没有可分发包；要让 xin / 内测员真机用
+- **目标**：上 TestFlight，让产品在真机跑起来收反馈
+- **进度**：✅ TestFlight build 1 上线（main `4a94da2`）；schema v1 → v9 migrate 兼容；App Store 审核排期中
+- **后续反馈**（Issue #4-#7，2026-05-22 → 2026-05-23 真机用户反馈）：见下方风险段
+
+### v1.1（规划中，尚未启动）
+- **问题**：
+  - 数据无云备份（Issue #4 #5 用户痛点，换机 / 卸载即丢）
+  - LLM key 客户端暴露安全债（PRD 上线前阻塞项）
+  - 三餐提醒偶尔不响 + 窗口时间计时早 1.5h（Issue #6）
+  - onboarding 完成立刻弹"错过餐"（Issue #7）
+  - 加餐 SnackCard 还在 `feat/issue-3-snack-card` 分支，未合 main（Issue #3）
+  - Stage 2 → 3 / 3 → 4 / 4 → 5 业务进阶条件未接入
+  - 无用户行为分析 / crash report
+- **目标**：Cloudflare Worker 代理（Gemini key 安全）+ Apple Sign In + 云同步 D1 + Sentry + 修 Issue #6 #7 + 合 Issue #3 snack + Stage 3-5 业务条件接入
+- **进度**：⬜ 未启动
+
+详细技术过程见 [`docs/dev-log.md`](./docs/dev-log.md)，每版本细 changelog 见 [`docs/product/changelog.md`](./docs/product/changelog.md)。
+
+---
+
+## UI 完成度盘点（2026-05-23）
+
+| 功能 / 屏 | 状态 | 验证方式 |
+|---|---|---|
+| onboarding（3 步 eating/schedule/name） | 🟡 做了待修 | iPhone — **Issue #7**：onboarding 完后即误弹"错过餐"页面 |
+| 首页 Stage 1 hero（HomeStage1） | ✅ 做完验证 | iPhone v1.0 TestFlight |
+| 首页 Stage 2 hero（HomeStage2 + mascot 4 band） | ✅ 做完验证 | iPhone — v0.4 hotfix #5-#13 反复迭代到位 |
+| HP 心形条（HpHeartsContent，9 颗 Figma asset） | ✅ 做完验证 | iPhone + simulator 自截多次 |
+| MealReminderCard（餐窗内提醒） | 🟡 做了待修 | iPhone — **Issue #6**：窗口提前 1.5h 计时 bug + 偶尔不响 |
+| MealIncompleteCard / meal-missed modal | 🟡 做了待修 | iPhone — Issue #7 误弹连锁 |
+| NextMealCard | ✅ 做完验证 | iPhone — Issue #1 fix（skip done meals）已修 |
+| 加餐 SnackCard | ⬜ 未合 main | 在 `feat/issue-3-snack-card` 分支，未合 |
+| 记录 tab（日期 group + 新 mascot 头像） | ✅ 做完验证 | iPhone — commit `f94c7f9` |
+| 统计 tab（TrendChart 自绘 SVG） | ✅ 做完验证 | iPhone — commit `5232f20` X 轴修 |
+| 我的 tab（settings + __DEV__ 面板） | ✅ 做完验证 | simulator + iPhone |
+| 拍照流程 photo modal + 重拍按钮 | ✅ 做完验证 | iPhone v1.0 — Issue #2 fix |
+| 食物识别 YOLO（POST /detect） | 🟡 做了待充分验 | YOLO 后端 `192.168.1.157` 仅内网；TestFlight 外网走 fail-soft 无 chips |
+| 体重录入 + Gemini Vision OCR | ✅ 做完验证 | iPhone — 键盘修 `a52ddce` + OCR `2936938` |
+| Stage 1 start 屏 | ✅ 做完验证 | iPhone |
+| Stage 1-5 end 屏（5 个） | 🟡 部分验证 | Stage 1→2 跑通；**Stage 2→3 / 3→4 / 4→5 业务进阶条件未接入**（dev panel 可手动触发） |
+| Stage 1-5 demote 屏（5 个） | 🟡 部分验证 | Stage 1 demote（support 调建议医生）✅；Stage 2-5 demote 仅 dev panel 验过 |
+| advanceStage / demoteStage 边界（addHp） | ✅ 做完验证 | iPhone — stage 1↔2 真实路径跑通；3-5 走 dev panel |
+| LLM mascot 文案（Gemini Flash + 本地兜底池） | 🟡 做了待充分验 | code ok；**Gemini key 客户端暴露** — v1.1 必迁 Worker |
+| 本地推送（expo-notifications） | 🟡 做了待修 | iPhone — Issue #6 偶尔不响 + 窗口 bug |
+| 数据持久化（zustand + AsyncStorage v9） | ✅ 做完验证 | migrate v1→v9 无报错 |
+| 云备份 / 同步 | ⬜ 未做 | Issue #4 #5 用户痛点 — v1.1 Cloudflare Worker + D1 计划 |
+| Apple Sign In | ⬜ 未做 | v1.1 规划 |
+| Sentry / crash report | ⬜ 未做 | v1.1 规划 |
+| Cloudflare Worker（LLM key 安全） | ⬜ 未做 | v1.1 **必做**（安全债阻塞项） |
+
+**🔴 阻塞 v1.1 启动的真机已知 bug**（来自 2026-05-22 → 2026-05-23 用户反馈）：
+
+- **Issue #6**：餐次窗口计时早了 1.5h（应该从 schedule 时间起算，现在从 schedule - 90min 起算）+ 偶尔提醒不响
+- **Issue #7**：onboarding 完成立刻弹"错过餐"，窗口可能还没开始就弹
+
+修这两个 bug 后再启动 v1.1 后端 / Worker 工作。
+
+---
+
 ## 项目结构
 
 - [`docs/PRD.md`](./docs/PRD.md) — 产品需求文档（一句话概述、目标用户、HP 机制、五阶段设计、MVP 范围、技术选型摘要、安全与伦理边界、待决策项）

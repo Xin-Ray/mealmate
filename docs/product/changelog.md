@@ -1,6 +1,26 @@
 # Changelog
 
-按版本归类，倒序排列。详细技术过程见 [`docs/dev/dev-log.md`](../dev/dev-log.md)。
+按版本归类，倒序排列。详细技术过程见 [`docs/dev/dev-log.md`](../dev/dev-log.md)。版本日志 + UI 完成度盘点见仓库根 [`README.md`](../../README.md) "版本日志"段。
+
+## v1.1（规划中，未启动）
+
+**主题**：后端 + 数据安全 + 真机 bug 修复。
+
+### 阻塞项（v1.1 启动前先修）
+
+- **Issue #6**（2026-05-22）：餐次窗口计时早 1.5h（应从 schedule 时间起算 +90min，现在从 schedule -90min 起算）+ 偶尔提醒不响 → 修 `services/notifications.ts` + `selectors/reminder.ts`
+- **Issue #7**（2026-05-22）：onboarding 完成立刻弹"错过餐"页面，窗口可能还没开始 → 修 `runMissedScan` 在 onboarding 完成后跳首扫，或 missedScan 内加 schedule 早于 onboarding ts 的过滤
+
+### 计划
+
+- **Cloudflare Worker + D1**：代理 Gemini key（解决客户端暴露安全债）+ 同步 mealmate-store snapshot 到 D1（Issue #4 #5 用户痛点：换机 / 卸载即丢）
+- **Apple Sign In**：作为 user_id 锚，配合 Worker
+- **Sentry / crash report**：上线后必备
+- **Issue #3 SnackCard 合 main**：当前在 `feat/issue-3-snack-card` 分支未合
+- **Stage 3-5 业务进阶条件**：advanceStage action 支持到 5 但 markMealDone 不会让 stage 2→3，PRD 决策待定
+- **加餐窗末 +30min 二次提醒**（Issue #6 新功能要求）
+
+---
 
 ## v1.0.0 — 2026-05-18
 
