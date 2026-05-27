@@ -71,6 +71,11 @@ type State = {
   dialogueHistory: DialogueRecord[]; // 倒序时间排序，最多 50 条
   disappearWarningLastShownAt: number | null; // ms timestamp
   onboardingDone: boolean;
+  // Issue #7：onboarding 完成时刻（ms）。runMissedScan 用来判断"某餐窗结束时
+  // 用户是否真的有机会吃" —— 只 mark missed 那些 windowEnd > onboardingCompletedAt
+  // 的窗，避免 onboarding 完成瞬间就把当天早过的窗口判 missed 弹 modal。
+  // 老用户（v9 → v10 migrate）回填 0 → 保持旧行为不破坏。
+  onboardingCompletedAt: number | null;
   // 阶段过渡屏已看记录（v7）：用于 stage 1 start 一次性触发判断。
   // 老用户（v6 → v7 migrate）按 currentStage 回填，避免补弹历史 modal。
   transitionsSeen: TransitionRecord[];
@@ -159,6 +164,7 @@ const initialState: State = {
   dialogueHistory: [],
   disappearWarningLastShownAt: null,
   onboardingDone: false,
+  onboardingCompletedAt: null,
   transitionsSeen: [],
   transitionsPending: [],
 };
@@ -177,7 +183,8 @@ export const useStore = create<State & Actions>()(
       setGentleMode: (v) => set({ gentleMode: v }),
       setMealSchedule: (slot, hhmm) =>
         set((s) => ({ mealSchedules: { ...s.mealSchedules, [slot]: hhmm } })),
-      finishOnboarding: () => set({ onboardingDone: true }),
+      finishOnboarding: () =>
+        set({ onboardingDone: true, onboardingCompletedAt: Date.now() }),
 
       rollDayIfNeeded: () => {
         const k = todayKey();
@@ -408,7 +415,7 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 9,
+      version: 10,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
@@ -426,6 +433,9 @@ export const useStore = create<State & Actions>()(
       // v8 → v9: DialogueRecord 加可选 stageWhenFailed（仅 kind='failure' 用）。
       //          老 failure 记录缺 stageWhenFailed → undefined，feed 渲染仍可从 body
       //          字符串读"阶段 N 失败一次"（向后兼容）。version bump only。
+      // v9 → v10: 加 onboardingCompletedAt（Issue #7）。已 onboardingDone 的老用户
+      //          回填 0 → 任何 windowEnd>0 都通过 missedScan 守卫，保持旧行为；
+      //          未 onboarded 的用户保持 null，下次 finishOnboarding 设 Date.now()。
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as State & Actions;
@@ -467,6 +477,11 @@ export const useStore = create<State & Actions>()(
           ps.transitionsPending = [];
         }
         // v8 → v9: noop。stageWhenFailed 是可选字段，缺失视为 undefined（feed 仍可从 body 读）
+        if (version < 10 && ps.onboardingCompletedAt === undefined) {
+          // 已 onboardingDone 的老用户回填 0 → 任何 windowEnd>0 都通过守卫，
+          // 保持 v1.0 旧行为不破坏；未 onboarded 用户保持 null，下次 finishOnboarding 设 Date.now()
+          ps.onboardingCompletedAt = ps.onboardingDone ? 0 : null;
+        }
         return persistedState as State & Actions;
       },
     }

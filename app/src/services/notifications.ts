@@ -20,7 +20,28 @@ const SLOT_LABEL: Record<MealSlot, string> = {
   dinner: "晚餐",
 };
 
+// 每餐两条通知：到点 + 窗末前 30min（= schedule + 60min）。Issue #6(b)
 const idForSlot = (slot: MealSlot) => `mealmate.meal.${slot}`;
+const idForSlotEnd = (slot: MealSlot) => `mealmate.meal.${slot}.end30`;
+
+// 窗末提醒文案池（按 slot 切分；不引 random 是为了"调度时"的稳定）
+const END30_BODY: Record<MealSlot, string> = {
+  breakfast: "早餐窗口还有 30 分钟，吃了的话别忘了记录哦~",
+  lunch: "午餐窗口还有 30 分钟，吃了的话别忘了记录哦~",
+  dinner: "晚餐窗口还有 30 分钟，吃了的话别忘了记录哦~",
+};
+
+// schedule + 60min = windowEnd - 30min。返回 hour/minute（24h 制）。
+const computeEnd30 = (hhmm: string): { hour: number; minute: number } => {
+  const [hStr, mStr] = hhmm.split(":");
+  const h = parseInt(hStr ?? "0", 10) || 0;
+  const m = parseInt(mStr ?? "0", 10) || 0;
+  const total = h * 60 + m + 60; // +60min
+  return {
+    hour: Math.floor(total / 60) % 24,
+    minute: total % 60,
+  };
+};
 
 // 全局 handler：app 在前台时收到推送如何处理（这里选择仍然弹横幅）
 // expo-notifications 新版用 shouldShowBanner / shouldShowList 替代了 shouldShowAlert
@@ -45,7 +66,8 @@ export async function scheduleMealReminders(
   schedules: MealSchedule,
   dialogueFor: (slot: MealSlot) => string
 ): Promise<void> {
-  // 简化策略：清掉所有 → 重新调度 3 个 DAILY。pending 数始终 ≤ 3，远低于 iOS 的 64 上限
+  // 简化策略：清掉所有 → 重新调度 6 个 DAILY（3 餐 × 2：到点 + 窗末前 30min）。
+  // pending 数 = 6，远低于 iOS 的 64 上限。Issue #6(b) 新需求。
   await Notifications.cancelAllScheduledNotificationsAsync();
 
   const slots: MealSlot[] = ["breakfast", "lunch", "dinner"];
@@ -53,6 +75,7 @@ export async function scheduleMealReminders(
     const parts = schedules[slot].split(":");
     const hour = parseInt(parts[0] ?? "0", 10) || 0;
     const minute = parseInt(parts[1] ?? "0", 10) || 0;
+    // 1) 到点提醒
     await Notifications.scheduleNotificationAsync({
       identifier: idForSlot(slot),
       content: {
@@ -64,6 +87,22 @@ export async function scheduleMealReminders(
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour,
         minute,
+      },
+    });
+    // 2) 窗末前 30 分钟（= schedule + 60min）的二次提醒
+    //    本地通知不能条件触发，统一推；如果用户已经拍照，看到也无伤大雅
+    const end30 = computeEnd30(schedules[slot]);
+    await Notifications.scheduleNotificationAsync({
+      identifier: idForSlotEnd(slot),
+      content: {
+        title: `${SLOT_LABEL[slot]}窗口还有 30 分钟`,
+        body: END30_BODY[slot],
+        data: { slot, type: "meal_reminder_end30" },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: end30.hour,
+        minute: end30.minute,
       },
     });
   }

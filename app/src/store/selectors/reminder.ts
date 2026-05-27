@@ -1,9 +1,12 @@
-// 提醒卡 selectors（v0.4 hotfix）
+// 提醒卡 selectors（v0.4 hotfix；Issue #6 fix 2026-05-23）
 //
 // HomeMealStatusSlot 用：决定首页第二板块显示什么
 // - 当前在某 mealWindow 内 + 该 slot 今日未 done → MealReminderCard
 // - 否则有未 ack 的 missed slot → MealIncompleteCard
 // - 否则 null（不显示）
+//
+// 窗口定义（xin 拍板，Issue #6(c)）：[schedule, schedule + 90min]，从提醒时刻起算。
+// 旧实现 [schedule - 90min, schedule + 90min] 让用户提前 1.5h 就看到提醒，体验不对。
 
 import type { MealRecord, MealSchedule, MealSlot } from "@src/types";
 
@@ -31,10 +34,10 @@ export function selectActiveReminderSlot(
 ): ActiveReminder | null {
   const slots: MealSlot[] = ["breakfast", "lunch", "dinner"];
   for (const slot of slots) {
-    const center = parseHHmm(state.mealSchedules[slot], now);
-    const windowStart = new Date(center.getTime() - REMINDER_WINDOW_MIN * 60 * 1000);
-    const windowEnd = new Date(center.getTime() + REMINDER_WINDOW_MIN * 60 * 1000);
-    if (now >= windowStart && now < windowEnd) {
+    const scheduleTime = parseHHmm(state.mealSchedules[slot], now);
+    const windowEnd = new Date(scheduleTime.getTime() + REMINDER_WINDOW_MIN * 60 * 1000);
+    // 窗口起点 = schedule，终点 = schedule + 90min（不再提前 90min）
+    if (now >= scheduleTime && now < windowEnd) {
       const doneToday = state.mealRecords.find(
         (r) =>
           r.date === state.todayKey &&
