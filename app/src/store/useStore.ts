@@ -13,6 +13,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import type {
   DialogueRecord,
   FullnessRecord,
@@ -28,6 +29,15 @@ import type {
 export const HP_MAX = 100;
 export const HP_MEAL_PHOTO_GAIN = 5;
 export const HP_MEAL_MISSED_LOSS = 10;
+
+// AsyncStorage namespace 按 APP_VARIANT 隔离：dev build 跟 prod build 数据互不可见。
+// 来源：app.config.ts 把 process.env.APP_VARIANT 注入 extra.appVariant。
+// dev → "mealmate-store-dev"；production / 缺失 → "mealmate-store"（保旧用户 namespace）。
+const APP_VARIANT =
+  (Constants.expoConfig?.extra as { appVariant?: string } | undefined)
+    ?.appVariant ?? "production";
+const STORE_KEY =
+  APP_VARIANT === "dev" ? "mealmate-store-dev" : "mealmate-store";
 // 各 stage 起始 HP（v0.4 hotfix#13，xin 拍板）
 // stage 1: 60（6 颗爱心，鼓励起步）
 // stage 2: 50（5 颗爱心，从 stage 1 advance 上来后重置）
@@ -338,7 +348,7 @@ export const useStore = create<State & Actions>()(
 
       resetAll: async () => {
         set({ ...initialState, todayKey: todayKey() });
-        await AsyncStorage.removeItem("mealmate-store");
+        await AsyncStorage.removeItem(STORE_KEY);
       },
 
       addWeightRecord: ({ kg, photoUri }) => {
@@ -406,7 +416,7 @@ export const useStore = create<State & Actions>()(
       __dev_resetTransitions: () => set({ transitionsSeen: [] }),
     }),
     {
-      name: "mealmate-store",
+      name: STORE_KEY,
       storage: createJSONStorage(() => AsyncStorage),
       version: 9,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）

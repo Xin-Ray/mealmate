@@ -112,6 +112,26 @@ npm install
 cd ios && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install && cd ..
 ```
 
+### Dev / Production 两套环境（feat/env-split 起）
+
+通过 `APP_VARIANT` env 切 bundleId / app name / AsyncStorage namespace —— dev build 装到机器上跟 TestFlight prod build **共存且数据互不可见**：
+
+| variant | bundleId | App name | AsyncStorage key |
+|---|---|---|---|
+| `dev` | `com.xinray.mealmate.dev` | MealMate Dev | `mealmate-store-dev` |
+| `production`（默认）| `com.xinray.mealmate` | MealMate | `mealmate-store` |
+
+本地跑 dev build（推荐，跟 TestFlight 数据隔离）：
+
+```bash
+cd app
+APP_VARIANT=dev LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo run:ios --device
+```
+
+EAS build 不用传 env，`eas.json` 里 `development` profile 已默认 `APP_VARIANT=dev`，`preview` / `production` 默认 `production`。
+
+> ⚠️ 如果第一次切 variant 后 dev build 装上去仍然覆盖了 TestFlight 那个（说明 pbxproj 的 `PRODUCT_BUNDLE_IDENTIFIER` 没同步到 `com.xinray.mealmate.dev`），先跑一次 `APP_VARIANT=dev npx expo prebuild --clean` 强制重生 `ios/` 即可。
+
 ### Simulator 上跑（开发用）
 
 ```bash
