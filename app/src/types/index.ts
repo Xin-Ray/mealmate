@@ -58,8 +58,9 @@ export type DialogueKind =
   | "encourage"   // §11.F.1 第二条 鼓励
   | "remind"      // §11.F.2 第二条 "贵在坚持..."
   | "mock"        // v0.3 mock dialogues 池里的过渡内容
-  | "failure";    // §11.L feature/stage-transitions：HP<0 触发 demote 时落一条
+  | "failure"     // §11.L feature/stage-transitions：HP<0 触发 demote 时落一条
                   //   body = "阶段 N 失败一次"，feed 专属渲染（暖橘卡）
+  | "snack_done"; // issue #3 v0.5+：加餐拍照成功，feed 显示"加餐 +10 HP"
 
 export type DialogueRecord = {
   id: string;

@@ -540,3 +540,48 @@ selector：`buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })
 8. "状态不好"主页变体
 9. 我的页（settings）UI 微调对齐
 10. stage2.tsx 删除 + 路由清理 + dev-log 收尾
+
+---
+
+### 11.O 加餐组件 SnackCard（issue #3 v0.5+，2026-05-19）
+
+**背景**：xin 反馈错过餐窗的用户后来可能吃上了，应有"随时加血"的入口。改成
+不依赖 missed 状态的常驻"加餐卡"，永远显示在 home，用户主动点 → 拍照 → HP +10。
+
+**实现**：
+
+- **`<SnackCard>`** 常驻 home 第 3.5 板块（HomeMealStatusSlot 之后、HomeRecordsSection
+  之前），紧凑行式（非全宽大卡）：🍎 icon + "加餐" 标题 + 副标 + → 箭头
+- **`addSnack(input?)` store action**：addHp(+10) → 触发 advance 边界（HP 到 100
+  时 advanceStage）；pushDialogue kind=`snack_done`。**不写 mealRecord /
+  fullnessHistory / weightHistory** —— snack 不算正餐，不影响"吃饱率"等统计
+- **photo flow `?snack=true` 路径**：onConfirm 调 addSnack 而非 markMealDone，
+  skip 饱腹度评分，结果屏显示"血量 +10"，标题改 "加餐 · 记录"
+- **DialogueKind +'snack_done'**：feed 渲染端（RecordCard / TodayRecordRow）识别
+  此 kind 走专属浅米黄卡 + 🍎 icon + 绿色"血量+10"badge
+
+**每日上限 2 次**（`SNACK_DAILY_LIMIT`，防作弊通关）：
+
+| 今日已加餐 | SnackCard UI |
+|---|---|
+| 0/2 | 米黄 + 🍎 + 绿 → + 副标"拍一张，HP +10" + 角标"今日 0/2" |
+| 1/2 | 同上 + 副标"再加一次，HP +10" + 角标"今日 1/2" |
+| 2/2 | **disabled 灰版**：🍽️ icon + "今日加餐已用完" + 副标"明天再来" + 角标"今日 2/2" |
+
+计数从 dialogueHistory 现算（不存独立计数字段，避免数据冗余）：filter
+`kind='snack_done' && dateOf(ts)===todayKey`。**跨日 todayKey 变** → 自动重置 0/2。
+
+**防御层**：
+1. SnackCard 2/2 时**不渲染 Pressable**（无法 onPress）
+2. `addSnack` 内部检查 `todayCount >= SNACK_DAILY_LIMIT` no-op
+3. `photo.tsx` onConfirm 独立检查 + `Alert "今日加餐已用完，明天再来吧～"` + 回 home
+   （防 deep link `mealmate:///(modal)/photo?snack=true` 绕过 UI）
+
+**文案规范**（PRD §八 安全伦理边界）：
+- ✓ "加餐" / "拍一张，HP +10" / "再加一次" / "明天再来" —— 温柔正向
+- ✗ 不用 "奖励" / "完成挑战" / "失败" 等强烈词
+
+**为什么是 2 次而不是 3 次或无限**：
+- 无限：用户可以连点 10 次刷 HP 上 100，破坏 stage 平衡
+- 1 次：太少，遇到错过餐 + 想加奶茶都用完
+- 2 次：覆盖典型"早晨加点 + 下午加点"或"零食 + 夜宵"真实场景，不破坏 HP 经济

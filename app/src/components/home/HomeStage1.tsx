@@ -1,5 +1,6 @@
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
+import SnackCard from "@src/components/ui/SnackCard";
 import HpHeartsContent from "@src/components/ui/HpHeartsContent";
 import WeekStrip from "@src/components/WeekStrip";
 import { useStore } from "@src/store/useStore";
@@ -7,6 +8,7 @@ import { getHpBand } from "@src/theme/hp";
 import { colors } from "@src/theme/tokens";
 import { Image, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 
 // Stage 1 主页（v0.4 §11.C hotfix#13）：与 Stage 2 共用 hero 骨架。
 // 差异：① 状态文案/mascot 走 stage 1 调性（getHpBand(hp, 1)），mascot 兜底 full.png
@@ -14,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 //       ③ 顶部多一行 WeekStrip 周视图（stage 1 特有）
 
 export default function HomeStage1() {
+  const router = useRouter();
   const hp = useStore((s) => s.hp);
   const todayMeals = useStore((s) => s.todayMeals);
   const todayKey = useStore((s) => s.todayKey);
@@ -136,6 +139,18 @@ export default function HomeStage1() {
         {/* 3. 提醒卡（active reminder / missed incomplete / 隐藏 三态） */}
         <View style={{ marginTop: 16 }}>
           <HomeMealStatusSlot />
+        </View>
+
+        {/* 3.5 加餐卡（issue #3 v0.5+）：永远显示，随时记一笔 HP +10 */}
+        <View style={{ marginTop: 12 }}>
+          <SnackCard
+            onPress={() =>
+              router.push({
+                pathname: "/(modal)/photo",
+                params: { snack: "true" },
+              } as never)
+            }
+          />
         </View>
 
         {/* 4. 今日记录（与 records tab 同 selector，最近 3 条预览） */}

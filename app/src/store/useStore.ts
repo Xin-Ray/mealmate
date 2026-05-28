@@ -28,6 +28,19 @@ import type {
 export const HP_MAX = 100;
 export const HP_MEAL_PHOTO_GAIN = 5;
 export const HP_MEAL_MISSED_LOSS = 10;
+// issue #3 加餐：拍照 +10 HP（addHp 内部 clamp 到 100）
+export const HP_SNACK_GAIN = 10;
+// issue #3 加餐每日上限（防作弊通关）：一天最多 2 次
+export const SNACK_DAILY_LIMIT = 2;
+
+// 把 ms timestamp 转成 YYYY-MM-DD（跟 todayKey 同格式），用于 snack count by day
+const dateOf = (ts: number): string => {
+  const d = new Date(ts);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
 // 各 stage 起始 HP（v0.4 hotfix#13，xin 拍板）
 // stage 1: 60（6 颗爱心，鼓励起步）
 // stage 2: 50（5 颗爱心，从 stage 1 advance 上来后重置）
@@ -110,6 +123,10 @@ type Actions = {
 
   // 标记某条 missed record 已被用户确认（home incomplete 卡 / missed modal "我知道了"）
   acknowledgeMissedMeal: (slot: MealSlot, date: string) => void;
+
+  // issue #3 加餐：随时记一笔，HP +10，不写 mealRecord（不算正餐），只 push
+  // dialogue kind='snack_done' 留 feed 痕迹。
+  addSnack: (input?: { photoUri?: string }) => void;
 
   // 饱腹度（stage 1+2，§11.D.1）
   addFullnessRecord: (input: { mealSlot: MealSlot; score: FullnessScore }) => void;
@@ -362,6 +379,27 @@ export const useStore = create<State & Actions>()(
         });
       },
       setSkipWeightPhoto: (v) => set({ skipWeightPhoto: v }),
+
+      addSnack: (input) => {
+        // 每日上限守卫（issue #3 防作弊）：今日 snack_done 数 >= 2 → no-op
+        // UI 应该已经 disable SnackCard，这层是兜底
+        const s = get();
+        const today = s.todayKey;
+        const todayCount = s.dialogueHistory.filter(
+          (d) => d.kind === "snack_done" && dateOf(d.ts) === today
+        ).length;
+        if (todayCount >= SNACK_DAILY_LIMIT) return;
+
+        // HP +10 走 addHp 统一边界（>=100 触发 advance；不会 <0 因为是 +10）
+        get().addHp(HP_SNACK_GAIN);
+        // feed 留痕：dialogue kind='snack_done'，feed 渲染端识别此 kind 走加餐卡
+        get().pushDialogue({
+          kind: "snack_done",
+          body: "加餐成功！随时拍照都算数～",
+          hpDelta: HP_SNACK_GAIN,
+          photoUri: input?.photoUri,
+        });
+      },
 
       acknowledgeMissedMeal: (slot, date) =>
         set((s) => ({
