@@ -58,6 +58,7 @@ type State = {
   
   // 引导
   onboardingDone: boolean;
+  onboardingCompletedAt: number | null;  // v10 加，Issue #7 漏餐守卫用
 };
 ```
 
@@ -118,6 +119,9 @@ transitionsSeen: Array<{ stage: number; kind: "start" | "end" }>;
 | v5 | v0.4 §11.K-7 | `MealRecord` 加可选 `acknowledged` | noop（缺失 = undefined = 未确认）|
 | v6 | v0.4 hotfix#13 | 起始 HP stage 1=60 / stage 2=50 | noop（仅新用户从 60 起；老用户 hp 保留）|
 | v7 | feature/stage-transitions | 加 `transitionsSeen` | 按 `currentStage` 回填已看，避免老用户补弹历史 modal |
+| v8 | feature/stage-transitions | 加 `transitionsPending` | 缺失 → `[]`（无待弹过渡） |
+| v9 | feature/stage-transitions | DialogueRecord 加可选 `stageWhenFailed`（仅 `kind='failure'`） | noop（缺失 = undefined，feed 仍可从 body 读"阶段 N 失败一次"） |
+| v10 | fix/issues-6-7-meal-timing | 加 `onboardingCompletedAt`（Issue #7 漏餐守卫）| `onboardingDone === true` → 回填 `0` 保旧行为；否则 `null`，下次 `finishOnboarding` 设 `Date.now()` |
 
 ## 限制 / TODO
 

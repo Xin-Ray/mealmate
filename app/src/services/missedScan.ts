@@ -62,14 +62,20 @@ const parseHHmm = (hhmm: string, baseDate: Date): Date => {
 export function detectMissedSlots(
   schedules: MealSchedule,
   todayMeals: TodayMeals,
-  now: Date = new Date()
+  now: Date = new Date(),
+  onboardingCompletedAt: number | null = null
 ): MealSlot[] {
   const slots: MealSlot[] = ["breakfast", "lunch", "dinner"];
   return slots.filter((slot) => {
     if (todayMeals[slot] !== "pending") return false; // done / missed 都跳过
-    const center = parseHHmm(schedules[slot], now);
-    const windowEnd = new Date(center.getTime() + WINDOW_MIN * 60 * 1000);
-    return now > windowEnd;
+    const scheduleTime = parseHHmm(schedules[slot], now);
+    const windowEnd = new Date(scheduleTime.getTime() + WINDOW_MIN * 60 * 1000);
+    if (now <= windowEnd) return false;
+    // Issue #7：onboarding 结束之前就已经过完的窗口不算 missed。
+    // null 视为"没 onboarded 完"——理论上不会到这（runMissedScan 已早返），保守跳过。
+    if (onboardingCompletedAt === null) return false;
+    if (windowEnd.getTime() <= onboardingCompletedAt) return false;
+    return true;
   });
 }
 
@@ -83,7 +89,12 @@ export function runMissedScan(): MealSlot[] {
   state.rollDayIfNeeded();
 
   const fresh = useStore.getState(); // rollDayIfNeeded 后再读
-  const newMissed = detectMissedSlots(fresh.mealSchedules, fresh.todayMeals);
+  const newMissed = detectMissedSlots(
+    fresh.mealSchedules,
+    fresh.todayMeals,
+    new Date(),
+    fresh.onboardingCompletedAt
+  );
   if (newMissed.length === 0) return [];
 
   const hpLoss = fresh.gentleMode ? HP_MEAL_MISSED_LOSS / 2 : HP_MEAL_MISSED_LOSS;
