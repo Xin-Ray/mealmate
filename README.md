@@ -1,6 +1,6 @@
 # mealmate
 
-**Status**: `v1.0.0` — building for TestFlight  ·  main `4a94da2`  ·  iOS only
+**Status**: `v1.0.1` — in progress (餐窗 / 提醒 hotfix)  ·  main `4a94da2`  ·  iOS only
 
 一款**陪伴式饮食习惯养成 App**：由一只有"HP"的机器人伙伴陪你按时吃饭、吃饱吃好，通过五阶段目标（坚持 → 量化 → 健康增重 → 营养 → 持之以恒），帮助饮食不规律、恢复期或需要健康增重的人群重建三餐节奏。
 
@@ -86,6 +86,36 @@ Stage 2 起记录体重（拍秤面 + Gemini Vision OCR）
 
 ### 负责人
 **xin**（GitHub: [Xin-Ray](https://github.com/Xin-Ray)）
+
+---
+
+## 版本日志
+
+详细历史见 [`docs/product/changelog.md`](./docs/product/changelog.md) + [`docs/dev-log.md`](./docs/dev-log.md)。
+
+### v1.0.1（进行中，`fix/issues-6-7-meal-timing` 分支）
+
+**修**：餐窗起点 / 提醒通知 / onboarding 漏餐误判（来自 2026-05-22 真机反馈）
+
+- 餐窗定义从「提醒时间 ±90 分钟」改成「提醒时间起 +90 分钟」（之前提前 1.5h 显示提醒卡是 bug，Issue #6c）
+- 每餐加一条「窗末前 30 分钟」二次本地通知（Issue #6b 新需求；顺带兜底 6a iOS DAILY trigger 偶发不响）
+- `store.onboardingCompletedAt` 字段（v9 → v10 migrate）+ missedScan 守卫：onboarding 完成时已过完的窗不再 mark missed（Issue #7）
+
+**已知 issue / 进度**：
+
+| # | 标题 | 状态 |
+|---|---|---|
+| #1 | NextMealCard 跳过 done | ✅ 已修（v1.0） |
+| #2 | 拍照识别页问题 | ✅ 已修（v1.0，重拍按钮 + YOLO） |
+| #3 | 加餐机会 | 🟡 `feat/issue-3-snack-card` 分支待合 |
+| #4 | 云端数据库 / 备份 | ⬜ v1.1 计划 |
+| #5 | 数据存储 | ⬜ v1.1 计划（与 #4 同方向） |
+| #6 | 时间提醒（窗口 + 偶尔不响 + 窗末 30min 提醒）| **🟡 已修 v1.0.1，待 xin 真机验证** |
+| #7 | onboarding 完即弹错过餐 | **🟡 已修 v1.0.1，待 xin 真机验证** |
+
+### v1.0.0 — 2026-05-18
+
+TestFlight build 1 上线。Stage transitions 11 屏 + NextMealCard + Weight OCR + YOLO 食物识别 + Stage 1 HP→0 走 support 调。详 [`docs/product/changelog.md`](./docs/product/changelog.md)。
 
 ---
 

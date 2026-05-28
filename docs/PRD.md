@@ -468,7 +468,7 @@ selector：`buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })
 
 ### 11.F 餐后消息生成规则（v0.4 核心业务规则，新增）
 
-每一餐有时间窗 = settings 里设的提醒时间 ±90 分钟。两条结局：
+每一餐有时间窗 = `[settings 设的提醒时间, 提醒时间 +90 分钟]`。**从提醒时间起算 +90 分钟**（v1.0.1 修正，Issue #6c —— 之前 ±90 分钟实现让用户提前 1.5h 就看到提醒卡，体验不对）。两条结局：
 
 #### 11.F.1 拍照通过（窗内拍照 + 走完 photo 闭环）
 
@@ -488,9 +488,17 @@ selector：`buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })
 
 #### 11.F.3 触发机制
 
-- 每餐时间窗末用 `expo-notifications` schedule 一个 silent local 通知（dataOnly，不弹横幅）
-- silent 通知触发时（app 在后台也能收）跑 missed-check：检查该餐是否有 mealRecord 且时间在窗内 → 没有就走 §11.F.2
+- 每餐用 `expo-notifications` 调度 **两条** DAILY 本地通知（v1.0.1 Issue #6b）：
+  1. 提醒时间到点："X 时间到啦"
+  2. 窗末前 30 分钟（= 提醒时间 +60 分钟）：兜底二次提醒"X 窗口还有 30 分钟…"
+- Missed-check 走 `services/missedScan.ts` 的 `runMissedScan`，app 启动 / AppState active 时跑
 - 真机和 simulator 都能跑（B1 已经接好的工具链）
+
+#### 11.F.4 Onboarding 守卫（v1.0.1 Issue #7）
+
+`runMissedScan` 只 mark 那些 `windowEnd > onboardingCompletedAt` 的窗 —— 即 **onboarding 完成之前已经结束的窗**不算 missed，避免用户刚走完 onboarding 就被弹"错过餐" modal。
+
+实现：`store.onboardingCompletedAt` 字段（schema v9 → v10），`finishOnboarding` 时 set `Date.now()`；老 v1.0 用户 migrate 回填 0 → 保旧行为。
 
 ### 11.G "状态不好" — `critical` band 自然渲染
 

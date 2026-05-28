@@ -2,6 +2,27 @@
 
 按版本归类，倒序排列。详细技术过程见 [`docs/dev/dev-log.md`](../dev/dev-log.md)。
 
+## v1.0.1（进行中，`fix/issues-6-7-meal-timing` 分支）
+
+**主题**：餐窗 / 提醒 hotfix（2026-05-22 真机反馈）。
+
+### Fixed
+
+- **Issue #6c**：餐窗起点从 `schedule -90min` 改成 `schedule`，窗口 `[schedule, schedule+90min]`（之前提前 1.5h 显示提醒卡是 bug）
+- **Issue #6b**（新需求）：每餐加一条 `schedule +60min`（= 窗末前 30 分钟）的二次 DAILY 本地通知；顺带兜底 6a iOS DAILY trigger 偶发不响
+- **Issue #7**：onboarding 完成时已过完的窗不再 mark missed —— `runMissedScan` 加 `windowEnd > onboardingCompletedAt` 守卫，避免刚走完 onboarding 就弹错过餐 modal
+
+### Migration
+
+- v9 → v10：加 `onboardingCompletedAt: number | null`。已 onboarded 的老用户回填 `0`（保旧行为），未 onboarded 保持 `null`，下次 `finishOnboarding` 设 `Date.now()`
+
+### 待办
+
+- 真机验证（xin）：4 个场景见仓库根 `README.md` v1.0.1 段
+- 通过后切 production EAS build → TestFlight build 2
+
+---
+
 ## v1.0.0 — 2026-05-18
 
 **主题**：正式 release —— EAS Build + TestFlight 准备就绪。
