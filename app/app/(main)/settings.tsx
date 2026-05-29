@@ -12,9 +12,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useStore } from "@src/store/useStore";
+import { useStore, type Ethnicity, type Gender } from "@src/store/useStore";
 import { hpBandFromValue, pickDialogue } from "@src/data/dialogues";
 import { triggerTestNotification } from "@src/services/notifications";
+import { selectStandardWeight } from "@src/store/selectors/standardWeight";
 import Card from "@src/components/ui/Card";
 import { colors } from "@src/theme/tokens";
 import type { MealSlot } from "@src/types";
@@ -58,6 +59,16 @@ const Divider = () => (
   />
 );
 
+const GENDER_OPTIONS: { id: Gender; label: string }[] = [
+  { id: "female", label: "女" },
+  { id: "male", label: "男" },
+  { id: "other", label: "其它" },
+];
+const ETHNICITY_OPTIONS: { id: Ethnicity; label: string }[] = [
+  { id: "asian", label: "亚裔" },
+  { id: "other", label: "其它" },
+];
+
 export default function SettingsScreen() {
   const router = useRouter();
   const robotName = useStore((s) => s.robotName);
@@ -75,8 +86,25 @@ export default function SettingsScreen() {
   const devSetStage = useStore((s) => s.__dev_setStage);
   const devResetToday = useStore((s) => s.__dev_resetToday);
 
+  // v1.1 健康数据
+  const height = useStore((s) => s.height);
+  const gender = useStore((s) => s.gender);
+  const ethnicity = useStore((s) => s.ethnicity);
+  const targetWeight = useStore((s) => s.targetWeight);
+  const setHeight = useStore((s) => s.setHeight);
+  const setGender = useStore((s) => s.setGender);
+  const setEthnicity = useStore((s) => s.setEthnicity);
+  const setTargetWeight = useStore((s) => s.setTargetWeight);
+  const standardWeight = selectStandardWeight({ height, ethnicity });
+
   const [pickerOpenFor, setPickerOpenFor] = useState<MealSlot | null>(null);
   const [name, setName] = useState(robotName);
+  const [heightText, setHeightText] = useState(
+    height != null ? String(height) : ""
+  );
+  const [targetText, setTargetText] = useState(
+    targetWeight != null ? targetWeight.toFixed(1) : ""
+  );
 
   const slots: MealSlot[] = ["breakfast", "lunch", "dinner"];
 
@@ -103,6 +131,180 @@ export default function SettingsScreen() {
         >
           我的
         </Text>
+
+        {/* v1.1 健康数据（doc §十三 入口 1 — 永久入口） */}
+        <SectionLabel>健康数据</SectionLabel>
+        <Card style={{ paddingVertical: 0, paddingHorizontal: 20 }}>
+          {/* 身高 */}
+          <View
+            className="flex-row items-center justify-between"
+            style={{ paddingVertical: 14 }}
+          >
+            <Text style={{ fontSize: 16, color: colors.ink.primary }}>
+              身高 (cm)
+            </Text>
+            <View
+              style={{
+                backgroundColor: colors.bg.hpEmpty,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 10,
+                minWidth: 80,
+              }}
+            >
+              <TextInput
+                value={heightText}
+                onChangeText={setHeightText}
+                onBlur={() => {
+                  const n = parseInt(heightText, 10);
+                  if (!isNaN(n) && n >= 80 && n <= 250) setHeight(n);
+                  else if (heightText === "") setHeight(null);
+                }}
+                keyboardType="numeric"
+                maxLength={3}
+                placeholder="—"
+                style={{ textAlign: "center", color: colors.ink.primary }}
+              />
+            </View>
+          </View>
+          <Divider />
+          {/* 性别 */}
+          <View style={{ paddingVertical: 14 }}>
+            <Text
+              style={{ fontSize: 16, color: colors.ink.primary, marginBottom: 8 }}
+            >
+              性别
+            </Text>
+            <View className="flex-row gap-2">
+              {GENDER_OPTIONS.map((g) => {
+                const active = gender === g.id;
+                return (
+                  <Pressable
+                    key={g.id}
+                    onPress={() => setGender(g.id)}
+                    className="flex-1 py-2 rounded-xl items-center"
+                    style={{
+                      backgroundColor: active
+                        ? colors.brand.green
+                        : colors.bg.hpEmpty,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: active ? "#FFFFFF" : colors.ink.primary,
+                        fontSize: 14,
+                      }}
+                    >
+                      {g.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          <Divider />
+          {/* 族裔 */}
+          <View style={{ paddingVertical: 14 }}>
+            <Text
+              style={{ fontSize: 16, color: colors.ink.primary, marginBottom: 8 }}
+            >
+              族裔
+            </Text>
+            <View className="flex-row gap-2">
+              {ETHNICITY_OPTIONS.map((e) => {
+                const active = ethnicity === e.id;
+                return (
+                  <Pressable
+                    key={e.id}
+                    onPress={() => setEthnicity(e.id)}
+                    className="flex-1 py-2 rounded-xl items-center"
+                    style={{
+                      backgroundColor: active
+                        ? colors.brand.green
+                        : colors.bg.hpEmpty,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: active ? "#FFFFFF" : colors.ink.primary,
+                        fontSize: 14,
+                      }}
+                    >
+                      {e.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text
+              style={{ fontSize: 11, color: colors.ink.sub, marginTop: 6 }}
+            >
+              亚裔 BMI 健康值 21，其它 22
+            </Text>
+          </View>
+          <Divider />
+          {/* 标准体重（read-only 算出） */}
+          <View
+            className="flex-row items-center justify-between"
+            style={{ paddingVertical: 14 }}
+          >
+            <View>
+              <Text style={{ fontSize: 16, color: colors.ink.primary }}>
+                健康体重
+              </Text>
+              <Text style={{ fontSize: 11, color: colors.ink.sub, marginTop: 2 }}>
+                按 BMI × 身高² 算
+              </Text>
+            </View>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "600",
+                color: colors.brand.green,
+              }}
+            >
+              {standardWeight != null ? `${standardWeight.toFixed(1)} kg` : "—"}
+            </Text>
+          </View>
+          <Divider />
+          {/* 目标体重 */}
+          <View
+            className="flex-row items-center justify-between"
+            style={{ paddingVertical: 14 }}
+          >
+            <View>
+              <Text style={{ fontSize: 16, color: colors.ink.primary }}>
+                目标体重 (kg)
+              </Text>
+              <Text style={{ fontSize: 11, color: colors.ink.sub, marginTop: 2 }}>
+                stage 5 ±2.5kg 区间判定用
+              </Text>
+            </View>
+            <View
+              style={{
+                backgroundColor: colors.bg.hpEmpty,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 10,
+                minWidth: 80,
+              }}
+            >
+              <TextInput
+                value={targetText}
+                onChangeText={setTargetText}
+                onBlur={() => {
+                  const n = parseFloat(targetText);
+                  if (!isNaN(n) && n >= 20 && n <= 200) setTargetWeight(n);
+                  else if (targetText === "") setTargetWeight(null);
+                }}
+                keyboardType="numeric"
+                maxLength={5}
+                placeholder="—"
+                style={{ textAlign: "center", color: colors.ink.primary }}
+              />
+            </View>
+          </View>
+        </Card>
 
         {/* 推送时间 */}
         <SectionLabel>推送时间</SectionLabel>
