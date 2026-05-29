@@ -184,6 +184,12 @@ type Actions = {
   markTransitionSeen: (stage: number, kind: TransitionKind) => void;
   hasSeenTransition: (stage: number, kind: TransitionKind) => boolean;
 
+  // v11 profile setters（onboarding profile step + Settings 健康数据 section 用）
+  setHeight: (cm: number | null) => void;
+  setGender: (g: Gender | null) => void;
+  setEthnicity: (e: Ethnicity | null) => void;
+  setTargetWeight: (kg: number | null) => void;
+
   // v11 internal：stage 5 星数 / 完成 / demote 判定
   // 触发位置：addWeightRecord 末尾 + AppState 'active' listener（app/_layout.tsx）
   // 不暴露给 UI 直接调（idempotent，多次调安全）
@@ -573,6 +579,12 @@ export const useStore = create<State & Actions>()(
       __dev_clearMealRecords: () => set({ mealRecords: [] }),
       __dev_clearDialogueHistory: () => set({ dialogueHistory: [] }),
       __dev_resetTransitions: () => set({ transitionsSeen: [] }),
+
+      // v11 profile setters
+      setHeight: (cm) => set({ height: cm }),
+      setGender: (g) => set({ gender: g }),
+      setEthnicity: (e) => set({ ethnicity: e }),
+      setTargetWeight: (kg) => set({ targetWeight: kg }),
 
       // v11：Stage 5 星数 / 完成 / demote 判定。doc §五 stage 5 星数判定章节。
       // 触发：addWeightRecord 末尾（每次体重更新）+ AppState 'active' 时机（app/_layout）
