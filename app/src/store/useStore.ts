@@ -352,6 +352,7 @@ export const useStore = create<State & Actions>()(
         const newStage = (oldStage + 1) as 1 | 2 | 3 | 4 | 5;
         // stage 2-5 起始 HP 都用 stage-2 init（50）
         const initHp = newStage === 2 ? HP_INITIAL_STAGE_2 : 50;
+        const now = Date.now();
         set({
           currentStage: newStage,
           companionLv: s.companionLv + 1,
@@ -360,12 +361,26 @@ export const useStore = create<State & Actions>()(
             ...s.transitionsPending,
             { stage: oldStage, kind: "end" },
           ],
+          // v11：stage 变化时间线（Stats 阶梯线用）
+          stageHistory: [
+            ...s.stageHistory,
+            { ts: now, stage: newStage, reason: "advance" },
+          ],
+          // v11：进入 stage 5 时初始化 stage5 状态机
+          ...(newStage === 5
+            ? {
+                stage5StartedAt: now,
+                stage5Stars: 0,
+                stage5LastStarCheck: null,
+              }
+            : {}),
         });
       },
 
       demoteStage: () => {
         const s = get();
         const oldStage = s.currentStage;
+        const now = Date.now();
         if (oldStage > 1) {
           const newStage = (oldStage - 1) as 1 | 2 | 3 | 4 | 5;
           set({
@@ -375,6 +390,19 @@ export const useStore = create<State & Actions>()(
               ...s.transitionsPending,
               { stage: oldStage, kind: "demote" },
             ],
+            // v11：stage 变化时间线
+            stageHistory: [
+              ...s.stageHistory,
+              { ts: now, stage: newStage, reason: "demote" },
+            ],
+            // v11：从 5 → 4 时清 stage5 状态（OPEN-3 决策：stars 清零）
+            ...(oldStage === 5
+              ? {
+                  stage5StartedAt: null,
+                  stage5Stars: 0,
+                  stage5LastStarCheck: null,
+                }
+              : {}),
           });
         } else {
           // stage 1：不变 stage，hp 重置到 90，弹 stage-1-demote（按 PRD §11.L 走 support tone）
@@ -383,6 +411,11 @@ export const useStore = create<State & Actions>()(
             transitionsPending: [
               ...s.transitionsPending,
               { stage: 1, kind: "demote" },
+            ],
+            // v11：stage 1 demote 视为留账（stage 仍 1，记一条 reason='demote'）
+            stageHistory: [
+              ...s.stageHistory,
+              { ts: now, stage: 1, reason: "demote" },
             ],
           });
         }
