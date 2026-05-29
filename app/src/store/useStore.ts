@@ -349,6 +349,18 @@ export const useStore = create<State & Actions>()(
         } else {
           set({ hp: clampHp(unclamped) });
         }
+        // v11：HP 时间线（Stats "爱心变化"图表）。在 set 后读最终 hp（advance/demote
+        // 都会改 hp），保证记录的是 settle 后的值。滑窗 HP_HISTORY_CAP 条。
+        const finalHp = get().hp;
+        set((cur) => {
+          const next = [...cur.hpHistory, { ts: Date.now(), hp: finalHp }];
+          return {
+            hpHistory:
+              next.length > HP_HISTORY_CAP
+                ? next.slice(-HP_HISTORY_CAP)
+                : next,
+          };
+        });
       },
 
       advanceStage: () => {

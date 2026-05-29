@@ -12,14 +12,17 @@ import { colors } from "@src/theme/tokens";
 // 统计页（PRD §11.E v0.4 hotfix#12 重写）：
 // X 轴改成"记录时间"——按实际录入日期分布。
 //
-// v0.4 数据：
-//   - 体重图：直接从 weightHistory（按 date 排序）。
-//   - 爱心图：store 没 hpHistory，永远走空态。TODO v0.5 加 hpHistory 持久化。
+// v1.1 数据：
+//   - 体重图：从 weightHistory
+//   - 爱心图：从 hpHistory（v11 新加，addHp 时累积；v1.1 前历史无法补，
+//     老用户 stats "全部"视图也从 v1.1 起算）
+// 完整 3 图表 × 3 子 tab 改造（commit #13）见 doc §七
 
 export default function StatsScreen() {
   const weightHistory = useStore((s) => s.weightHistory);
+  const hpHistory = useStore((s) => s.hpHistory);
 
-  const hpData = selectHpTimeline();
+  const hpData = selectHpTimeline({ hpHistory });
   const weightData = selectWeightTimeline({ weightHistory });
 
   // 爱心图 Y 轴：固定 0-12（七档）
