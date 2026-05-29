@@ -13,6 +13,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { selectStandardWeight } from "@src/store/selectors/standardWeight";
 import type {
   DialogueRecord,
   FullnessRecord,
@@ -182,6 +183,11 @@ type Actions = {
   // 阶段过渡屏触发逻辑（保留：stage-1-start 走 seen / 一次性）
   markTransitionSeen: (stage: number, kind: TransitionKind) => void;
   hasSeenTransition: (stage: number, kind: TransitionKind) => boolean;
+
+  // v11 internal：stage 5 星数 / 完成 / demote 判定
+  // 触发位置：addWeightRecord 末尾 + AppState 'active' listener（app/_layout.tsx）
+  // 不暴露给 UI 直接调（idempotent，多次调安全）
+  __internal_runStage5Check: () => void;
 
   // Dev-only：bypass 业务规则的直接 setter，仅在 __DEV__ 守卫的开发者面板里调用
   __dev_setHp: (n: number) => void;
@@ -469,6 +475,20 @@ export const useStore = create<State & Actions>()(
           const kept = merged.length > 90 ? merged.slice(-90) : merged;
           return { weightHistory: kept };
         });
+
+        // v11 stage 4 → 5 触发：当前体重 ≥ standardWeight → advance
+        const s = get();
+        if (s.currentStage === 4) {
+          const standard = selectStandardWeight(s);
+          if (standard != null && kg >= standard) {
+            get().advanceStage();
+            return;
+          }
+        }
+        // v11 stage 5 状态机：每次记录体重 → 跑一次星数判定
+        if (s.currentStage === 5) {
+          get().__internal_runStage5Check();
+        }
       },
       setSkipWeightPhoto: (v) => set({ skipWeightPhoto: v }),
 
@@ -541,6 +561,83 @@ export const useStore = create<State & Actions>()(
       __dev_clearMealRecords: () => set({ mealRecords: [] }),
       __dev_clearDialogueHistory: () => set({ dialogueHistory: [] }),
       __dev_resetTransitions: () => set({ transitionsSeen: [] }),
+
+      // v11：Stage 5 星数 / 完成 / demote 判定。doc §五 stage 5 星数判定章节。
+      // 触发：addWeightRecord 末尾（每次体重更新）+ AppState 'active' 时机（app/_layout）
+      // 副效果可能：set stage5Stars / demoteStage / advanceStage（完成）
+      __internal_runStage5Check: () => {
+        const s = get();
+        if (s.currentStage !== 5) return;
+        if (s.stage5StartedAt == null) return;
+        if (s.targetWeight == null) return;
+
+        const target = s.targetWeight;
+        const now = Date.now();
+        const dayMs = 24 * 60 * 60 * 1000;
+        const daysSinceStart = Math.floor(
+          (now - s.stage5StartedAt) / dayMs
+        );
+
+        // 1) 60 天完成：触发 stage-5-end（advanceStage 内部 stage>=5 no-op，
+        //    但我们仍需要 push pending end transition + 留 stageHistory）
+        if (daysSinceStart >= STAGE5_COMPLETE_DAYS) {
+          set({
+            transitionsPending: [
+              ...s.transitionsPending,
+              { stage: 5, kind: "end" },
+            ],
+            stageHistory: [
+              ...s.stageHistory,
+              { ts: now, stage: 5, reason: "advance" },
+            ],
+            // 完成后清 stage5 状态（防止重复触发）
+            stage5StartedAt: null,
+            stage5Stars: 0,
+            stage5LastStarCheck: null,
+          });
+          return;
+        }
+
+        // 2) 今日体重超 target+2.5 → -1 星（按今日最高一条算）
+        const todayWeights = s.weightHistory.filter(
+          (w) => w.date === s.todayKey
+        );
+        const todayMax =
+          todayWeights.length > 0
+            ? Math.max(...todayWeights.map((w) => w.kg))
+            : null;
+        if (todayMax != null && todayMax > target + STAGE5_TARGET_BAND_KG) {
+          const newStars = Math.max(0, s.stage5Stars - 1);
+          set({ stage5Stars: newStars });
+          if (newStars === 0) {
+            get().demoteStage(); // 回 stage 4，stage5 状态由 demoteStage 清
+          }
+          return;
+        }
+
+        // 3) 每 7 天加星判定：过去 7 天 ≥ 7 条体重记录且全在区间内 → +1 星
+        const lastCheck = s.stage5LastStarCheck ?? s.stage5StartedAt;
+        const daysSinceLastCheck = Math.floor((now - lastCheck) / dayMs);
+        if (daysSinceLastCheck >= STAGE5_STAR_PERIOD_DAYS) {
+          const sevenDaysAgo = now - STAGE5_STAR_PERIOD_DAYS * dayMs;
+          const weekWeights = s.weightHistory.filter(
+            (w) => w.recordedAt >= sevenDaysAgo
+          );
+          if (weekWeights.length >= STAGE5_STAR_PERIOD_DAYS) {
+            const allInRange = weekWeights.every(
+              (w) =>
+                w.kg >= target - STAGE5_TARGET_BAND_KG &&
+                w.kg <= target + STAGE5_TARGET_BAND_KG
+            );
+            if (allInRange) {
+              set({
+                stage5Stars: s.stage5Stars + 1,
+                stage5LastStarCheck: now,
+              });
+            }
+          }
+        }
+      },
     }),
     {
       name: "mealmate-store",
