@@ -328,6 +328,46 @@ export const STAGE_TRANSITIONS: Record<
   },
 
   4: {
+    // v1.1 加 start：体质数据采集引导（doc §十三 OPEN-1 → A 方案）
+    // TODO 触发未接入；目前只能从 dev 面板手动跳。v1.1+ 决定后再加 auto-push 逻辑。
+    start: {
+      stage: 4,
+      name: "营养",
+      badge: "阶段 4 · 营养",
+      title: "阶段 4 开始",
+      subtitle: "饮食结构与目标体重",
+      description:
+        "在吃饱基础上，加入体重目标和饮食结构追踪。先确认一下你的身体数据，伙伴帮你算合适的健康体重。",
+      illustration: "🥬",
+      stats: [
+        { label: "进阶条件", value: "体重达标", sub: "≥ 健康体重自动进阶 stage 5" },
+        { label: "新增追踪", value: "饮食结构", sub: "主食 / 蔬菜 / 蛋白" },
+        { label: "关键", value: "去 settings", sub: "填身高 / 族裔" },
+      ],
+      rulesTitle: "本阶段重点",
+      rules: [
+        {
+          icon: "📏",
+          title: "完成体质数据",
+          description: "Settings → 健康数据填身高 + 族裔，算出健康体重。",
+        },
+        {
+          icon: "🎯",
+          title: "目标体重",
+          description: "可在 settings 自设；不设则用算出的健康体重为目标。",
+        },
+        {
+          icon: "🍱",
+          title: "本周饮食进度",
+          description: "主食 / 蔬菜 / 蛋白每周分别有进度（TODO 数据源待定）。",
+        },
+      ],
+      noteBanner: {
+        icon: "ⓘ",
+        text: "营养标签功能正在搭建中（doc TODO），目前占位显示。",
+      },
+      ctaLabel: "开始阶段 4",
+    },
     end: {
       stage: 4,
       name: "营养",
@@ -393,6 +433,46 @@ export const STAGE_TRANSITIONS: Record<
   },
 
   5: {
+    // v1.1 加 start：进入持之以恒（doc §二 stage 5 60 天 / 7 天 / -1 星 机制）
+    // TODO 触发未接入；advance 到 5 时只 push end，未来想加 start 需另起 commit 改 advanceStage
+    start: {
+      stage: 5,
+      name: "持之以恒",
+      badge: "阶段 5 · 持之以恒",
+      title: "阶段 5 开始",
+      subtitle: "把习惯过成生活",
+      description:
+        "你已经稳住了健康体重。接下来 60 天里，伙伴会陪你把习惯变成本能 —— 每 7 天保持在区间内 +1 星，连续 60 天即可走完这段旅程。",
+      illustration: "🌟",
+      stats: [
+        { label: "完成条件", value: "60 天", sub: "未 demote 即完成" },
+        { label: "加星", value: "每 7 天", sub: "体重全在 ±2.5kg" },
+        { label: "扣星", value: "-1", sub: "某日 > target+2.5kg" },
+      ],
+      rulesTitle: "本阶段重点",
+      rules: [
+        {
+          icon: "⭐",
+          title: "每周 +1 星",
+          description: "过去 7 天体重全在 [target-2.5, target+2.5] → 攒一颗星。",
+        },
+        {
+          icon: "⚠️",
+          title: "超体重 -1 星",
+          description: "某日体重 > target+2.5kg，星数 -1。0 星会回到阶段 4。",
+        },
+        {
+          icon: "🏁",
+          title: "60 天完成",
+          description: "60 天没掉到 0 星，伙伴和你一起庆祝完成。",
+        },
+      ],
+      noteBanner: {
+        icon: "🌱",
+        text: "目标不是完美，是节奏。波动正常，回流不羞耻。",
+      },
+      ctaLabel: "开始阶段 5",
+    },
     end: {
       stage: 5,
       name: "持之以恒",
