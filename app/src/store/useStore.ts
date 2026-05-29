@@ -62,6 +62,20 @@ const FRESH_TODAY: TodayMeals = {
 export type TransitionKind = "start" | "end" | "demote";
 export type TransitionRecord = { stage: number; kind: TransitionKind };
 
+// v11：体质字段（见 docs/v1.1-feat-stage345-stats-celebration.md §五）
+export type Gender = "male" | "female" | "other";
+export type Ethnicity = "asian" | "other";
+
+// v11：stage 变化历史（advance/demote/init），Stats tab 用阶梯线
+export type StageHistoryEntry = {
+  ts: number;
+  stage: 1 | 2 | 3 | 4 | 5;
+  reason: "advance" | "demote" | "init";
+};
+
+// v11：HP 时间线，addHp 每次写一条，Stats tab "爱心变化"图表用。滑窗见 HP_HISTORY_CAP
+export type HpHistoryEntry = { ts: number; hp: number };
+
 type State = {
   hp: number;
   currentStage: 1 | 2 | 3 | 4 | 5;
@@ -98,6 +112,32 @@ type State = {
   // 的一次性队列。stage-1-start 走 seen；end/demote 走 pending（每次 advance/demote
   // 都重新触发一次，而不是只看一次）。
   transitionsPending: TransitionRecord[];
+
+  // ====== v11 新字段（doc §五） ======
+  // 体质数据 — standardWeight = bmi × height_m² 输入。
+  // bmi: ethnicity='asian' → 21; 其它 → 22。gender 字段加但 v1.1 不参与公式（future）。
+  // 采集入口待定（OPEN-1: 候选 onboarding 加一步 / settings / stage-4-start 表单）。
+  height: number | null; // cm
+  gender: Gender | null;
+  ethnicity: Ethnicity | null;
+
+  // 用户自设目标体重，stage 5 ±2.5kg 区间判定用
+  targetWeight: number | null; // kg
+
+  // stage 变化时间线，每次 advance/demote 末尾 append；migrate 给老用户回填到当前 stage
+  stageHistory: StageHistoryEntry[];
+
+  // stage 5 状态机（doc §五 stage 5 星数判定）：
+  // - stage5StartedAt: 进入 stage 5 的 ts；离开 stage 5 时清 null
+  // - stage5Stars: 当前累计星数，初始 0；+1（每 7 天体重全在区间）/ -1（某日超 target+2.5）
+  // - stage5LastStarCheck: 上次"每 7 天"判定的 ts，避免一天内多次给星
+  // - 0 星 → demoteStage 回 4；60 天未 demote → advanceStage 触发 stage-5-end
+  stage5StartedAt: number | null;
+  stage5Stars: number;
+  stage5LastStarCheck: number | null;
+
+  // HP 时间线 — addHp 每次追加一条；滑窗 HP_HISTORY_CAP 条（约 90 天 × 5 次/天）
+  hpHistory: HpHistoryEntry[];
 };
 
 type Actions = {
@@ -184,12 +224,31 @@ const initialState: State = {
   onboardingCompletedAt: null,
   transitionsSeen: [],
   transitionsPending: [],
+  // v11 新字段
+  height: null,
+  gender: null,
+  ethnicity: null,
+  targetWeight: null,
+  // 新用户从 init 开始，stage 1
+  stageHistory: [{ ts: Date.now(), stage: 1, reason: "init" }],
+  stage5StartedAt: null,
+  stage5Stars: 0,
+  stage5LastStarCheck: null,
+  hpHistory: [],
 };
 
 // HP 重置到 90（demote 之后）—— stage>1 退到 N-1 也用 90，stage 1 不变 stage 也用 90
 const HP_RESET_ON_DEMOTE = 90;
 
 const HISTORY_KEEP_DAYS = 30;
+
+// v11：HP 历史滑窗。平均 5 次 addHp/天 × 90 天 = 450 条
+export const HP_HISTORY_CAP = 500;
+
+// v11：stage 5 机制常量（doc §二）
+export const STAGE5_TARGET_BAND_KG = 2.5;
+export const STAGE5_STAR_PERIOD_DAYS = 7;
+export const STAGE5_COMPLETE_DAYS = 60;
 
 export const useStore = create<State & Actions>()(
   persist(
@@ -453,7 +512,7 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 10,
+      version: 11,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
@@ -474,6 +533,13 @@ export const useStore = create<State & Actions>()(
       // v9 → v10: 加 onboardingCompletedAt（Issue #7）。已 onboardingDone 的老用户
       //          回填 0 → 任何 windowEnd>0 都通过 missedScan 守卫，保持旧行为；
       //          未 onboarded 的用户保持 null，下次 finishOnboarding 设 Date.now()。
+      // v10 → v11: v1.1 stage 3/4/5 + stats 改造。新加：
+      //   - height / gender / ethnicity / targetWeight  全回填 null（stage 1-3 不用）
+      //   - stageHistory  根据 currentStage 回填 init + N-1 条 advance（同 ts）
+      //   - stage5StartedAt / stage5Stars / stage5LastStarCheck  老用户回填 null/0/null
+      //     （正在 stage 5 的老用户 StartedAt 设 Date.now()，60 天倒数从迁移时算起 —
+      //      让步，因为没有真实进入 stage 5 的时间戳）
+      //   - hpHistory  回填 []（从 v1.1 起累积；详 doc §十二 risk 11）
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as State & Actions;
@@ -519,6 +585,38 @@ export const useStore = create<State & Actions>()(
           // 已 onboardingDone 的老用户回填 0 → 任何 windowEnd>0 都通过守卫，
           // 保持 v1.0 旧行为不破坏；未 onboarded 用户保持 null，下次 finishOnboarding 设 Date.now()
           ps.onboardingCompletedAt = ps.onboardingDone ? 0 : null;
+        }
+        if (version < 11) {
+          // v11 新字段（doc §五）
+          if (ps.height === undefined) ps.height = null;
+          if (ps.gender === undefined) ps.gender = null;
+          if (ps.ethnicity === undefined) ps.ethnicity = null;
+          if (ps.targetWeight === undefined) ps.targetWeight = null;
+          if (!Array.isArray(ps.stageHistory)) {
+            const stage =
+              typeof ps.currentStage === "number" ? ps.currentStage : 1;
+            const now = Date.now();
+            const hist: StageHistoryEntry[] = [
+              { ts: now, stage: 1, reason: "init" },
+            ];
+            for (let s = 2; s <= stage; s++) {
+              hist.push({
+                ts: now,
+                stage: s as 2 | 3 | 4 | 5,
+                reason: "advance",
+              });
+            }
+            ps.stageHistory = hist;
+          }
+          // stage 5 状态字段
+          if (ps.stage5Stars === undefined) ps.stage5Stars = 0;
+          if (ps.stage5LastStarCheck === undefined) ps.stage5LastStarCheck = null;
+          if (ps.stage5StartedAt === undefined) {
+            // 正在 stage 5 的老用户：让 60 天倒数从迁移时算起
+            ps.stage5StartedAt =
+              ps.currentStage === 5 ? Date.now() : null;
+          }
+          if (!Array.isArray(ps.hpHistory)) ps.hpHistory = [];
         }
         return persistedState as State & Actions;
       },
