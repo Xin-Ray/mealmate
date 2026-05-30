@@ -174,7 +174,9 @@ type Actions = {
 
   // issue #3 加餐：随时记一笔，HP +10，不写 mealRecord（不算正餐），只 push
   // dialogue kind='snack_done' 留 feed 痕迹。
-  addSnack: (input?: { photoUri?: string }) => void;
+  // bodyOverride: v1.1.1 起 photo.tsx 传识别到的食物名进来做动态文案（"记下了这份 香蕉"）；
+  //   不传则用默认中性文案（不暗示"随便拍都算"）。
+  addSnack: (input?: { photoUri?: string; bodyOverride?: string }) => void;
 
   // 饱腹度（stage 1+2，§11.D.1）
   addFullnessRecord: (input: { mealSlot: MealSlot; score: FullnessScore }) => void;
@@ -540,7 +542,7 @@ export const useStore = create<State & Actions>()(
         // feed 留痕：dialogue kind='snack_done'，feed 渲染端识别此 kind 走加餐卡
         get().pushDialogue({
           kind: "snack_done",
-          body: "加餐成功！随时拍照都算数～",
+          body: input?.bodyOverride ?? "加餐已记录 ✓",
           hpDelta: HP_SNACK_GAIN,
           photoUri: input?.photoUri,
         });

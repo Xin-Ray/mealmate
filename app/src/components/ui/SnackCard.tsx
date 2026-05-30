@@ -43,7 +43,7 @@ export default function SnackCard({ onPress }: Props) {
     : snackCount === 0
     ? "拍一张，+10 HP"
     : "再加一次，+10 HP";
-  const subText = isFull ? "明天再来" : "随时拍照都算数～";
+  const subText = isFull ? "明天再来" : "拍照记录加餐";
   const badgeText = `今日 ${snackCount}/${SNACK_DAILY_LIMIT}`;
 
   const titleColor = isFull ? colors.ink.muted : colors.brand.greenDark;

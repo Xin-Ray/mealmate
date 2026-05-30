@@ -34,25 +34,24 @@ const slotLabel: Record<MealSlot, string> = {
   dinner: "晚餐",
 };
 
-// PRD §11.F.1：通过餐推送 2 条 dialogue（"太棒了！X 看起来不错" + 鼓励话）
-const DONE_LINE_BY_SLOT: Record<MealSlot, string[]> = {
-  breakfast: [
-    "太棒了！早餐看起来不错",
-    "今天的第一顿，开始得很好",
-    "早餐光盘 ✓ 你今天的状态我看好",
-  ],
-  lunch: [
-    "太棒了！午餐看起来不错",
-    "中午这顿很到位",
-    "午餐打卡，节奏稳",
-  ],
-  dinner: [
-    "太棒了！晚餐看起来不错",
-    "晚餐吃完，今天就圆满啦",
-    "一天三顿都齐了，开心",
-  ],
+// backend COCO 食物类标签 → 中文（backend/app/detector.py COCO_FOOD_LABELS）
+// 没命中的（理论上不会出现）保留英文原文，至少不丢信息。
+const FOOD_LABEL_ZH: Record<string, string> = {
+  banana: "香蕉",
+  apple: "苹果",
+  sandwich: "三明治",
+  orange: "橙子",
+  broccoli: "西兰花",
+  carrot: "胡萝卜",
+  "hot dog": "热狗",
+  pizza: "披萨",
+  donut: "甜甜圈",
+  cake: "蛋糕",
 };
 
+const zhFood = (label: string): string => FOOD_LABEL_ZH[label] ?? label;
+
+// PRD §11.F.1：通过餐推送 2 条 dialogue（"太棒了！X 看起来不错" + 鼓励话）
 const ENCOURAGE_LINES = [
   "继续加油哈，这么下去一定可以尽快达到目标的",
   "保持节奏就很好，慢慢来",
@@ -190,19 +189,27 @@ export default function PhotoScreen() {
 
     setDetections(dets);
 
+    // 第一个 detection 当主食物名（confidence 最高），喂动态文案
+    const foodName = zhFood(dets[0].label);
+
     // detect 通过：开始正式打卡 +HP +dialogue
     // 重拍场景：本次 modal 已经打过卡，跳过 +HP 和 dialogue，只更新识别结果
     if (!confirmedOnce) {
       if (isSnack) {
         // 加餐流：addSnack 内部 push kind='snack_done' dialogue + HP +10
         // 不写 mealRecord、不要 encourage 第二条、不需要 slot
-        addSnack({ photoUri: imageUri ?? undefined });
-        setDoneLine("加餐成功！随时拍照都算数～");
+        const snackBody = `记下了这份 ${foodName} ✓`;
+        addSnack({
+          photoUri: imageUri ?? undefined,
+          bodyOverride: snackBody,
+        });
+        setDoneLine(snackBody);
         setEncourageLine("");
       } else {
         markMealDone(realSlot, { photoUri: imageUri ?? undefined });
 
-        const doneBody = pickRandom(DONE_LINE_BY_SLOT[realSlot]);
+        // 动态文案：用 detect 第一个 label 拼，让 mascot 看起来真在「看图」（替代 v1.0 的静态池）
+        const doneBody = `太棒了！这份 ${foodName} 看起来不错`;
         const encourageBody = pickRandom(ENCOURAGE_LINES);
 
         pushDialogue({
