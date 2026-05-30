@@ -220,6 +220,79 @@ sudo systemctl enable --now mealmate
 
 ---
 
+## Bundle ID / 双环境约定
+
+mealmate 用两套 iOS bundle ID 隔离 TestFlight 用户跟本地开发：
+
+| 用途 | Bundle ID | App 名 | 数据 namespace | env |
+|---|---|---|---|---|
+| **production**（TestFlight + App Store）| `com.xinray.mealmate` | `MealMate` | `mealmate-store` | `APP_VARIANT=production`（默认）|
+| **dev**（本地 Xcode dev build）| `com.xinray.mealmate.dev` | `MealMate Dev` | `mealmate-store-dev` | `APP_VARIANT=dev` |
+
+两个 ID 在 iOS 系统里被当成不同 app，可以**同机并存**：xin 真机上 TestFlight 版的 MealMate 跟本地装的 MealMate Dev 互不覆盖、AsyncStorage 数据互不可见、icon 标签一眼能区分（"MealMate" vs "MealMate Dev"）。
+
+### 🚨 本地 dev 启动命令（必须加前缀）
+
+```bash
+# 装 dev 版本 (MealMate Dev, bundleId .dev, 不覆盖 TestFlight)
+APP_VARIANT=dev npx expo run:ios --device
+
+# 装 prod 版本 (MealMate, bundleId prod, 会覆盖 TestFlight!)
+npx expo run:ios --device
+```
+
+没传 `APP_VARIANT=dev` 时 `app.config.ts` 默认 `production` → app **名**显示 "MealMate"（虽然 bundleId 仍由 pbxproj 的 Debug config 决定 = `.dev`，但**名字会跟 prod 重名**，主屏上两个图标都叫 "MealMate" 区分不出来）。要 dev 跟 prod 视觉上一眼分辨，**必须**带 `APP_VARIANT=dev`。
+
+EAS build 不用传 env，`eas.json` 三个 build profile 都内置了 `env.APP_VARIANT`（development=dev，preview/production=production）。
+
+### 🔍 判断装的是哪个版本
+
+**Simulator**：
+```bash
+xcrun simctl listapps booted | grep -i mealmate
+# CFBundleIdentifier = "com.xinray.mealmate"      → prod
+# CFBundleIdentifier = "com.xinray.mealmate.dev"  → dev
+```
+
+**iPhone 主屏**：看 icon 下面的文字
+- `MealMate` → prod 版本（跟 TestFlight 同一个 app）
+- `MealMate Dev` → dev 版本（本地 build，跟 TestFlight 并存）
+
+**两个并存时**：主屏上会有两个 icon，名字不同（前提是 dev build 带了 `APP_VARIANT=dev`）。
+
+### 实现机制
+
+**iOS native 层（bundleId）**：直接编辑了 `app/ios/mealmate.xcodeproj/project.pbxproj`，让两个 XCBuildConfiguration 各自带不同 bundleId：
+
+```
+Debug   config (mealmate target): PRODUCT_BUNDLE_IDENTIFIER = com.xinray.mealmate.dev
+Release config (mealmate target): PRODUCT_BUNDLE_IDENTIFIER = com.xinray.mealmate
+```
+
+这样 `npx expo run:ios` 默认 Debug → 装 `.dev` bundle；EAS `preview` / `production` profile 走 Release → 装 prod bundle。
+
+**Expo 层（app 名 + AsyncStorage namespace）**：`app/app.config.ts`（**canonical**，**没有 `app.json`**）按 `process.env.APP_VARIANT` 切：
+
+- `name`：`dev` → `"MealMate Dev"`，`production`（默认）→ `"MealMate"`
+- `extra.appVariant`：透到 JS，`useStore.ts` 读它切 AsyncStorage `STORE_KEY`
+
+`eas.json` 三个 build profile 都内置了 `env.APP_VARIANT`，所以 EAS 流程不用额外传 env。本地 `expo run:ios` 必须手动传：`APP_VARIANT=dev npx expo run:ios`。
+
+### ⚠️ 已知 fragility
+
+- `app/ios/` 整目录在 `.gitignore`（expo 规范），所以 pbxproj 改动**不在 git 里**：
+  - 新机器 clone 仓库后 `ios/` 是空的，需要跑 `npx expo prebuild` 重新生成 → 生成出来的 pbxproj 是默认的（bundleId 单值 prod，不带 `.dev`）→ 需要再手动 patch 一次
+  - 反过来，谁要是不小心跑了 `npx expo prebuild --clean` 会**覆盖**当前手改的 pbxproj
+- 当前靠 xin 本机的 pbxproj 文件保留 `.dev` 配置；其他 dev / CI 拉代码后需要重新 patch
+
+### 长期 fix 思路（v1.2+ 待办）
+
+写一个 expo config plugin（`app/plugins/withBundleIdSuffix.js`）在 prebuild 时声明式地 patch pbxproj。这样 plugin 跟着 git 走，新 clone 跑 `expo prebuild` 自动生效。
+
+原型在 `backup/local-env-split-attempt` 分支 commit `9d35be2`，里面有 `withXcodeProject` 实现可参考。当前 main 没用这条路（xin r3 决定先走"直接编辑 pbxproj"简化版）。
+
+---
+
 ## 如何运行（详细）
 
 ### 首次安装依赖（前端）
