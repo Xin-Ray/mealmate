@@ -37,6 +37,22 @@ Copy `app/.env.example` → `app/.env.local` (gitignored). Only `EXPO_PUBLIC_*` 
 
 The Gemini key is bundle-visible — fine for closed beta, must move behind a Cloudflare Worker before launch (`docs/dev-log.md`).
 
+## Secrets / 凭证管理
+
+mealmate 用到的 token / API key 持久化位置。任何 session 启动后 shell 已 source `~/.zshrc`，所以 `EXPO_TOKEN` 等环境变量自动可用，不要每次问 xin。
+
+| 凭证 | 位置 | 用途 | 失效后怎么再生 |
+|---|---|---|---|
+| `EXPO_TOKEN` | `~/.zshrc`（`export EXPO_TOKEN=...`） | EAS Build / Submit 命令调 expo.dev API | https://expo.dev/settings/access-tokens |
+| `EXPO_PUBLIC_GEMINI_KEY` | `app/.env.local` + EAS Build env(production profile) | Gemini Vision OCR + mascot LLM | https://aistudio.google.com/apikey |
+| Apple Developer 凭证 | macOS Keychain（Xcode 管理） | iOS code sign / provisioning profile | Xcode → Settings → Accounts |
+| ASC API Key | `~/.appstoreconnect/private_keys/AuthKey_*.p8` | `eas submit` 上 TestFlight | https://appstoreconnect.apple.com/access/api |
+
+**规则：**
+- 这些**不能写到 git**（`.gitignore` 已覆盖 `.env.local`；`~/.zshrc` 不在 repo 里；keychain / .p8 都在用户家目录外的安全位置）。
+- session 启动就读 `~/.zshrc` 自动有 `EXPO_TOKEN`，不要再问 xin。
+- token revoke / 失效 → xin 在表格里的 URL 重新生 + 覆盖 `~/.zshrc` 那行。
+
 ## Bundle ID / 双环境
 
 prod (`com.xinray.mealmate`) vs dev (`com.xinray.mealmate.dev`) — Debug/Release config 在 pbxproj 里硬切，并存不撞。完整说明 + 已知 fragility（`ios/` gitignore）见仓库根 [`README.md`](./README.md) "Bundle ID / 双环境约定" 段。
