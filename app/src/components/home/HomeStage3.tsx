@@ -2,6 +2,7 @@ import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import StageChip from "@src/components/home/StageChip";
 import WeekStripConnected from "@src/components/home/WeekStripConnected";
+import ExerciseCard from "@src/components/ui/ExerciseCard";
 import HpHeartsContent from "@src/components/ui/HpHeartsContent";
 import SnackCard from "@src/components/ui/SnackCard";
 import WeightCard from "@src/components/ui/WeightCard";
@@ -134,12 +135,15 @@ export default function HomeStage3() {
           </View>
         </View>
 
-        {/* 体重 / 提醒 / 加餐 / 今日记录 — 与 stage 2 一致 */}
+        {/* 体重 / 运动 / 提醒 / 加餐 / 今日记录 — 与 stage 2 一致 + F8 ExerciseCard */}
         <WeightCard
           lastWeight={lastWeight}
           prevWeight={prevWeight}
           onPress={() => router.push("/(modal)/weight-entry" as never)}
         />
+
+        {/* r1 F8：运动拍照卡（骨架占位，OPEN-R1-C 未决）*/}
+        <ExerciseCard />
 
         <View style={{ marginTop: 16 }}>
           <HomeMealStatusSlot />

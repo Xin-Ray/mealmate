@@ -2,6 +2,13 @@ import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import StageChip from "@src/components/home/StageChip";
 import WeekStripConnected from "@src/components/home/WeekStripConnected";
+import ExerciseCard from "@src/components/ui/ExerciseCard";
+import WeightCard from "@src/components/ui/WeightCard";
+import TrendChart from "@src/components/ui/TrendChart";
+import {
+  autoYAxis,
+  selectWeightTimeline,
+} from "@src/store/selectors/stats";
 // r1 F12+F13 删 MealStatusDots + WeeklyFoodProgress（stage 5 不需要）
 import MetricsRow from "@src/components/home/stage4/MetricsRow";
 import WeightGoalProgressCard from "@src/components/home/stage4/WeightGoalProgressCard";
@@ -29,6 +36,16 @@ export default function HomeStage5() {
     : 0;
   const COMPLETE_DAYS = 60;
   const pct = Math.min(1, daysIn / COMPLETE_DAYS);
+
+  // r1 F7：WeightCard / TrendChart 数据
+  const weightHistory = useStore((s) => s.weightHistory);
+  const lastWeight = weightHistory[weightHistory.length - 1];
+  const prevWeight =
+    weightHistory.length >= 2
+      ? weightHistory[weightHistory.length - 2]
+      : undefined;
+  const weightData = selectWeightTimeline({ weightHistory });
+  const weightYAxis = autoYAxis(weightData.map((p) => p.value));
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
@@ -99,6 +116,24 @@ export default function HomeStage5() {
         <View style={{ marginTop: 16 }}>
           <HomeMealStatusSlot />
         </View>
+
+        {/* r1 F7: 体重卡 + 体重趋势 + 运动卡 */}
+        <WeightCard
+          lastWeight={lastWeight}
+          prevWeight={prevWeight}
+          onPress={() => router.push("/(modal)/weight-entry" as never)}
+        />
+        <View style={{ marginTop: 16 }}>
+          <TrendChart
+            title="体重变化"
+            subtitle="kg"
+            data={weightData}
+            yAxis={weightYAxis}
+            emptyText="还没有体重记录"
+            height={140}
+          />
+        </View>
+        <ExerciseCard />
 
         <View style={{ marginTop: 12 }}>
           <SnackCard

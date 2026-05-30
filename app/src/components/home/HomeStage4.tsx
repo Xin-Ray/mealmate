@@ -2,6 +2,13 @@ import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import StageChip from "@src/components/home/StageChip";
 import WeekStripConnected from "@src/components/home/WeekStripConnected";
+import ExerciseCard from "@src/components/ui/ExerciseCard";
+import WeightCard from "@src/components/ui/WeightCard";
+import TrendChart from "@src/components/ui/TrendChart";
+import {
+  autoYAxis,
+  selectWeightTimeline,
+} from "@src/store/selectors/stats";
 import MealStatusDots from "@src/components/home/stage4/MealStatusDots";
 import MetricsRow from "@src/components/home/stage4/MetricsRow";
 import StarRating from "@src/components/home/stage4/StarRating";
@@ -30,6 +37,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function HomeStage4() {
   const router = useRouter();
   const height = useStore((s) => s.height);
+  // r1 F7：WeightCard / TrendChart 数据
+  const weightHistory = useStore((s) => s.weightHistory);
+  const lastWeight = weightHistory[weightHistory.length - 1];
+  const prevWeight =
+    weightHistory.length >= 2
+      ? weightHistory[weightHistory.length - 2]
+      : undefined;
+  const weightData = selectWeightTimeline({ weightHistory });
+  const weightYAxis = autoYAxis(weightData.map((p) => p.value));
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
@@ -101,6 +117,25 @@ export default function HomeStage4() {
 
         {/* 6. 早午晚 status 圆 */}
         <MealStatusDots />
+
+        {/* r1 F7: 体重卡 + 体重趋势 + 运动卡 */}
+        <WeightCard
+          lastWeight={lastWeight}
+          prevWeight={prevWeight}
+          onPress={() => router.push("/(modal)/weight-entry" as never)}
+        />
+        <View style={{ marginTop: 16 }}>
+          <TrendChart
+            title="体重变化"
+            subtitle="kg"
+            data={weightData}
+            yAxis={weightYAxis}
+            emptyText="还没有体重记录"
+            height={140}
+          />
+        </View>
+        {/* r1 F7: ExerciseCard 占位 OPEN-R1-C */}
+        <ExerciseCard />
 
         {/* 7. 加餐卡 */}
         <View style={{ marginTop: 12 }}>
