@@ -5,10 +5,18 @@ import { colors } from "@src/theme/tokens";
 import { Image, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
-// Stage 4 / 5 hero：圆环进度（current / target）+ 文字 overlay + mascot
+// Stage 4 / 5 hero：圆环进度 + 文字 overlay + mascot
 // Figma 59:297 参考。圆环 SVG 渲染：背景灰环 + 进度绿环（stroke-dasharray）
 //
-// 进度计算：currentWeight / targetWeight。targetWeight 缺 → 显示"-" 提示设目标
+// F3 fix（r1）：进度公式 = (target - current) / (target - initial) * 100
+//   语义 = "还差 X%"（current 越接近 target，% 越小）
+//   - initial = weightHistory[0].kg（OPEN-R1-B 默认）
+//   - 圆环填 "完成%" = 1 - 还差%，更符合"进度向满"直觉（OPEN-R1-A）
+//   - label 显示 "还差 N%" + "距目标 Y kg"
+//   - initial / current / target 任一缺 → 圆环填 0，label 显示 "—"
+//
+// F1+F2 fix（r1）：mascot 容器从 fixed 110×140 改成 width:100 + aspectRatio
+//   wrapper（沿用 HomeStage2 模式），避免 image 超出 card 边界被裁
 //
 // stage 4 vs stage 5 差别只在 title/subtitle，由 props 传
 
@@ -37,18 +45,39 @@ export default function WeightGoalProgressCard({
   const standardWeight = selectStandardWeight({ height, ethnicity });
   const target = targetWeight ?? standardWeight ?? null;
   const lastWeight = weightHistory[weightHistory.length - 1]?.kg ?? null;
+  // F3 OPEN-R1-B：initial = weightHistory[0].kg（第一条记录）
+  const initialWeight = weightHistory[0]?.kg ?? null;
 
-  // 进度 = current / target (capped 0-1)
-  let pct = 0;
+  // F3 公式：remainingPct = (target - current) / (target - initial)
+  //   = 还差距离 / 总距离
+  // completedPct = 1 - remainingPct（圆环填这个）
+  // 已达标（current >= target）→ completedPct = 1，remainingPct = 0
+  let completedPct = 0;
+  let remainingPct = 1;
   let diffKg: number | null = null;
-  if (target != null && lastWeight != null) {
-    pct = Math.min(1, Math.max(0, lastWeight / target));
-    diffKg = Math.round((target - lastWeight) * 10) / 10;
+  let canComputePct = false;
+  if (target != null && lastWeight != null && initialWeight != null) {
+    const totalGap = target - initialWeight;
+    const remainingGap = target - lastWeight;
+    diffKg = Math.round(remainingGap * 10) / 10;
+    if (Math.abs(totalGap) < 0.05) {
+      // initial 已经在 target 上 → 视为已完成
+      completedPct = 1;
+      remainingPct = 0;
+      canComputePct = true;
+    } else {
+      remainingPct = Math.min(1, Math.max(0, remainingGap / totalGap));
+      completedPct = 1 - remainingPct;
+      canComputePct = true;
+    }
   }
-  const pctLabel = target != null && lastWeight != null
-    ? `${Math.round(pct * 100)}%`
+  // 圆环显示完成%（更符合"进度向满"直觉，OPEN-R1-A 默认）
+  const ringFillPct = completedPct;
+  // label 显示"还差 N%"，避免歧义
+  const remainPctLabel = canComputePct
+    ? `${Math.round(remainingPct * 100)}%`
     : "—";
-  const offsetDash = RING_CIRC * (1 - pct);
+  const offsetDash = RING_CIRC * (1 - ringFillPct);
 
   return (
     <View
@@ -113,21 +142,28 @@ export default function WeightGoalProgressCard({
                   alignItems: "center",
                 }}
               >
-                <Text style={{ fontSize: 18, fontWeight: "700", color: "#3D683F" }}>
-                  {pctLabel}
+                <Text style={{ fontSize: 16, fontWeight: "700", color: "#3D683F" }}>
+                  {remainPctLabel}
                 </Text>
               </View>
             </View>
-            {/* 副 label */}
+            {/* 副 label：还差 X% + 距目标 Ykg */}
             <View style={{ marginLeft: 12 }}>
-              {diffKg != null && (
+              {canComputePct && (
                 <Text style={{ fontSize: 13, color: "#6E6F6C" }}>
+                  还差 {remainPctLabel}
+                </Text>
+              )}
+              {diffKg != null && (
+                <Text
+                  style={{ fontSize: 12, color: colors.ink.sub, marginTop: 2 }}
+                >
                   距目标 {diffKg > 0 ? diffKg : 0}kg
                 </Text>
               )}
-              {target == null && (
+              {!canComputePct && (
                 <Text style={{ fontSize: 12, color: colors.brand.accentDark }}>
-                  请先设目标
+                  {target == null ? "请先设目标" : "等首次称重"}
                 </Text>
               )}
             </View>
@@ -135,13 +171,17 @@ export default function WeightGoalProgressCard({
         )}
       </View>
 
-      {/* 右：mascot（按 HP band，stage 4/5 沿用 stage 2 资源；doc §十二 risk 1 TODO） */}
-      <View style={{ width: 110, height: 140, marginLeft: 8, justifyContent: "flex-end" }}>
-        <Image
-          source={getHpBand(hp).mascot}
+      {/* 右：mascot（按 HP band；F1+F2 fix：HomeStage2 模式 wrapper + aspectRatio） */}
+      <View style={{ width: 100, marginLeft: 8 }}>
+        <View
           style={{ width: "100%", aspectRatio: getHpBand(hp).mascotAspect }}
-          resizeMode="contain"
-        />
+        >
+          <Image
+            source={getHpBand(hp).mascot}
+            style={{ width: "100%", height: "100%" }}
+            resizeMode="contain"
+          />
+        </View>
       </View>
     </View>
   );
