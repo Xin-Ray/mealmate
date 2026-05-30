@@ -8,12 +8,18 @@ import Svg, { Circle } from "react-native-svg";
 // Stage 4 / 5 hero：圆环进度 + 文字 overlay + mascot
 // Figma 59:297 参考。圆环 SVG 渲染：背景灰环 + 进度绿环（stroke-dasharray）
 //
-// F3 fix（r1）：进度公式 = (target - current) / (target - initial) * 100
-//   语义 = "还差 X%"（current 越接近 target，% 越小）
+// F3 fix（r1 r3）：进度公式 = (current - initial) / (target - initial) * 100
+//   真完成% 语义（xin r3 2026-05-30 拍板）：
+//   - 0% = current 等于 initial（还没开始）
+//   - 100% = current 达到 target
+//   - label 显示 "完成 N%"（语义现在对了）
 //   - initial = weightHistory[0].kg（OPEN-R1-B 默认）
-//   - 圆环填 "完成%" = 1 - 还差%，更符合"进度向满"直觉（OPEN-R1-A）
-//   - label 显示 "还差 N%" + "距目标 Y kg"
-//   - initial / current / target 任一缺 → 圆环填 0，label 显示 "—"
+//   - 副 label 显示 "距目标 Y kg"
+//   - edge case:
+//     * target === initial → div by 0 → 完成 0% (fallback)
+//     * current < initial（还退步了）→ clamp 0%
+//     * current > target（超目标）→ clamp 100%（未来可加"超出 +X kg"副标）
+//     * initial / current / target 任一缺 → 圆环 0% + label "—"
 //
 // F1+F2 fix（r1）：mascot 容器从 fixed 110×140 改成 width:100 + aspectRatio
 //   wrapper（沿用 HomeStage2 模式），避免 image 超出 card 边界被裁
@@ -48,34 +54,27 @@ export default function WeightGoalProgressCard({
   // F3 OPEN-R1-B：initial = weightHistory[0].kg（第一条记录）
   const initialWeight = weightHistory[0]?.kg ?? null;
 
-  // F3 公式：remainingPct = (target - current) / (target - initial)
-  //   = 还差距离 / 总距离
-  // completedPct = 1 - remainingPct（圆环填这个）
-  // 已达标（current >= target）→ completedPct = 1，remainingPct = 0
+  // F3 r3 真完成%：(current - initial) / (target - initial)
+  //   0% = current 等于 initial；100% = current 达到 target
   let completedPct = 0;
-  let remainingPct = 1;
   let diffKg: number | null = null;
   let canComputePct = false;
   if (target != null && lastWeight != null && initialWeight != null) {
     const totalGap = target - initialWeight;
-    const remainingGap = target - lastWeight;
-    diffKg = Math.round(remainingGap * 10) / 10;
+    diffKg = Math.round((target - lastWeight) * 10) / 10;
     if (Math.abs(totalGap) < 0.05) {
-      // initial 已经在 target 上 → 视为已完成
-      completedPct = 1;
-      remainingPct = 0;
-      canComputePct = true;
+      // initial 已经在 target 上 → div by 0 兜底 0%
+      completedPct = 0;
     } else {
-      remainingPct = Math.min(1, Math.max(0, remainingGap / totalGap));
-      completedPct = 1 - remainingPct;
-      canComputePct = true;
+      const raw = (lastWeight - initialWeight) / totalGap;
+      // clamp 0..1：current<initial 退步 → 0；current>target 超目标 → 100
+      completedPct = Math.min(1, Math.max(0, raw));
     }
+    canComputePct = true;
   }
-  // 圆环显示完成%（更符合"进度向满"直觉，OPEN-R1-A 默认）
   const ringFillPct = completedPct;
-  // label 显示"还差 N%"，避免歧义
-  const remainPctLabel = canComputePct
-    ? `${Math.round(remainingPct * 100)}%`
+  const completedPctLabel = canComputePct
+    ? `${Math.round(completedPct * 100)}%`
     : "—";
   const offsetDash = RING_CIRC * (1 - ringFillPct);
 
@@ -142,11 +141,10 @@ export default function WeightGoalProgressCard({
                   alignItems: "center",
                 }}
               >
-                {/* r1 OPEN-R1-A：xin 拍板 label 改成"完成 N%"，magnitude 仍是
-                    remainingPct (例 60→65 当前 62 → 60%)。语义反直觉（"完成"
-                    应从 0→100），doc 里二次确认 TODO */}
+                {/* r1 F3 r3：真完成% = (current-initial)/(target-initial)
+                    label "完成 N%"，语义现在对了（0→100 向满）*/}
                 <Text style={{ fontSize: 16, fontWeight: "700", color: "#3D683F" }}>
-                  完成 {remainPctLabel}
+                  完成 {completedPctLabel}
                 </Text>
               </View>
             </View>
@@ -154,7 +152,7 @@ export default function WeightGoalProgressCard({
             <View style={{ marginLeft: 12 }}>
               {canComputePct && (
                 <Text style={{ fontSize: 13, color: "#6E6F6C" }}>
-                  完成 {remainPctLabel}
+                  完成 {completedPctLabel}
                 </Text>
               )}
               {diffKg != null && (
