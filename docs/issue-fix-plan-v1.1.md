@@ -135,5 +135,101 @@
 
 - **路由器 DDNS + 端口转发**：需要用户在路由器后台操作，告诉我对外域名
 - **sudo 操作**：安装 systemd unit、修改防火墙、装 nginx/cloudflared — 给用户准备命令清单
-- **EAS Build 配置**：需要看 `eas.json`、知道当前 build profile，决定 Gemini key 放 Secret 还是 env
+- **EAS Build 配置**：见 §6
 - **TestFlight 实测**：我能跑 `npm run ios` 在 simulator 上验，但 TestFlight 上的真问题（ATS / 国内网络）需要用户在真机上测
+
+---
+
+## 6. 用户睡醒后要跑的命令清单（按优先级）
+
+### 6.1 修体重 OCR (TestFlight 挂) — 最关键
+
+根因已确认：`eas.json` 的 `production` build 没注入 `EXPO_PUBLIC_GEMINI_KEY`，TestFlight IPA 里 key 为空 → `weightOcr.ts:50` 直接 return null。
+
+修法用 EAS Environment Variables（Expo SDK 54 推荐）：
+
+```bash
+cd /home/xin/document/mealmate-app/app
+
+# 1. 创建 production 环境下的 env（GEMINI key 必填）
+eas env:create --environment production --name EXPO_PUBLIC_GEMINI_KEY --value '<你的 Gemini key>' --visibility sensitive
+eas env:create --environment production --name EXPO_PUBLIC_LLM_ENABLED --value 'true' --visibility plain
+# API base 等 DDNS 域名定了再创建（先不传，TestFlight 就回退到默认 LAN IP，仍走得通）
+# eas env:create --environment production --name EXPO_PUBLIC_API_BASE --value 'https://<你的公网域名>' --visibility plain
+
+# 2. 同样给 preview profile 也跑一遍（如果用 preview 给 TestFlight 内测）
+eas env:create --environment preview --name EXPO_PUBLIC_GEMINI_KEY --value '<你的 Gemini key>' --visibility sensitive
+eas env:create --environment preview --name EXPO_PUBLIC_LLM_ENABLED --value 'true' --visibility plain
+
+# 3. 重新 build + 上 TestFlight
+eas build --profile production --platform ios
+eas submit --profile production --platform ios --latest
+```
+
+可选验证：`eas env:list --environment production` 确认 4 个 env 都在。
+
+### 6.2 后端 systemd 持久化
+
+后端现在用 `nohup` 跑着 (pid 7595)，机器一重启就死。`mealmate.service` 已经在
+`/home/xin/document/mealmate/backend/mealmate.service`，需要装到 systemd：
+
+```bash
+sudo cp /home/xin/document/mealmate/backend/mealmate.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now mealmate
+# 杀掉旧的 nohup（systemd 会绑同一个 8000 端口，必须先 kill 它）
+kill 7595 2>/dev/null
+sudo systemctl restart mealmate
+systemctl status mealmate                 # 看绿灯
+curl http://127.0.0.1:8000/health         # 200 OK
+journalctl -u mealmate -f                 # 看实时日志
+```
+
+### 6.3 后端公网化（你已选 DDNS + 端口转发）
+
+操作目标：让用户的 iPhone 能直接 HTTPS 访问到 mealmate backend。
+
+```
+[ TestFlight App ] --HTTPS--> [ 公网域名:443 ] --DNS A--> [ 你的公网 IP ]
+                                                                |
+                                                           [ 路由器 ]
+                                                                |
+                                                       [ 转发到 192.168.1.157:8000 ]
+                                                                |
+                                                         [ uvicorn / systemd ]
+```
+
+步骤（不依赖 Cloudflare）：
+1. 路由器后台开 DDNS（Synology / FRITZ! / OpenWrt 都自带）；记下分配到的域名，例如 `xinray.dyndns.org`
+2. 路由器 NAT 端口转发：外部 `443` → 内部 `192.168.1.157:8000`
+3. iOS ATS 默认禁明文 HTTP，所以**必须 HTTPS**：
+   - 推荐 cloudflared sidecar（最省事）：`cloudflared tunnel --url http://localhost:8000`，免费、自动 TLS、出 `*.trycloudflare.com` 域名
+   - 或反向代理走 Let's Encrypt（caddy / nginx + certbot），更稳定但要装东西
+4. 域名拿到后，让我改 `apiClient.ts` 和 `foodDetection.ts` 的 `DEFAULT_BASE`，或者直接在 EAS env 里 `EXPO_PUBLIC_API_BASE=https://<域名>`
+
+如果**只想先验证 sync 跑通**，可以临时用 `cloudflared` 起一个隧道，不依赖路由器配置：
+```bash
+# 在后端机器上跑
+cloudflared tunnel --url http://localhost:8000
+# 输出会给你一个 https://xxx-xxx-xxx.trycloudflare.com 临时域名
+# 直接拿去填 EXPO_PUBLIC_API_BASE 测试，关掉隧道就失效
+```
+
+### 6.4 验证清单（公网域名就绪后）
+
+```bash
+# 客户端
+cd /home/xin/document/mealmate-app/app
+npm run typecheck     # 0 errors（已确认）
+npm run lint          # 2 pre-existing errors in weight-entry.tsx 无关 sync
+
+# 端到端（需要真机或带 Apple ID 的 simulator）
+npm run ios
+# 1. settings → Sign in with Apple → 弹窗登录
+# 2. 看到 "已把本地数据备份到云端"（首次）或 "已从云端恢复" (重装后)
+# 3. 后端 curl 验证 user_data 表有记录:
+#    sqlite3 /home/xin/document/mealmate/backend/data/mealmate.db \
+#      "SELECT user_id, length(payload), schema_version, updated_at FROM user_data;"
+```
+
+通过标准：`schema_version=12` + payload 长度合理（几 KB～几十 KB）。

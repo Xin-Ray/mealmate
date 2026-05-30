@@ -1,7 +1,36 @@
 # 账号系统 + 云端同步（Account & Sync）
 
 > 状态文档。记录这个功能的**目标 / 当前进度 / 验证方法 / 通过标准**。
-> 最后更新：2026-05-23。分支：`feat/weight-ocr`。
+> 最后更新：2026-05-30 (issue #4/#5 集成进 feat/stage-4-5-ui)。
+
+## 🔥 现状偏离记录（2026-05-30）
+
+本文档原计划 (§已锁定 / §6) 走 **Cloudflare Worker + D1**。
+**实际落地选了 self-hosted FastAPI + SQLite**，代码在 `/home/xin/document/mealmate/backend/`：
+
+| 项 | 文档原计划 | 实际实现 |
+|----|----------|---------|
+| 后端 | Cloudflare Worker | FastAPI (uvicorn + GPU) |
+| DB | D1 | SQLite (`backend/data/mealmate.db`) |
+| 域名 | `api.flykid.xyz`（CF 托管） | 待用户配 DDNS + 端口转发到本机 8000 |
+| TLS | CF 自动 | 待办（路由器 / nginx / cloudflared sidecar） |
+| 端点 | `/v1/...` | `/auth/apple` `/sync/push` `/sync/pull` `/auth/logout` `DELETE /auth/me`（无 `/v1` 前缀） |
+
+合理性：FastAPI 后端已经为食物识别 (YOLOv8 GPU 推理) 部署在本机，
+顺手加 auth/sync endpoints 比另建 Worker 简单，detection 也复用同一后端。
+代价：失去 CF 兜底的稳定性 / TLS / 动态 IP 解决方案，要用户自己处理 DDNS。
+
+## issue #4 / #5 集成（2026-05-30）
+
+`feat/stage-4-5-ui` 上把 `feat/weight-ocr` 的 sync 代码合进来：
+- store bumped to v12（保留 v11 stage 4/5 字段 + 加 account/lastSyncedAt）
+- `SYNC_SCHEMA_VERSION = 12`（原 stash 写的是 9，跟不上 store version）
+- `SYNCED_KEYS` 补齐 v10 (onboardingCompletedAt) / v11 (height, gender,
+  ethnicity, targetWeight, stageHistory, stage5*, hpHistory) 字段
+- TestFlight 老用户首次登录场景：服务端空 → `syncOnSignIn()` 自动 push
+  本地数据，覆盖 issue #4 的核心痛点。详 sync.ts:90.
+
+阻塞项：见 docs/issue-fix-plan-v1.1.md §5。
 
 ## 已锁定的决定（2026-05-23）
 
