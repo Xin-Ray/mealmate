@@ -22,7 +22,11 @@ import { pickImageWithFallback, type Source } from "@src/services/imagePicker";
 import { detectFood, type Detection } from "@src/services/foodDetection";
 import type { FullnessScore, MealSlot } from "@src/types";
 
-type Phase = "intro" | "preview" | "uploading" | "result";
+type Phase = "intro" | "preview" | "uploading" | "rejected" | "result";
+
+// v1.1.1 严格食物验证：detect 0 个食物 → 拒绝打卡；网络/服务挂 → 同样拒绝。
+// 区分原因好让用户知道是「照片不是食物」还是「服务暂时不可达」。
+type RejectReason = "no_food" | "network_fail";
 
 const slotLabel: Record<MealSlot, string> = {
   breakfast: "早餐",
@@ -85,6 +89,7 @@ export default function PhotoScreen() {
   const [encourageLine, setEncourageLine] = useState<string>("");
   const [detections, setDetections] = useState<Detection[]>([]);
   const [detectError, setDetectError] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState<RejectReason | null>(null);
   // 同一次进入 photo modal 内是否已经打过卡：防止"重拍"导致重复 +HP / 重复推 dialogue。
   const [confirmedOnce, setConfirmedOnce] = useState(false);
   // v1.1 #14: 庆祝弹窗（doc §八）。进 result phase 自动开，"继续加油" / 点屏跳过 → 关
@@ -116,9 +121,12 @@ export default function PhotoScreen() {
     }
   };
 
-  // preview → 用户点"确定" → uploading（真识别）→ result
-  // §11.F.1：通过餐 +5 HP，push 两条 dialogue（done line + encourage line）
-  // 识别成功/失败都进 result，失败不阻塞打卡（只在 UI 提示）
+  // preview → 用户点"确定" → uploading（真识别）→ result（或 rejected）
+  //
+  // v1.1.1 起改成严格模式：detect 必须返回 ≥1 个食物才算成功；
+  //   - 0 个 detections → rejected('no_food')：不写 HP / 不 push dialogue，只让重拍
+  //   - 网络 / 5xx 挂  → rejected('network_fail')：同上拒绝（不再宽容兜底「先打卡再识别」）
+  // 防作弊：旧版本任何照片（包括键盘照）都能 +HP，是公认 bug。
   const onConfirm = async () => {
     if (!imageUri) return;
 
@@ -148,14 +156,14 @@ export default function PhotoScreen() {
     setPhase("uploading");
     setDetectError(null);
     setDetections([]);
+    setRejectReason(null);
 
+    let dets: Detection[] = [];
     try {
       const resp = await detectFood(imageUri);
-      setDetections(resp.detections);
+      dets = resp.detections;
     } catch (e) {
-      // issue #2：把 raw error 翻成对用户有意义的话。
-      // AbortError / Network request failed → 用户的网/服务可达性问题；
-      // "detect 5xx" → 后端炸了；其他 → 兜底文案。打卡不阻塞，只在 UI 提示。
+      // 区分 abort/网络 vs 服务挂，给用户更有意义的话。严格模式：无论哪种都拒绝打卡。
       const raw = e instanceof Error ? e.message : String(e);
       const isAbort =
         (e as { name?: string } | null)?.name === "AbortError" ||
@@ -163,13 +171,26 @@ export default function PhotoScreen() {
       const isNetwork = raw.includes("Network request failed");
       const friendly =
         isAbort || isNetwork
-          ? "网络好像不太给力，这次识别先跳过——餐已经打卡了 ✓"
+          ? "识别服务连不上，请检查网络后重拍"
           : raw.startsWith("detect 5")
-            ? "识别服务暂时累了，等会儿再来——这餐已经打卡 ✓"
-            : "识别先跳过了，餐已经打卡 ✓";
+            ? "识别服务暂时累了，等会儿再来"
+            : "识别失败，请重拍";
       setDetectError(friendly);
+      setRejectReason("network_fail");
+      setPhase("rejected");
+      return;
     }
 
+    // detect 成功但没识别到食物 → 拒绝
+    if (dets.length === 0) {
+      setRejectReason("no_food");
+      setPhase("rejected");
+      return;
+    }
+
+    setDetections(dets);
+
+    // detect 通过：开始正式打卡 +HP +dialogue
     // 重拍场景：本次 modal 已经打过卡，跳过 +HP 和 dialogue，只更新识别结果
     if (!confirmedOnce) {
       if (isSnack) {
@@ -207,11 +228,12 @@ export default function PhotoScreen() {
     setCelebrationOpen(true);
   };
 
-  // 在 result 页点"重拍" → 回 intro，清掉本张图和识别结果，confirmedOnce 保留
+  // 在 result / rejected 页点"重拍" → 回 intro，清掉本张图和识别结果，confirmedOnce 保留
   const onRetake = () => {
     setImageUri(null);
     setDetections([]);
     setDetectError(null);
+    setRejectReason(null);
     setPhase("intro");
   };
 
@@ -298,6 +320,43 @@ export default function PhotoScreen() {
           </View>
         )}
 
+        {phase === "rejected" && (
+          <View className="items-center" style={{ paddingTop: 16, minHeight: 480 }}>
+            {imageUri && (
+              <Image
+                source={{ uri: imageUri }}
+                style={{ width: 200, height: 200, borderRadius: 20, opacity: 0.6 }}
+                resizeMode="cover"
+              />
+            )}
+            <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mt-5 w-full">
+              <Text className="text-ink text-base font-semibold mb-1">
+                {rejectReason === "no_food"
+                  ? "看起来不像食物哦"
+                  : "识别服务连不上"}
+              </Text>
+              <Text className="text-sub text-sm leading-5">
+                {rejectReason === "no_food"
+                  ? "换个角度重拍一张？要让我能看清楚是什么食物 ✨"
+                  : detectError ?? "请检查网络后重拍"}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={onRetake}
+              className="rounded-2xl py-4 px-8 bg-accent mt-6 w-full items-center"
+            >
+              <Text className="text-white font-semibold">重拍一张</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.back()}
+              className="rounded-2xl py-4 px-8 bg-white border border-cardBorder mt-3 w-full items-center"
+            >
+              <Text className="text-ink font-semibold">先回首页</Text>
+            </Pressable>
+          </View>
+        )}
+
         {phase === "result" && (
           <View className="items-center" style={{ paddingTop: 16 }}>
             <Animated.View style={{ transform: [{ scale }] }}>
@@ -339,12 +398,6 @@ export default function PhotoScreen() {
                     </View>
                   ))}
                 </View>
-              </View>
-            )}
-
-            {detectError && detections.length === 0 && (
-              <View className="bg-white border border-cardBorder rounded-2xl px-5 py-3 mt-3 w-full">
-                <Text className="text-sub text-xs">{detectError}</Text>
               </View>
             )}
 
