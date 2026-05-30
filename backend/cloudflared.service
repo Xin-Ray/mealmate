@@ -1,0 +1,22 @@
+[Unit]
+Description=cloudflared tunnel for mealmate backend (api.flykid.xyz)
+After=network-online.target mealmate.service
+Wants=network-online.target
+# Tunnel 没意义在 backend 没启的时候开，但 cloudflared 自己会重试连后端，所以
+# 不强依赖 mealmate.service —— Requires 改成 After 软依赖即可
+
+[Service]
+Type=simple
+User=xin
+Group=xin
+# cloudflared 二进制装在用户 home 下，credentials 也在 ~/.cloudflared/
+ExecStart=/home/xin/bin/cloudflared tunnel --config /home/xin/.cloudflared/config.yml run mealmate
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGINT
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -9,8 +9,13 @@ User=xin
 Group=xin
 # Monorepo 后路径：repo 在 /home/xin/document/mealmate-app，backend 在 backend/
 # venv 自己装在 backend/.venv（gitignored），uvicorn entry: app.main:app（包名.模块:对象）
+#
+# ExecStart 故意用 `python -m uvicorn` 而不是 .venv/bin/uvicorn —— 因为 console
+# script 的 shebang 是 venv 创建时写死的绝对路径，如果以后 venv 整体 mv 过位置
+# （比如旧后端 /home/xin/document/mealmate/backend/.venv 搬来这里），shebang
+# 仍指向旧路径会报"找不到 python3.12"。`python -m` 形式不依赖 shebang。
 WorkingDirectory=/home/xin/document/mealmate-app/backend
-ExecStart=/home/xin/document/mealmate-app/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+ExecStart=/home/xin/document/mealmate-app/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 Restart=on-failure
 RestartSec=5
 KillSignal=SIGINT
