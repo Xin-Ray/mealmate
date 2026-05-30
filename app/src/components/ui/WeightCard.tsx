@@ -5,6 +5,10 @@ import type { WeightRecord } from "@src/types";
 
 // 当前体重模块（HomeStage2 用）：最近一次 + 与上次 diff + 时间。
 // 整卡可点 → onPress 跳 weight-entry modal。
+//
+// r1 F9：xin 装机反馈 — 用户看不出能拍照（之前右侧只一个 ⚖️ 装饰 emoji）。
+// 改成右侧显眼绿色圆头 📷 按钮（视觉上像可点 CTA），onPress 跟整卡一致都
+// 跳 weight-entry modal（modal 内支持 Gemini Vision OCR 拍秤盘）。
 
 type Props = {
   lastWeight?: WeightRecord;
@@ -53,7 +57,19 @@ export default function WeightCard({ lastWeight, prevWeight, onPress }: Props) {
             </Text>
           )}
         </View>
-        <Text style={{ fontSize: 28 }}>⚖️</Text>
+        {/* r1 F9: 显眼相机按钮（视觉 CTA，告诉用户能拍照）*/}
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: colors.brand.green,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ fontSize: 22 }}>📷</Text>
+        </View>
       </View>
     </Card>
   );
