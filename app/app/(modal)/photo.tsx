@@ -16,6 +16,7 @@ import {
   HP_SNACK_GAIN,
   SNACK_DAILY_LIMIT,
 } from "@src/store/useStore";
+import CelebrationModal from "@src/components/photo/CelebrationModal";
 import FullnessRatingPicker from "@src/components/ui/FullnessRatingPicker";
 import { pickImageWithFallback, type Source } from "@src/services/imagePicker";
 import { detectFood, type Detection } from "@src/services/foodDetection";
@@ -86,6 +87,8 @@ export default function PhotoScreen() {
   const [detectError, setDetectError] = useState<string | null>(null);
   // 同一次进入 photo modal 内是否已经打过卡：防止"重拍"导致重复 +HP / 重复推 dialogue。
   const [confirmedOnce, setConfirmedOnce] = useState(false);
+  // v1.1 #14: 庆祝弹窗（doc §八）。进 result phase 自动开，"继续加油" / 点屏跳过 → 关
+  const [celebrationOpen, setCelebrationOpen] = useState(false);
   const [selectedFullness, setSelectedFullness] = useState<FullnessScore | undefined>(
     () =>
       fullnessHistory.find((r) => r.date === todayKey && r.mealSlot === realSlot)
@@ -187,6 +190,8 @@ export default function PhotoScreen() {
     }
 
     setPhase("result");
+    // v1.1 #14: 进 result 自动开庆祝弹窗（重拍场景也开 — 用户每次确认都看动画）
+    setCelebrationOpen(true);
   };
 
   // 在 result 页点"重拍" → 回 intro，清掉本张图和识别结果，confirmedOnce 保留
@@ -369,6 +374,15 @@ export default function PhotoScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* v1.1 #14 庆祝弹窗（doc §八）：进 result phase 自动开 */}
+      <CelebrationModal
+        visible={celebrationOpen && phase === "result"}
+        hpDelta={hpGain}
+        title="太棒了！"
+        doneLine={doneLine || "记录成功"}
+        onContinue={() => setCelebrationOpen(false)}
+      />
     </SafeAreaView>
   );
 }
