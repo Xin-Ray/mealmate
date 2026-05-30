@@ -220,6 +220,45 @@ sudo systemctl enable --now mealmate
 
 ---
 
+## Bundle ID / 双环境约定
+
+mealmate 用两套 iOS bundle ID 隔离 TestFlight 用户跟本地开发：
+
+| 用途 | Bundle ID | App 名 | 数据 namespace |
+|---|---|---|---|
+| **production**（TestFlight + App Store）| `com.xinray.mealmate` | MealMate | `mealmate-store` |
+| **dev**（本地 Xcode dev build）| `com.xinray.mealmate.dev` | MealMate Dev | `mealmate-store-dev` |
+
+两个 ID 在 iOS 系统里被当成不同 app，可以**同机并存**：xin 真机上 TestFlight 版的 MealMate 跟本地装的 MealMate Dev 互不覆盖、AsyncStorage 数据互不可见。
+
+### 实现机制
+
+**iOS native 层**：直接编辑了 `app/ios/mealmate.xcodeproj/project.pbxproj`，让两个 XCBuildConfiguration 各自带不同 bundleId：
+
+```
+Debug   config (mealmate target): PRODUCT_BUNDLE_IDENTIFIER = com.xinray.mealmate.dev
+Release config (mealmate target): PRODUCT_BUNDLE_IDENTIFIER = com.xinray.mealmate
+```
+
+这样 `npx expo run:ios` 默认 Debug → 装 `.dev` bundle；EAS `preview` / `production` profile 走 Release → 装 prod bundle。
+
+**JS 层**：`app/src/store/useStore.ts` 按 `APP_VARIANT` env 切 AsyncStorage `STORE_KEY`（数据 namespace 隔离）。
+
+### ⚠️ 已知 fragility
+
+- `app/ios/` 整目录在 `.gitignore`（expo 规范），所以 pbxproj 改动**不在 git 里**：
+  - 新机器 clone 仓库后 `ios/` 是空的，需要跑 `npx expo prebuild` 重新生成 → 生成出来的 pbxproj 是默认的（bundleId 单值 prod，不带 `.dev`）→ 需要再手动 patch 一次
+  - 反过来，谁要是不小心跑了 `npx expo prebuild --clean` 会**覆盖**当前手改的 pbxproj
+- 当前靠 xin 本机的 pbxproj 文件保留 `.dev` 配置；其他 dev / CI 拉代码后需要重新 patch
+
+### 长期 fix 思路（v1.2+ 待办）
+
+写一个 expo config plugin（`app/plugins/withBundleIdSuffix.js`）在 prebuild 时声明式地 patch pbxproj。这样 plugin 跟着 git 走，新 clone 跑 `expo prebuild` 自动生效。
+
+原型在 `backup/local-env-split-attempt` 分支 commit `9d35be2`，里面有 `withXcodeProject` 实现可参考。当前 main 没用这条路（xin r3 决定先走"直接编辑 pbxproj"简化版）。
+
+---
+
 ## 如何运行（详细）
 
 ### 首次安装依赖（前端）
