@@ -6,10 +6,15 @@
 //
 // 失败策略：抛错让 caller 决定降级（photo.tsx 选择"识别失败也允许打卡"）。
 
-const DEFAULT_BASE = "http://192.168.1.157:8000";
+// 默认走公网 Cloudflare Tunnel（同一台 backend，跟 apiClient 共用域名）。
+// dev 跑本地后端时 .env.local 里设 EXPO_PUBLIC_DETECT_API_BASE=http://<LAN-IP>:8000
+// 或 EXPO_PUBLIC_API_BASE 覆盖。
+const DEFAULT_BASE = "https://api.flykid.xyz";
 
 const baseUrl = (): string => {
-  const env = process.env.EXPO_PUBLIC_DETECT_API_BASE;
+  // 优先用统一的 EXPO_PUBLIC_API_BASE，兼容老 .env.local 的 DETECT_API_BASE
+  const env =
+    process.env.EXPO_PUBLIC_API_BASE ?? process.env.EXPO_PUBLIC_DETECT_API_BASE;
   return (env && env.trim()) || DEFAULT_BASE;
 };
 
