@@ -1,9 +1,8 @@
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import StageChip from "@src/components/home/StageChip";
-import MealStatusDots from "@src/components/home/stage4/MealStatusDots";
+// r1 F12+F13 删 MealStatusDots + WeeklyFoodProgress（stage 5 不需要）
 import MetricsRow from "@src/components/home/stage4/MetricsRow";
-import WeeklyFoodProgress from "@src/components/home/stage4/WeeklyFoodProgress";
 import WeightGoalProgressCard from "@src/components/home/stage4/WeightGoalProgressCard";
 import SnackCard from "@src/components/ui/SnackCard";
 import { useStore } from "@src/store/useStore";
@@ -88,15 +87,14 @@ export default function HomeStage5() {
           </View>
         </View>
 
-        {/* 指标 / 提醒 / 饮食进度 / 早午晚 / 加餐 / 记录 — 沿用 stage 4 子组件 */}
+        {/* 指标 / 提醒 / 加餐 / 记录 — 沿用 stage 4 子组件
+            r1 F12 删 <WeeklyFoodProgress />（stage 5 不需要本周饮食进度）
+            r1 F13 删 <MealStatusDots />（stage 5 不需要早午晚 status）*/}
         <MetricsRow />
 
         <View style={{ marginTop: 16 }}>
           <HomeMealStatusSlot />
         </View>
-
-        <WeeklyFoodProgress />
-        <MealStatusDots />
 
         <View style={{ marginTop: 12 }}>
           <SnackCard

@@ -13,7 +13,8 @@ import { colors } from "@src/theme/tokens";
 // fullnessHistory + dialogueHistory。Home 只取最近 N 条预览。
 // "查看更多 ›" → 跳记录 tab。
 
-const HOME_PREVIEW_LIMIT = 3;
+// r1 F11：xin 反馈 home 今日记录占太多空间，限 1 条（2026-05-30 由 3→1）
+const HOME_PREVIEW_LIMIT = 1;
 
 export default function HomeRecordsSection() {
   const router = useRouter();
