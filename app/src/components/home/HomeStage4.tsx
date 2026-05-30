@@ -1,6 +1,7 @@
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import StageChip from "@src/components/home/StageChip";
+import WeekStripConnected from "@src/components/home/WeekStripConnected";
 import MealStatusDots from "@src/components/home/stage4/MealStatusDots";
 import MetricsRow from "@src/components/home/stage4/MetricsRow";
 import StarRating from "@src/components/home/stage4/StarRating";
@@ -35,6 +36,9 @@ export default function HomeStage4() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 64 }}>
         {/* r1 F6：stage label chip */}
         <StageChip stage={4} />
+        {/* r1 F5：周一到周日吃饭记录表 */}
+        <WeekStripConnected />
+        <View style={{ height: 16 }} />
         {/* 老用户引导 banner（doc §十三 入口 2，简化版）*/}
         {height === null && (
           <Pressable

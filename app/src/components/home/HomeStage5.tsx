@@ -1,6 +1,7 @@
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import StageChip from "@src/components/home/StageChip";
+import WeekStripConnected from "@src/components/home/WeekStripConnected";
 // r1 F12+F13 删 MealStatusDots + WeeklyFoodProgress（stage 5 不需要）
 import MetricsRow from "@src/components/home/stage4/MetricsRow";
 import WeightGoalProgressCard from "@src/components/home/stage4/WeightGoalProgressCard";
@@ -34,6 +35,9 @@ export default function HomeStage5() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 64 }}>
         {/* r1 F6：stage label chip */}
         <StageChip stage={5} />
+        {/* r1 F5：周一到周日吃饭记录表 */}
+        <WeekStripConnected />
+        <View style={{ height: 16 }} />
         {/* Hero — TODO OPEN-4: "50" 占位用 stage5Stars，但 stage5Stars 在 demote
             时清零；如果 xin 想"不朽印记"是累计值，需要另一字段 cumulativeStars */}
         <WeightGoalProgressCard

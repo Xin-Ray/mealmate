@@ -1,6 +1,7 @@
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import StageChip from "@src/components/home/StageChip";
+import WeekStripConnected from "@src/components/home/WeekStripConnected";
 import HpHeartsContent from "@src/components/ui/HpHeartsContent";
 import SnackCard from "@src/components/ui/SnackCard";
 import WeightCard from "@src/components/ui/WeightCard";
@@ -33,6 +34,9 @@ export default function HomeStage3() {
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }}>
         {/* r1 F4+F6：用统一 StageChip，去掉 "v1"（xin 真机读成"为1"） */}
         <StageChip stage={3} />
+        {/* r1 F5：周一到周日吃饭记录表 */}
+        <WeekStripConnected />
+        <View style={{ height: 16 }} />
 
         {/* Hero：mascot card（沿用 stage 2 几何） */}
         <View style={{ marginBottom: 32 }}>
