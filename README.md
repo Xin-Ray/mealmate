@@ -231,12 +231,34 @@ mealmate 用两套 iOS bundle ID 隔离 TestFlight 用户跟本地开发：
 
 两个 ID 在 iOS 系统里被当成不同 app，可以**同机并存**：xin 真机上 TestFlight 版的 MealMate 跟本地装的 MealMate Dev 互不覆盖、AsyncStorage 数据互不可见、icon 标签一眼能区分（"MealMate" vs "MealMate Dev"）。
 
-⚠️ **本地跑 dev build 必须带 env**：
+### 🚨 本地 dev 启动命令（必须加前缀）
+
 ```bash
-APP_VARIANT=dev LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo run:ios --device
+# 装 dev 版本 (MealMate Dev, bundleId .dev, 不覆盖 TestFlight)
+APP_VARIANT=dev npx expo run:ios --device
+
+# 装 prod 版本 (MealMate, bundleId prod, 会覆盖 TestFlight!)
+npx expo run:ios --device
 ```
-没传 `APP_VARIANT=dev` 时 `app.config.ts` 默认 `production` → app 名 = "MealMate"（虽然 bundleId 仍是 `.dev`，但名字会跟 prod 重名，看不出差异）。
-EAS build 不用传 env，`eas.json` 三个 profile 都内置了 `env.APP_VARIANT`（development=dev，preview/production=production）。
+
+没传 `APP_VARIANT=dev` 时 `app.config.ts` 默认 `production` → app **名**显示 "MealMate"（虽然 bundleId 仍由 pbxproj 的 Debug config 决定 = `.dev`，但**名字会跟 prod 重名**，主屏上两个图标都叫 "MealMate" 区分不出来）。要 dev 跟 prod 视觉上一眼分辨，**必须**带 `APP_VARIANT=dev`。
+
+EAS build 不用传 env，`eas.json` 三个 build profile 都内置了 `env.APP_VARIANT`（development=dev，preview/production=production）。
+
+### 🔍 判断装的是哪个版本
+
+**Simulator**：
+```bash
+xcrun simctl listapps booted | grep -i mealmate
+# CFBundleIdentifier = "com.xinray.mealmate"      → prod
+# CFBundleIdentifier = "com.xinray.mealmate.dev"  → dev
+```
+
+**iPhone 主屏**：看 icon 下面的文字
+- `MealMate` → prod 版本（跟 TestFlight 同一个 app）
+- `MealMate Dev` → dev 版本（本地 build，跟 TestFlight 并存）
+
+**两个并存时**：主屏上会有两个 icon，名字不同（前提是 dev build 带了 `APP_VARIANT=dev`）。
 
 ### 实现机制
 
