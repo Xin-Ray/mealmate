@@ -560,16 +560,16 @@ selector：`buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })
 - **DialogueKind +'snack_done'**：feed 渲染端（RecordCard / TodayRecordRow）识别
   此 kind 走专属浅米黄卡 + 🍎 icon + 绿色"血量+10"badge
 
-**每日上限 2 次**（`SNACK_DAILY_LIMIT`，防作弊通关）：
+**每日上限 3 次**（`SNACK_DAILY_LIMIT`，防作弊通关；2026-05-30 由 2→3）：
 
 | 今日已加餐 | SnackCard UI |
 |---|---|
-| 0/2 | 米黄 + 🍎 + 绿 → + 副标"拍一张，HP +10" + 角标"今日 0/2" |
-| 1/2 | 同上 + 副标"再加一次，HP +10" + 角标"今日 1/2" |
-| 2/2 | **disabled 灰版**：🍽️ icon + "今日加餐已用完" + 副标"明天再来" + 角标"今日 2/2" |
+| 0/3 | 米黄 + 🍎 + 绿 → + 副标"拍一张，HP +10" + 角标"今日 0/3" |
+| 1/3、2/3 | 同上 + 副标"再加一次，HP +10" + 角标"今日 N/3" |
+| 3/3 | **disabled 灰版**：🍽️ icon + "今日加餐已用完" + 副标"明天再来" + 角标"今日 3/3" |
 
 计数从 dialogueHistory 现算（不存独立计数字段，避免数据冗余）：filter
-`kind='snack_done' && dateOf(ts)===todayKey`。**跨日 todayKey 变** → 自动重置 0/2。
+`kind='snack_done' && dateOf(ts)===todayKey`。**跨日 todayKey 变** → 自动重置 0/3。
 
 **防御层**：
 1. SnackCard 2/2 时**不渲染 Pressable**（无法 onPress）

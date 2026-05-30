@@ -30,7 +30,7 @@ onboarding（设三餐时间 + 给伙伴起名）
    ↓
 拍照打卡 HP+5 / 错过 HP-10（gentle mode 减半）
    ↓
-加餐补充 HP+10（每日上限 2 次）
+加餐补充 HP+10（每日上限 3 次）
    ↓
 HP 累到 100 → 进阶下一阶段 + 弹 stage-end 屏
 HP 降到 0 以下 → 降阶（stage 1 走 support 调建议医生，§11.L）

@@ -36,8 +36,8 @@ flowchart TD
   homeSlot -- 窗内未拍 --> reminderCard[MealReminderCard]
   homeSlot -- 窗末未拍未 ack --> incompleteCard[MealIncompleteCard]
   homeSlot -- default fallback<br/>无窗 / 已拍 / 已 ack --> nextMealCard[NextMealCard<br/>下一顿倒计时 + 3 ⭐]
-  mainEntry --> snackCard[SnackCard<br/>issue #3 v0.5+ 常驻<br/>每日上限 2 次]
-  snackCard -- 0/2 或 1/2 点击 --> photoSnack[/(modal)/photo?snack=true/]
+  mainEntry --> snackCard[SnackCard<br/>issue #3 v0.5+ 常驻<br/>每日上限 3 次]
+  snackCard -- 未满（<3/3）点击 --> photoSnack[/(modal)/photo?snack=true/]
   photoSnack -. addSnack +10 HP<br/>kind=snack_done dialogue .-> mainEntry
   snackCard -. 2/2 disabled .-> snackCard
 

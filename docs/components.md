@@ -158,15 +158,15 @@
   - 文案温和正向（PRD §八）—— 不写"奖励"/"完成"等强烈词
   - **不写 mealRecord**（snack 不算正餐）—— 只 push dialogue `kind='snack_done'`
 
-  **每日上限 2 次**（`SNACK_DAILY_LIMIT`，防作弊通关）：
+  **每日上限 3 次**（`SNACK_DAILY_LIMIT`，防作弊通关；2026-05-30 由 2→3）：
 
   | 今日已加餐 | UI 状态 | 副标 |
   |---|---|---|
-  | 0/2 | primary（米黄 + 🍎 + 绿 →）| "拍一张，HP +10" |
-  | 1/2 | primary（同上）| "再加一次，HP +10" |
-  | 2/2 | **disabled 灰版**（不响应点击 + 🍽️ icon + 无 →）| "明天再来" |
+  | 0/3 | primary（米黄 + 🍎 + 绿 →）| "拍一张，HP +10" |
+  | 1/3、2/3 | primary（同上）| "再加一次，HP +10" |
+  | 3/3 | **disabled 灰版**（不响应点击 + 🍽️ icon + 无 →）| "明天再来" |
 
-  右上角角标永远显示"今日 N/2"。计数 = 当日 `dialogueHistory.filter(kind='snack_done' && dateOf(ts)===todayKey)`。
+  右上角角标永远显示"今日 N/3"。计数 = 当日 `dialogueHistory.filter(kind='snack_done' && dateOf(ts)===todayKey)`。
 
   防御：`useStore.addSnack` 内部检查 `todayCount >= SNACK_DAILY_LIMIT` no-op；`photo.tsx` onConfirm 也独立检查（防 deep link 绕过 UI 直接进 photo modal）。
 

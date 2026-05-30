@@ -1,12 +1,12 @@
-// 加餐卡（issue #3 v0.5+）
+// 加餐卡（issue #3 v0.5+；上限 2→3 在 2026-05-30）
 //
 // 永远显示在首页（不依赖时间窗 / missed 状态）。
-// 一天上限 2 次（防作弊通关，SNACK_DAILY_LIMIT 在 useStore）。
+// 一天上限 SNACK_DAILY_LIMIT 次（防作弊通关，常量在 useStore）。
 //
 // 三态：
-//   0/2 → "加餐 / 拍一张，HP +10"（primary, pressable）
-//   1/2 → "加餐 / 再加一次，HP +10"（primary, pressable）
-//   2/2 → disabled 灰版 "今日加餐已用完 / 明天再来"
+//   0/N → "加餐 / 拍一张，HP +10"（primary, pressable）
+//   k/N（k 已达成且 < N）→ "再加一次，HP +10"（primary, pressable）
+//   N/N → disabled 灰版 "今日加餐已用完 / 明天再来"
 //
 // 文案按 PRD §八 安全伦理边界：温柔正向，不带"奖励/惩罚"等强烈词。
 

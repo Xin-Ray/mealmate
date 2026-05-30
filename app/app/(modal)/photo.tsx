@@ -122,7 +122,7 @@ export default function PhotoScreen() {
   const onConfirm = async () => {
     if (!imageUri) return;
 
-    // issue #3 加餐每日上限 2 次（防作弊）：snack 已满 → Alert + 回 home，
+    // issue #3 加餐每日上限 SNACK_DAILY_LIMIT 次（防作弊）：snack 已满 → Alert + 回 home，
     // 不进 uploading / 不写 HP / 不 push dialogue。SnackCard 已经在 home 上
     // 把卡片置 disabled，这层是兜底（防 deep link 绕过 UI 直接进 photo modal）。
     if (isSnack) {

@@ -31,8 +31,8 @@ export const HP_MEAL_PHOTO_GAIN = 5;
 export const HP_MEAL_MISSED_LOSS = 10;
 // issue #3 加餐：拍照 +10 HP（addHp 内部 clamp 到 100）
 export const HP_SNACK_GAIN = 10;
-// issue #3 加餐每日上限（防作弊通关）：一天最多 2 次
-export const SNACK_DAILY_LIMIT = 2;
+// issue #3 加餐每日上限（防作弊通关）：一天最多 3 次（2026-05-30 改 2→3）
+export const SNACK_DAILY_LIMIT = 3;
 
 // 把 ms timestamp 转成 YYYY-MM-DD（跟 todayKey 同格式），用于 snack count by day
 const dateOf = (ts: number): string => {
@@ -511,7 +511,7 @@ export const useStore = create<State & Actions>()(
       setSkipWeightPhoto: (v) => set({ skipWeightPhoto: v }),
 
       addSnack: (input) => {
-        // 每日上限守卫（issue #3 防作弊）：今日 snack_done 数 >= 2 → no-op
+        // 每日上限守卫（issue #3 防作弊）：今日 snack_done 数 >= SNACK_DAILY_LIMIT → no-op
         // UI 应该已经 disable SnackCard，这层是兜底
         const s = get();
         const today = s.todayKey;
