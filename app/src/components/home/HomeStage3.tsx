@@ -1,5 +1,6 @@
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
+import StageChip from "@src/components/home/StageChip";
 import HpHeartsContent from "@src/components/ui/HpHeartsContent";
 import SnackCard from "@src/components/ui/SnackCard";
 import WeightCard from "@src/components/ui/WeightCard";
@@ -30,23 +31,8 @@ export default function HomeStage3() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }}>
-        {/* Stage 3 标签（暖橘色 chip） */}
-        <View
-          style={{
-            alignSelf: "flex-start",
-            backgroundColor: "#FFEFD8",
-            paddingHorizontal: 12,
-            paddingVertical: 4,
-            borderRadius: 999,
-            marginBottom: 12,
-          }}
-        >
-          <Text
-            style={{ fontSize: 12, color: colors.brand.accentDark, fontWeight: "600" }}
-          >
-            阶段 3 · 健康增重 v1
-          </Text>
-        </View>
+        {/* r1 F4+F6：用统一 StageChip，去掉 "v1"（xin 真机读成"为1"） */}
+        <StageChip stage={3} />
 
         {/* Hero：mascot card（沿用 stage 2 几何） */}
         <View style={{ marginBottom: 32 }}>

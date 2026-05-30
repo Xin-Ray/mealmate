@@ -1,5 +1,6 @@
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
+import StageChip from "@src/components/home/StageChip";
 import MealStatusDots from "@src/components/home/stage4/MealStatusDots";
 import MetricsRow from "@src/components/home/stage4/MetricsRow";
 import StarRating from "@src/components/home/stage4/StarRating";
@@ -32,6 +33,8 @@ export default function HomeStage4() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 64 }}>
+        {/* r1 F6：stage label chip */}
+        <StageChip stage={4} />
         {/* 老用户引导 banner（doc §十三 入口 2，简化版）*/}
         {height === null && (
           <Pressable

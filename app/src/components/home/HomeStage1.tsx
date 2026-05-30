@@ -1,5 +1,6 @@
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
+import StageChip from "@src/components/home/StageChip";
 import SnackCard from "@src/components/ui/SnackCard";
 import HpHeartsContent from "@src/components/ui/HpHeartsContent";
 import WeekStrip from "@src/components/WeekStrip";
@@ -27,6 +28,8 @@ export default function HomeStage1() {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }}>
+        {/* r1 F6：stage label chip 统一 */}
+        <StageChip stage={1} />
         {/* 1. 周视图（stage 1 特有） */}
         <WeekStrip
           todayKey={todayKey}
