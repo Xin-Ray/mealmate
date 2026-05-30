@@ -38,3 +38,19 @@ coverage/
 
 # Claude Code worktree cache
 .claude/
+
+# Backend (Python)
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/.pytest_cache/
+backend/.env
+# 运行时数据 — 用户实际数据，不入仓
+backend/data/mealmate.db
+backend/data/mealmate.db-journal
+backend/data/mealmate.db-wal
+backend/data/mealmate.db-shm
+backend/data/backups/
+backend/data/backup.log

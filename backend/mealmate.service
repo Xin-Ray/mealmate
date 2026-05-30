@@ -1,0 +1,22 @@
+[Unit]
+Description=MealMate backend (FastAPI + YOLOv8 + auth + sync)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xin
+Group=xin
+# Monorepo 后路径：repo 在 /home/xin/document/mealmate-app，backend 在 backend/
+# venv 自己装在 backend/.venv（gitignored），uvicorn entry: app.main:app（包名.模块:对象）
+WorkingDirectory=/home/xin/document/mealmate-app/backend
+ExecStart=/home/xin/document/mealmate-app/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=20
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

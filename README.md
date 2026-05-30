@@ -121,20 +121,85 @@ TestFlight build 1 上线。Stage transitions 11 屏 + NextMealCard + Weight OCR
 
 ## 项目结构
 
-- [`docs/PRD.md`](./docs/PRD.md) — 产品需求文档（一句话概述、目标用户、HP 机制、五阶段设计、MVP 范围、技术选型摘要、安全与伦理边界、待决策项）
-- [`docs/tech-research.md`](./docs/tech-research.md) — 跨平台技术栈调研（React Native / Flutter / Capacitor / PWA / SwiftUI+Next.js 对比，含来源链接）
-- `app/` — 代码占位，技术栈敲定后初始化
+Monorepo，前后端在同一个 repo 共存：
+
+```
+mealmate-app/
+├── app/             # 前端（React Native + Expo）
+│   ├── src/
+│   ├── app/         # expo-router 文件路由
+│   ├── package.json
+│   └── .env.example
+├── backend/         # 后端（FastAPI + YOLOv8 + SQLite，issue #4/#5 v1.1）
+│   ├── app/         # Python 包（main / auth / db / detector）
+│   ├── models/      # YOLO 权重
+│   ├── tests/
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── README.md
+└── docs/            # 共享文档（PRD / API / 架构 / dev-log）
+```
+
+> 旧的"前端独立、后端在 `/home/xin/document/mealmate/` 单独跑"的双仓库布局已弃用，2026-05-30 合进 monorepo（分支 `chore/monorepo-backend`）。
+
+- [`docs/PRD.md`](./docs/PRD.md) — 产品需求文档
+- [`docs/api.md`](./docs/api.md) — 后端 HTTP API 契约
+- [`docs/tech-research.md`](./docs/tech-research.md) — 跨平台技术栈调研
+- [`docs/architecture/account-sync.md`](./docs/architecture/account-sync.md) — 账号系统 + 云端同步设计
+- `app/` — 前端（详 `app/` 下 CLAUDE.md）
+- `backend/` — 后端（详 [`backend/README.md`](./backend/README.md)）
 
 ## 如何运行
 
 ### 前置条件
 
-- macOS + Xcode 最新版
-- Node 18+ + npm
+- macOS + Xcode 最新版（前端需要）
+- Node 18+ + npm（前端）
+- Python 3.10+ + pip（后端，dev / prod 都装在后端机器上）
 - iOS Simulator 或 iPhone 真机
 - Apple ID（免费够 dev build，付费才能 TestFlight）
+- 后端可选：GPU + CUDA 12.1（GTX 1080 及以上够用），没 GPU 也能跑 CPU 慢一点
 
-### 首次安装依赖
+### 前端（React Native + Expo）
+
+```bash
+cd app
+npm install
+cd ios && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install && cd ..
+LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo run:ios            # simulator
+# 真机：npx expo run:ios --device
+```
+
+详细启动步骤、热重载、TestFlight 部署见下面 §"如何运行（详细）"。
+
+### 后端（FastAPI + YOLO + Auth + Sync）
+
+```bash
+cd backend
+python3 -m venv .venv
+# torch CUDA 12.1 wheel 必须先单独装（GTX 1080 cuDNN 8 兼容）
+.venv/bin/pip install torch==2.3.1 torchvision==0.18.1 \
+  --index-url https://download.pytorch.org/whl/cu121
+.venv/bin/pip install -r requirements.txt
+cp .env.example .env
+
+# dev (auto-reload)
+.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# prod (systemd)
+sudo cp mealmate.service /etc/systemd/system/
+sudo systemctl enable --now mealmate
+```
+
+健康检查：`curl http://localhost:8000/health` → `{"status":"ok","device":"cuda:0","model_loaded":true}`
+
+详 [`backend/README.md`](./backend/README.md) + [`docs/api.md`](./docs/api.md)。
+
+---
+
+## 如何运行（详细）
+
+### 首次安装依赖（前端）
 
 ```bash
 cd app

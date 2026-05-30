@@ -1,0 +1,14 @@
+# torch / torchvision must come from the CUDA 12.1 wheel index and be pinned
+# to 2.3.x — newer wheels ship cuDNN 9, which fails to initialize on the
+# GTX 1080 (compute 6.1). Install before the rest:
+#   pip install torch==2.3.1 torchvision==0.18.1 \
+#     --index-url https://download.pytorch.org/whl/cu121
+ultralytics>=8.2.0,<8.5.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+pillow>=10.0.0
+pytest>=8.0.0
+httpx>=0.27.0
+pyjwt[crypto]>=2.8.0
+pydantic>=2.0.0
