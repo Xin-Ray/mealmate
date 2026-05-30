@@ -727,6 +727,189 @@ export default function SettingsScreen() {
                   </Pressable>
                 ))}
               </View>
+              {/* v1.1: stage-4/5 start 也加上（v0.5 删过现在 v1.1 加回）*/}
+              <View className="flex-row gap-2 mt-2">
+                <Pressable
+                  onPress={() =>
+                    router.replace("/(stage)/stage-1-start" as never)
+                  }
+                  className="flex-1 py-2 rounded-xl items-center"
+                  style={{ backgroundColor: "#E8F2D8" }}
+                >
+                  <Text style={{ color: "#3D683F", fontSize: 12 }}>
+                    1 start
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    router.replace("/(stage)/stage-4-start" as never)
+                  }
+                  className="flex-1 py-2 rounded-xl items-center"
+                  style={{ backgroundColor: "#E8F2D8" }}
+                >
+                  <Text style={{ color: "#3D683F", fontSize: 12 }}>
+                    4 start
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    router.replace("/(stage)/stage-5-start" as never)
+                  }
+                  className="flex-1 py-2 rounded-xl items-center"
+                  style={{ backgroundColor: "#E8F2D8" }}
+                >
+                  <Text style={{ color: "#3D683F", fontSize: 12 }}>
+                    5 start
+                  </Text>
+                </Pressable>
+              </View>
+            </Card>
+
+            {/* v1.1 验证按钮（doc §九）*/}
+            <Text
+              className="mt-4 mb-2"
+              style={{ fontSize: 14, color: colors.ink.primary }}
+            >
+              v1.1 stage 4/5 验证
+            </Text>
+            <Card style={{ marginBottom: 12 }}>
+              <Text
+                className="mb-2"
+                style={{ fontSize: 12, color: colors.ink.sub }}
+              >
+                一键 seed 体质 + 目标体重
+              </Text>
+              <View className="flex-row gap-2 mb-2">
+                <Pressable
+                  onPress={() => {
+                    setHeight(170);
+                    setEthnicity("asian");
+                    setGender("other");
+                    setHeightText("170");
+                    Alert.alert(
+                      "已 seed",
+                      "height=170, ethnicity=asian → 健康体重 60.7kg"
+                    );
+                  }}
+                  className="flex-1 py-2 rounded-xl items-center"
+                  style={{ backgroundColor: colors.brand.green }}
+                >
+                  <Text style={{ color: "#FFFFFF", fontSize: 12 }}>
+                    Set h=170 / asian
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setTargetWeight(62);
+                    setTargetText("62.0");
+                    Alert.alert("已 seed", "目标体重 = 62kg");
+                  }}
+                  className="flex-1 py-2 rounded-xl items-center"
+                  style={{ backgroundColor: colors.brand.green }}
+                >
+                  <Text style={{ color: "#FFFFFF", fontSize: 12 }}>
+                    Set target=62
+                  </Text>
+                </Pressable>
+              </View>
+              <Text
+                className="mb-2"
+                style={{ fontSize: 12, color: colors.ink.sub }}
+              >
+                Seed 体重数据
+              </Text>
+              <View className="flex-row gap-2 mb-2">
+                <Pressable
+                  onPress={() => {
+                    // 加单条 60.5kg（stage 4 下未达标，stage 5 下在区间内）
+                    useStore.getState().addWeightRecord({
+                      kg: 60.5,
+                      photoUri: "",
+                    });
+                    Alert.alert("已加", "今日体重 60.5kg");
+                  }}
+                  className="flex-1 py-2 rounded-xl items-center"
+                  style={{ backgroundColor: colors.bg.hpEmpty }}
+                >
+                  <Text style={{ color: colors.ink.primary, fontSize: 12 }}>
+                    + 60.5kg today
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    // 加 62.5kg（≥ target=62）触发 stage 4→5
+                    useStore.getState().addWeightRecord({
+                      kg: 62.5,
+                      photoUri: "",
+                    });
+                    Alert.alert(
+                      "已加",
+                      "今日体重 62.5kg（stage 4 → 触发 advance 5）"
+                    );
+                  }}
+                  className="flex-1 py-2 rounded-xl items-center"
+                  style={{ backgroundColor: colors.bg.hpEmpty }}
+                >
+                  <Text style={{ color: colors.ink.primary, fontSize: 12 }}>
+                    + 62.5kg today
+                  </Text>
+                </Pressable>
+              </View>
+              <Text
+                className="mb-2"
+                style={{ fontSize: 12, color: colors.ink.sub }}
+              >
+                Stage 5 完成模拟
+              </Text>
+              <Pressable
+                onPress={() => {
+                  // 60 天前进入 stage 5 + 给 stage5Stars 1 颗，再加今日体重触发 check
+                  const sixtyAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
+                  useStore.setState({
+                    stage5StartedAt: sixtyAgo,
+                    stage5Stars: 8,
+                  });
+                  useStore.getState().__internal_runStage5Check();
+                  Alert.alert(
+                    "已触发",
+                    "stage5StartedAt = 60 天前 → __internal_runStage5Check 应 push stage-5-end"
+                  );
+                }}
+                className="py-2 rounded-xl items-center mb-2"
+                style={{ backgroundColor: colors.brand.green }}
+              >
+                <Text style={{ color: "#FFFFFF", fontSize: 12 }}>
+                  Seed stage 5 60 天达成
+                </Text>
+              </Pressable>
+              <Text
+                className="mb-2"
+                style={{ fontSize: 12, color: colors.ink.sub }}
+              >
+                Reset profile（清空 v11 字段）
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setHeight(null);
+                  setGender(null);
+                  setEthnicity(null);
+                  setTargetWeight(null);
+                  setHeightText("");
+                  setTargetText("");
+                  useStore.setState({
+                    stage5StartedAt: null,
+                    stage5Stars: 0,
+                    stage5LastStarCheck: null,
+                  });
+                  Alert.alert("已清", "v11 profile + stage5 状态全清空");
+                }}
+                className="py-2 rounded-xl items-center"
+                style={{ backgroundColor: "#FFEFD8" }}
+              >
+                <Text style={{ color: colors.brand.accentDark, fontSize: 12 }}>
+                  Reset v11 profile
+                </Text>
+              </Pressable>
             </Card>
           </>
         )}
