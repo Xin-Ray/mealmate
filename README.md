@@ -1,6 +1,6 @@
 # mealmate
 
-**Status**: `v1.0.1` — in progress (餐窗 / 提醒 hotfix)  ·  main `4a94da2`  ·  iOS only
+**Status**: `v1.0.1` (monorepo + stage 4/5 + sync 后端 + issue #2/#4/#5 集成)  ·  iOS only
 
 一款**陪伴式饮食习惯养成 App**：由一只有"HP"的机器人伙伴陪你按时吃饭、吃饱吃好，通过五阶段目标（坚持 → 量化 → 健康增重 → 营养 → 持之以恒），帮助饮食不规律、恢复期或需要健康增重的人群重建三餐节奏。
 
@@ -40,16 +40,26 @@ Stage 2 起记录体重（拍秤面 + Gemini Vision OCR）
 统计 tab 看趋势图（爱心曲线 + 体重曲线）
 ```
 
-### 当前架构（v1.0）
+### 当前架构（v1.0.1）
 
-**纯客户端 React Native + Expo**，**无后端**：
+**Monorepo：客户端 (React Native + Expo) + 自托管后端 (FastAPI + YOLOv8 + SQLite)**
+
+前端 (`app/`)：
 - 状态：Zustand v5 + `persist` 中间件
-- 持久化：AsyncStorage（数据仅存本地设备，key=`mealmate-store`，schema 已 migrate 到 v9）
+- 持久化：AsyncStorage（key=`mealmate-store`，schema v12；登录后实时往云端 push）
 - 推送：`expo-notifications` 本地通知调度三餐提醒
 - 图表：`react-native-svg`
-- LLM 文案 + 体重 OCR：直连 Gemini API（key 在客户端 bundle，可关）
-- 食物识别：自托管 YOLO 后端（可选，fail-soft）
+- LLM 文案：直连 Gemini API（key 在客户端 bundle，v1.1 迁 CF Worker）
+- 体重 OCR：当前直连 Gemini Vision（TestFlight 上挂，v1.1 切本地 PaddleOCR/EasyOCR）
+- 食物识别 + Apple Sign-In + 云同步：调后端 `app.flykid.xyz`（CF Tunnel）
 - 打包发布：EAS Build → App Store Connect → TestFlight
+
+后端 (`backend/`)：
+- FastAPI + uvicorn，GTX 1080 GPU 推理（YOLOv8n COCO 食物类过滤）
+- SQLite 3 张表：`users` / `sessions` / `user_data`（store 整包 JSON）
+- Apple Sign-In：JWKS 验签 + 自签 session token（sha256 哈希存库）
+- 公网入口：Cloudflare Tunnel（cloudflared sidecar，自动 TLS）
+- 备份：`scripts/backup.sh` 用 sqlite3 `.backup` 热备份，保留 14 天
 
 ### 主要模块
 
@@ -70,8 +80,9 @@ Stage 2 起记录体重（拍秤面 + Gemini Vision OCR）
 
 | 依赖 | 用途 | 可选性 |
 |---|---|---|
-| **Gemini API** | LLM 文案生成 + Vision 体重 OCR | 可开关（`EXPO_PUBLIC_LLM_ENABLED`），关掉走本地文案池 / 手填 kg |
-| **自托管 YOLO 后端** | 食物识别 | 可选，后端挂时 fail-soft（不阻塞打卡） |
+| **Gemini API** | LLM 文案生成（mascot 对白） | 可开关（`EXPO_PUBLIC_LLM_ENABLED`），关掉走本地文案池 |
+| **自托管后端** | YOLO 食物识别 + Apple Sign-In + 云同步 | YOLO 可选 fail-soft；登录/同步必需后端在线 |
+| **Cloudflare Tunnel** | 后端 HTTPS 公网入口（绑 `api.flykid.xyz`） | 必需（iOS ATS 强制 HTTPS） |
 | **expo-notifications** | 三餐本地推送 | 必需 |
 | **react-native-svg** | 图表 / 图标 | 必需 |
 | **EAS Build + ASC / TestFlight** | 构建 / 发布 | 必需 |
@@ -80,9 +91,10 @@ Stage 2 起记录体重（拍秤面 + Gemini Vision OCR）
 ### 核心风险
 
 1. **安全伦理（最高优先级）**：敏感用户群体，情感机制设计不当会反向强化焦虑 / 自责。所有文案 / 机制必须遵守 PRD §八 + §11.L —— 例如 stage 1 HP→0 走"建议联系专业医生 / 营养师"的 support 调，而非"再来一次"或惩罚性扣分。文案禁用"奖励 / 失败 / 你让我失望"等强烈词。
-2. **API key 暴露**：Gemini key 当前打进客户端 bundle，反编译 ipa 可拿；YOLO 后端无鉴权。上线前需迁 **Cloudflare Worker 代理**（v1.1 待办，见 [`docs/architecture/decisions/`](./docs/architecture/decisions/) ADR-004）。
-3. **数据无备份**：用户数据仅存本地 AsyncStorage，**卸载 / 换机即丢**，无云同步。`resetAll`（"删除账号"）= 清本地。v1.1+ 后端 + Apple Sign In 规划，见 [`docs/architecture/database.md`](./docs/architecture/database.md)。
-4. **无用户数据分析**：当前未接 Sentry / 行为埋点，只能靠 TestFlight crash report + 主动反馈。
+2. **API key 暴露**：Gemini key 当前打进客户端 bundle，反编译 ipa 可拿。上线前需迁 **Cloudflare Worker 代理**（v1.1 待办，见 [`docs/architecture/decisions/`](./docs/architecture/decisions/) ADR-004）。后端 endpoint 走 Bearer token（apple sign-in 签发），无 token 直接 401。
+3. **单点后端**：后端 + GPU + SQLite 全在一台机器上，机器挂了 = 全服务挂。备份脚本只防数据丢，不防可用性。下一步考虑 D1 + Worker 拆开。
+4. **多设备并发写丢数据**：sync 是最后写赢的整包模型，A 设备 push 后 B 设备 push 会覆盖 A 的中间变化。v1 接受（用户量小，多设备少），后续按需做 last-write-wins → CRDT 升级。
+5. **无用户数据分析**：当前未接 Sentry / 行为埋点，只能靠 TestFlight crash report + 主动反馈。
 
 ### 负责人
 **xin**（GitHub: [Xin-Ray](https://github.com/Xin-Ray)）
@@ -93,25 +105,36 @@ Stage 2 起记录体重（拍秤面 + Gemini Vision OCR）
 
 详细历史见 [`docs/product/changelog.md`](./docs/product/changelog.md) + [`docs/dev-log.md`](./docs/dev-log.md)。
 
-### v1.0.1（进行中，`fix/issues-6-7-meal-timing` 分支）
+### v1.0.1 — 2026-05-30
 
-**修**：餐窗起点 / 提醒通知 / onboarding 漏餐误判（来自 2026-05-22 真机反馈）
+一次大合并：把 `feat/stage-4-5-ui` (含 v1.1 stage 3/4/5 + stats + celebration) +
+sync 后端集成 + monorepo restructure 全部进 main，作为 TestFlight 第二个里程碑。
 
-- 餐窗定义从「提醒时间 ±90 分钟」改成「提醒时间起 +90 分钟」（之前提前 1.5h 显示提醒卡是 bug，Issue #6c）
-- 每餐加一条「窗末前 30 分钟」二次本地通知（Issue #6b 新需求；顺带兜底 6a iOS DAILY trigger 偶发不响）
-- `store.onboardingCompletedAt` 字段（v9 → v10 migrate）+ missedScan 守卫：onboarding 完成时已过完的窗不再 mark missed（Issue #7）
+**v1.0 → v1.0.1 主要变化**：
 
-**已知 issue / 进度**：
+- 🏗️ **Monorepo**：后端从独立目录 (`/home/xin/document/mealmate/backend/`) 整体迁进
+  `mealmate-app/backend/`，前后端在同一仓库管理。详 `chore/monorepo-backend` 分支
+- 🎨 **Stage 3/4/5 UI**：HomeStage3/4/5 + WeightCard + StarRating + WeeklyFoodProgress + targetWeight 进度环
+- 📊 **统计 tab**：3 个图表 × 周/月/全部 子 tab
+- 🎉 **CelebrationModal**：拍照打卡庆祝弹窗（Reanimated，Figma 32:1637）
+- 👤 **Onboarding profile 步**：身高 + 性别 + 族裔，BMI → standardWeight 计算
+- 🔐 **Apple Sign-In + 云同步**：FastAPI 后端 + SQLite，store 整包 push/pull
+- 🍽️ **Snack**：每日上限 3 次（之前 2），加餐 +10 HP
+- ✏️ **issue #2 修文案**：拍照失败提示去 raw error，按场景翻译
+- 🐛 **fixes**：餐窗 / 提醒 / onboarding 漏餐误判（issue #6/#7）
+
+**已知 issue / 进度**（截至 v1.0.1 tag）：
 
 | # | 标题 | 状态 |
 |---|---|---|
 | #1 | NextMealCard 跳过 done | ✅ 已修（v1.0） |
-| #2 | 拍照识别页问题 | ✅ 已修（v1.0，重拍按钮 + YOLO） |
-| #3 | 加餐机会 | 🟡 `feat/issue-3-snack-card` 分支待合 |
-| #4 | 云端数据库 / 备份 | ⬜ v1.1 计划 |
-| #5 | 数据存储 | ⬜ v1.1 计划（与 #4 同方向） |
-| #6 | 时间提醒（窗口 + 偶尔不响 + 窗末 30min 提醒）| **🟡 已修 v1.0.1，待 xin 真机验证** |
-| #7 | onboarding 完即弹错过餐 | **🟡 已修 v1.0.1，待 xin 真机验证** |
+| #2 | 拍照识别页问题 | ✅ 文案修了（v1.0.1）；公网联调 + EAS env 注入 GEMINI_KEY 待 |
+| #3 | 加餐机会 | ✅ 已合（v1.0.1，每日上限 3 次） |
+| #4 | 云端数据库 / 备份 | ✅ 后端 + 同步代码集成（v1.0.1）；公网部署中 |
+| #5 | 数据存储 | ✅ 与 #4 同（v1.0.1） |
+| #6 | 时间提醒（窗口 + 偶尔不响 + 窗末 30min）| 🟡 已修 v1.0.1，待真机验证 |
+| #7 | onboarding 完即弹错过餐 | 🟡 已修 v1.0.1，待真机验证 |
+| - | 体重 OCR (TestFlight 挂) | 🟠 根因已确认 (EAS env)；v1.1 切本地 PaddleOCR/EasyOCR |
 
 ### v1.0.0 — 2026-05-18
 
