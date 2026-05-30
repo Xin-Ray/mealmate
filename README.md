@@ -224,16 +224,23 @@ sudo systemctl enable --now mealmate
 
 mealmate 用两套 iOS bundle ID 隔离 TestFlight 用户跟本地开发：
 
-| 用途 | Bundle ID | App 名 | 数据 namespace |
-|---|---|---|---|
-| **production**（TestFlight + App Store）| `com.xinray.mealmate` | MealMate | `mealmate-store` |
-| **dev**（本地 Xcode dev build）| `com.xinray.mealmate.dev` | MealMate Dev | `mealmate-store-dev` |
+| 用途 | Bundle ID | App 名 | 数据 namespace | env |
+|---|---|---|---|---|
+| **production**（TestFlight + App Store）| `com.xinray.mealmate` | `MealMate` | `mealmate-store` | `APP_VARIANT=production`（默认）|
+| **dev**（本地 Xcode dev build）| `com.xinray.mealmate.dev` | `MealMate Dev` | `mealmate-store-dev` | `APP_VARIANT=dev` |
 
-两个 ID 在 iOS 系统里被当成不同 app，可以**同机并存**：xin 真机上 TestFlight 版的 MealMate 跟本地装的 MealMate Dev 互不覆盖、AsyncStorage 数据互不可见。
+两个 ID 在 iOS 系统里被当成不同 app，可以**同机并存**：xin 真机上 TestFlight 版的 MealMate 跟本地装的 MealMate Dev 互不覆盖、AsyncStorage 数据互不可见、icon 标签一眼能区分（"MealMate" vs "MealMate Dev"）。
+
+⚠️ **本地跑 dev build 必须带 env**：
+```bash
+APP_VARIANT=dev LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo run:ios --device
+```
+没传 `APP_VARIANT=dev` 时 `app.config.ts` 默认 `production` → app 名 = "MealMate"（虽然 bundleId 仍是 `.dev`，但名字会跟 prod 重名，看不出差异）。
+EAS build 不用传 env，`eas.json` 三个 profile 都内置了 `env.APP_VARIANT`（development=dev，preview/production=production）。
 
 ### 实现机制
 
-**iOS native 层**：直接编辑了 `app/ios/mealmate.xcodeproj/project.pbxproj`，让两个 XCBuildConfiguration 各自带不同 bundleId：
+**iOS native 层（bundleId）**：直接编辑了 `app/ios/mealmate.xcodeproj/project.pbxproj`，让两个 XCBuildConfiguration 各自带不同 bundleId：
 
 ```
 Debug   config (mealmate target): PRODUCT_BUNDLE_IDENTIFIER = com.xinray.mealmate.dev
@@ -242,7 +249,12 @@ Release config (mealmate target): PRODUCT_BUNDLE_IDENTIFIER = com.xinray.mealmat
 
 这样 `npx expo run:ios` 默认 Debug → 装 `.dev` bundle；EAS `preview` / `production` profile 走 Release → 装 prod bundle。
 
-**JS 层**：`app/src/store/useStore.ts` 按 `APP_VARIANT` env 切 AsyncStorage `STORE_KEY`（数据 namespace 隔离）。
+**Expo 层（app 名 + AsyncStorage namespace）**：`app/app.config.ts`（**canonical**，**没有 `app.json`**）按 `process.env.APP_VARIANT` 切：
+
+- `name`：`dev` → `"MealMate Dev"`，`production`（默认）→ `"MealMate"`
+- `extra.appVariant`：透到 JS，`useStore.ts` 读它切 AsyncStorage `STORE_KEY`
+
+`eas.json` 三个 build profile 都内置了 `env.APP_VARIANT`，所以 EAS 流程不用额外传 env。本地 `expo run:ios` 必须手动传：`APP_VARIANT=dev npx expo run:ios`。
 
 ### ⚠️ 已知 fragility
 
