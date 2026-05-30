@@ -1,35 +1,22 @@
-import { ScrollView, View, Text } from "react-native";
+import { useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useStore } from "@src/store/useStore";
-import {
-  selectHpTimeline,
-  selectWeightTimeline,
-  autoYAxis,
-} from "@src/store/selectors/stats";
-import TrendChart from "@src/components/ui/TrendChart";
+import StatsChart from "@src/components/stats/StatsChart";
 import { colors } from "@src/theme/tokens";
 
-// 统计页（PRD §11.E v0.4 hotfix#12 重写）：
-// X 轴改成"记录时间"——按实际录入日期分布。
-//
-// v1.1 数据：
-//   - 体重图：从 weightHistory
-//   - 爱心图：从 hpHistory（v11 新加，addHp 时累积；v1.1 前历史无法补，
-//     老用户 stats "全部"视图也从 v1.1 起算）
-// 完整 3 图表 × 3 子 tab 改造（commit #13）见 doc §七
+// v1.1 doc §七 Stats tab 改造：3 图表 (weight/stage/hp) × 3 子 tab (周/月/全部)
+// 9 视图组合。Stage 阶梯线现版用直线连接，doc §十二 risk 9 留 TODO
+
+type Window = "week" | "month" | "all";
+
+const WINDOWS: { id: Window; label: string }[] = [
+  { id: "week", label: "周" },
+  { id: "month", label: "月" },
+  { id: "all", label: "全部" },
+];
 
 export default function StatsScreen() {
-  const weightHistory = useStore((s) => s.weightHistory);
-  const hpHistory = useStore((s) => s.hpHistory);
-
-  const hpData = selectHpTimeline({ hpHistory });
-  const weightData = selectWeightTimeline({ weightHistory });
-
-  // 爱心图 Y 轴：固定 0-12（七档）
-  const heartYAxis = [0, 2, 4, 6, 8, 10, 12];
-
-  // 体重图 Y 轴：自动 min-max
-  const weightYAxis = autoYAxis(weightData.map((p) => p.value));
+  const [window, setWindow] = useState<Window>("week");
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
@@ -50,24 +37,47 @@ export default function StatsScreen() {
           </Text>
         </View>
 
-        <View style={{ marginTop: 20 }}>
-          {/* 爱心变化趋势 — v0.4 暂无 hpHistory，走空态 */}
-          <TrendChart
-            title="爱心变化趋势"
-            subtitle="单位：颗爱心（1 颗爱心 = 10 点血量）"
-            data={hpData}
-            yAxis={heartYAxis}
-            emptyText="爱心趋势记录功能开发中，敬请期待 v0.5"
-          />
+        {/* 子 tab 时间窗 */}
+        <View
+          className="flex-row mt-5"
+          style={{
+            backgroundColor: colors.bg.card,
+            borderRadius: 12,
+            padding: 4,
+            borderColor: colors.border.card,
+            borderWidth: 1,
+          }}
+        >
+          {WINDOWS.map((w) => {
+            const active = window === w.id;
+            return (
+              <Pressable
+                key={w.id}
+                onPress={() => setWindow(w.id)}
+                className="flex-1 py-2 rounded-lg items-center"
+                style={{
+                  backgroundColor: active ? colors.brand.green : "transparent",
+                }}
+              >
+                <Text
+                  style={{
+                    color: active ? "#FFFFFF" : colors.ink.primary,
+                    fontWeight: active ? "600" : "400",
+                    fontSize: 14,
+                  }}
+                >
+                  {w.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-          {/* 体重变化趋势 */}
-          <TrendChart
-            title="体重变化趋势"
-            subtitle="单位：kg"
-            data={weightData}
-            yAxis={weightYAxis}
-            emptyText="还没有体重记录，去主页打卡吧~"
-          />
+        {/* 3 个图表 */}
+        <View style={{ marginTop: 20 }}>
+          <StatsChart kind="weight" window={window} />
+          <StatsChart kind="stage" window={window} />
+          <StatsChart kind="hp" window={window} />
         </View>
       </ScrollView>
     </SafeAreaView>
