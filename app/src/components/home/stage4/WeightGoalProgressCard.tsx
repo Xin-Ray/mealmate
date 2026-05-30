@@ -142,16 +142,19 @@ export default function WeightGoalProgressCard({
                   alignItems: "center",
                 }}
               >
+                {/* r1 OPEN-R1-A：xin 拍板 label 改成"完成 N%"，magnitude 仍是
+                    remainingPct (例 60→65 当前 62 → 60%)。语义反直觉（"完成"
+                    应从 0→100），doc 里二次确认 TODO */}
                 <Text style={{ fontSize: 16, fontWeight: "700", color: "#3D683F" }}>
-                  {remainPctLabel}
+                  完成 {remainPctLabel}
                 </Text>
               </View>
             </View>
-            {/* 副 label：还差 X% + 距目标 Ykg */}
+            {/* 副 label：完成 X% + 距目标 Ykg */}
             <View style={{ marginLeft: 12 }}>
               {canComputePct && (
                 <Text style={{ fontSize: 13, color: "#6E6F6C" }}>
-                  还差 {remainPctLabel}
+                  完成 {remainPctLabel}
                 </Text>
               )}
               {diffKg != null && (
