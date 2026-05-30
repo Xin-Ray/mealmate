@@ -12,6 +12,7 @@ import {
   scheduleMealReminders,
 } from "@src/services/notifications";
 import { runMissedScan } from "@src/services/missedScan";
+import { schedulePush, SYNCED_KEYS } from "@src/services/sync";
 import { hpBandFromValue, pickDialogue } from "@src/data/dialogues";
 import type { MealSlot } from "@src/types";
 
@@ -21,10 +22,28 @@ export default function RootLayout() {
   const onboardingDone = useStore((s) => s.onboardingDone);
   const schedules = useStore((s) => s.mealSchedules);
   const hp = useStore((s) => s.hp);
+  const accountToken = useStore((s) => s.account?.token ?? null);
 
   useEffect(() => {
     rollDayIfNeeded();
   }, [rollDayIfNeeded]);
+
+  // 云端同步：登录后订阅 store 变化 → 节流 push（5s 内多次 mutation 合并为 1 次请求）。
+  // 只在 SYNCED_KEYS 之一发生变化时才调度，避免 setLastSyncedAt 自触发 → 死循环。
+  useEffect(() => {
+    if (!accountToken) return;
+    const unsub = useStore.subscribe((state, prev) => {
+      const cur = state as unknown as Record<string, unknown>;
+      const old = prev as unknown as Record<string, unknown>;
+      for (const k of SYNCED_KEYS) {
+        if (cur[k] !== old[k]) {
+          schedulePush(accountToken);
+          return;
+        }
+      }
+    });
+    return () => unsub();
+  }, [accountToken]);
 
   // 三餐到点本地推送：onboarding 完成后，按当前 schedules 重新调度。
   // schedules 或 hp 变化 → reschedule（hp 影响选哪句台词作 body）

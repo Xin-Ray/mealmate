@@ -153,8 +153,21 @@ export default function PhotoScreen() {
       const resp = await detectFood(imageUri);
       setDetections(resp.detections);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setDetectError(msg);
+      // issue #2：把 raw error 翻成对用户有意义的话。
+      // AbortError / Network request failed → 用户的网/服务可达性问题；
+      // "detect 5xx" → 后端炸了；其他 → 兜底文案。打卡不阻塞，只在 UI 提示。
+      const raw = e instanceof Error ? e.message : String(e);
+      const isAbort =
+        (e as { name?: string } | null)?.name === "AbortError" ||
+        raw.includes("aborted");
+      const isNetwork = raw.includes("Network request failed");
+      const friendly =
+        isAbort || isNetwork
+          ? "网络好像不太给力，这次识别先跳过——餐已经打卡了 ✓"
+          : raw.startsWith("detect 5")
+            ? "识别服务暂时累了，等会儿再来——这餐已经打卡 ✓"
+            : "识别先跳过了，餐已经打卡 ✓";
+      setDetectError(friendly);
     }
 
     // 重拍场景：本次 modal 已经打过卡，跳过 +HP 和 dialogue，只更新识别结果
@@ -331,9 +344,7 @@ export default function PhotoScreen() {
 
             {detectError && detections.length === 0 && (
               <View className="bg-white border border-cardBorder rounded-2xl px-5 py-3 mt-3 w-full">
-                <Text className="text-sub text-xs">
-                  识别服务没连上，餐已打卡。{"\n"}({detectError})
-                </Text>
+                <Text className="text-sub text-xs">{detectError}</Text>
               </View>
             )}
 

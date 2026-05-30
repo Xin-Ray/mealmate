@@ -12,6 +12,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.xinray.mealmate",
       "buildNumber": "1",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "mealmate 需要相机权限来记录你的三餐照片，让小伙伴知道你吃过了。",
         "NSPhotoLibraryUsageDescription": "mealmate 需要访问相册以选择三餐照片。"
@@ -50,7 +51,8 @@
         }
       ],
       "expo-web-browser",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,

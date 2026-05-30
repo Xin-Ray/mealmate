@@ -139,6 +139,13 @@ type State = {
 
   // HP 时间线 — addHp 每次追加一条；滑窗 HP_HISTORY_CAP 条（约 90 天 × 5 次/天）
   hpHistory: HpHistoryEntry[];
+
+  // ====== v12 云端同步（issue #4 #5） ======
+  // 云端同步账号。signIn 后写入，signOut/账号删除时清掉。null = 未登录，
+  // 走纯本地模式（仍可用，只是没有云端备份/跨设备）。
+  account: { userId: string; token: string; email: string | null } | null;
+  // 上次 push 成功的时间戳（ms），用于 UI 显示 "刚刚同步" 之类的提示
+  lastSyncedAt: number | null;
 };
 
 type Actions = {
@@ -195,6 +202,11 @@ type Actions = {
   // 不暴露给 UI 直接调（idempotent，多次调安全）
   __internal_runStage5Check: () => void;
 
+  // v12 云端账号同步（issue #4 #5）
+  signIn: (account: { userId: string; token: string; email: string | null }) => void;
+  signOut: () => void;
+  setLastSyncedAt: (ts: number) => void;
+
   // Dev-only：bypass 业务规则的直接 setter，仅在 __DEV__ 守卫的开发者面板里调用
   __dev_setHp: (n: number) => void;
   __dev_setStage: (s: 1 | 2 | 3 | 4 | 5) => void;
@@ -247,6 +259,9 @@ const initialState: State = {
   stage5Stars: 0,
   stage5LastStarCheck: null,
   hpHistory: [],
+  // v12 云端同步（issue #4 #5）
+  account: null,
+  lastSyncedAt: null,
 };
 
 // HP 重置到 90（demote 之后）—— stage>1 退到 N-1 也用 90，stage 1 不变 stage 也用 90
@@ -570,6 +585,10 @@ export const useStore = create<State & Actions>()(
       hasSeenTransition: (stage, kind) =>
         get().transitionsSeen.some((t) => t.stage === stage && t.kind === kind),
 
+      signIn: (account) => set({ account }),
+      signOut: () => set({ account: null, lastSyncedAt: null }),
+      setLastSyncedAt: (ts) => set({ lastSyncedAt: ts }),
+
       __dev_setHp: (n) => set({ hp: clampHp(n) }),
       __dev_setStage: (s) => set({ currentStage: s }),
       __dev_resetToday: () =>
@@ -666,7 +685,7 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 11,
+      version: 12,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
@@ -694,6 +713,9 @@ export const useStore = create<State & Actions>()(
       //     （正在 stage 5 的老用户 StartedAt 设 Date.now()，60 天倒数从迁移时算起 —
       //      让步，因为没有真实进入 stage 5 的时间戳）
       //   - hpHistory  回填 []（从 v1.1 起累积；详 doc §十二 risk 11）
+      // v11 → v12: 加 account / lastSyncedAt（云端同步，issue #4 #5）。老用户默认
+      //          null（未登录），走纯本地模式跟之前没区别。settings 里点 Sign in
+      //          with Apple 才进入云同步。
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as State & Actions;
@@ -771,6 +793,11 @@ export const useStore = create<State & Actions>()(
               ps.currentStage === 5 ? Date.now() : null;
           }
           if (!Array.isArray(ps.hpHistory)) ps.hpHistory = [];
+        }
+        if (version < 12) {
+          // v12 云端同步（issue #4 #5）
+          if (ps.account === undefined) ps.account = null;
+          if (ps.lastSyncedAt === undefined) ps.lastSyncedAt = null;
         }
         return persistedState as State & Actions;
       },

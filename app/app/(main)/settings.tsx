@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -12,10 +12,18 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { useStore, type Ethnicity, type Gender } from "@src/store/useStore";
 import { hpBandFromValue, pickDialogue } from "@src/data/dialogues";
 import { triggerTestNotification } from "@src/services/notifications";
 import { selectStandardWeight } from "@src/store/selectors/standardWeight";
+import {
+  deleteAccount,
+  isAppleSignInAvailable,
+  logout,
+  signInWithApple,
+} from "@src/services/auth";
+import { syncOnSignIn } from "@src/services/sync";
 import Card from "@src/components/ui/Card";
 import { colors } from "@src/theme/tokens";
 import type { MealSlot } from "@src/types";
@@ -85,6 +93,11 @@ export default function SettingsScreen() {
   const devSetHp = useStore((s) => s.__dev_setHp);
   const devSetStage = useStore((s) => s.__dev_setStage);
   const devResetToday = useStore((s) => s.__dev_resetToday);
+  const account = useStore((s) => s.account);
+  const lastSyncedAt = useStore((s) => s.lastSyncedAt);
+  const signInStore = useStore((s) => s.signIn);
+  const signOutStore = useStore((s) => s.signOut);
+  const setLastSyncedAtStore = useStore((s) => s.setLastSyncedAt);
 
   // v1.1 健康数据
   const height = useStore((s) => s.height);
@@ -105,21 +118,96 @@ export default function SettingsScreen() {
   const [targetText, setTargetText] = useState(
     targetWeight != null ? targetWeight.toFixed(1) : ""
   );
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+
+  useEffect(() => {
+    isAppleSignInAvailable().then(setAppleAvailable);
+  }, []);
 
   const slots: MealSlot[] = ["breakfast", "lunch", "dinner"];
 
+  const onSignIn = async () => {
+    if (authBusy) return;
+    setAuthBusy(true);
+    try {
+      const credential = await signInWithApple();
+      // 顺序很重要：先把云端数据同步完，再写 account 进 store，
+      // 否则 _layout 里的 subscriber 会先 push 一次本地状态（5s 节流也能赶上 race）。
+      const result = await syncOnSignIn(credential.token);
+      signInStore({
+        userId: credential.user_id,
+        token: credential.token,
+        email: credential.email,
+      });
+      setLastSyncedAtStore(Date.now());
+      Alert.alert(
+        "登录成功",
+        result === "uploaded"
+          ? "已把本地数据备份到云端。"
+          : result === "downloaded"
+            ? "已从云端恢复你的数据。"
+            : "已登录。当前云端数据版本与 app 不匹配，请稍后再同步。"
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // 用户取消 Apple 弹窗会抛 ERR_REQUEST_CANCELED，不算错误
+      if (!msg.includes("CANCELED") && !msg.includes("canceled")) {
+        Alert.alert("登录失败", msg);
+      }
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const onSignOut = async () => {
+    if (!account) return;
+    Alert.alert("退出登录", "本地数据会保留。云端备份在你下次登录时仍可恢复。", [
+      { text: "取消", style: "cancel" },
+      {
+        text: "退出",
+        style: "destructive",
+        onPress: async () => {
+          await logout(account.token);
+          signOutStore();
+        },
+      },
+    ]);
+  };
+
   const onDeleteAccount = () => {
-    Alert.alert("删除账号", "会清空所有本地数据，无法找回。", [
+    const signedIn = account != null;
+    const msg = signedIn
+      ? "会同时删除云端账号和所有本地数据，无法找回。"
+      : "会清空所有本地数据，无法找回。";
+    Alert.alert("删除账号", msg, [
       { text: "取消", style: "cancel" },
       {
         text: "删除",
         style: "destructive",
         onPress: async () => {
+          if (signedIn) {
+            try {
+              await deleteAccount(account.token);
+            } catch (e) {
+              const m = e instanceof Error ? e.message : String(e);
+              Alert.alert("云端账号删除失败", `${m}\n\n仍继续清空本地数据。`);
+            }
+          }
           await resetAll();
           router.replace("/onboarding/eating");
         },
       },
     ]);
+  };
+
+  const formatLastSynced = (ts: number | null): string => {
+    if (!ts) return "尚未同步";
+    const diff = Date.now() - ts;
+    if (diff < 60_000) return "刚刚";
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`;
+    return `${Math.floor(diff / 86_400_000)} 天前`;
   };
 
   return (
@@ -377,6 +465,68 @@ export default function SettingsScreen() {
             <Text style={{ color: "#FFFFFF", fontSize: 14 }}>保存</Text>
           </Pressable>
         </Card>
+
+        {/* 云端账号（v10：Sign in with Apple + JSON snapshot 同步） */}
+        <SectionLabel>云端账号</SectionLabel>
+        {account ? (
+          <Card style={{ paddingVertical: 0, paddingHorizontal: 20 }}>
+            <View style={{ paddingVertical: 16 }}>
+              <Text style={{ fontSize: 16, color: colors.ink.primary }}>
+                {account.email ?? "Apple ID 已登录"}
+              </Text>
+              <Text
+                className="mt-1"
+                style={{ fontSize: 12, color: colors.ink.sub }}
+              >
+                上次同步：{formatLastSynced(lastSyncedAt)}
+              </Text>
+            </View>
+            <Divider />
+            <Pressable
+              onPress={onSignOut}
+              style={{ paddingVertical: 16 }}
+            >
+              <Text style={{ fontSize: 16, color: colors.ink.primary }}>
+                退出登录
+              </Text>
+            </Pressable>
+          </Card>
+        ) : (
+          <Card>
+            <Text
+              className="mb-3"
+              style={{ fontSize: 13, color: colors.ink.sub, lineHeight: 18 }}
+            >
+              登录后会自动把数据备份到云端，换设备时可恢复。当前只支持 iOS Sign
+              in with Apple。
+            </Text>
+            {appleAvailable ? (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={
+                  AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                }
+                buttonStyle={
+                  AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                }
+                cornerRadius={12}
+                style={{ width: "100%", height: 48 }}
+                onPress={onSignIn}
+              />
+            ) : (
+              <Text style={{ fontSize: 13, color: colors.ink.sub }}>
+                此设备不支持 Sign in with Apple。
+              </Text>
+            )}
+            {authBusy && (
+              <Text
+                className="mt-2"
+                style={{ fontSize: 12, color: colors.ink.sub }}
+              >
+                登录中…
+              </Text>
+            )}
+          </Card>
+        )}
 
         {/* 偏好开关 */}
         <SectionLabel>偏好</SectionLabel>
