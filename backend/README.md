@@ -62,15 +62,38 @@ cd backend
 .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### prod (systemd)
+### prod (systemd + Cloudflare Tunnel)
+
+后端 = 两个 systemd unit：`mealmate.service` (uvicorn) + `cloudflared.service`
+(tunnel)。Tunnel 把 `https://api.flykid.xyz` 转发到本机 8000，搞定 HTTPS
++ 公网入站，不依赖路由器端口转发或动态 IP。
 
 ```bash
+# 1. 装 uvicorn (mealmate.service)
 sudo cp mealmate.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now mealmate
-systemctl status mealmate
+systemctl status mealmate          # active (running)
+curl http://127.0.0.1:8000/health  # 本机直连验证
+
+# 2. 装 cloudflared tunnel (cloudflared.service)
+# 前置：~/bin/cloudflared 已下载 + 已 `cloudflared tunnel login` 拿到 cert.pem
+#       + `cloudflared tunnel create mealmate` + ~/.cloudflared/config.yml + DNS 记录
+# 详细操作步骤见 docs/issue-fix-plan-v1.1.md §6.3
+sudo cp cloudflared.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now cloudflared
+systemctl status cloudflared
+curl https://api.flykid.xyz/health  # 公网 HTTPS 验证
+
+# 实时日志
 journalctl -u mealmate -f
+journalctl -u cloudflared -f
 ```
+
+**注意 venv shebang 坑**：`mealmate.service` 的 `ExecStart` 用
+`.venv/bin/python -m uvicorn` 而不是 `.venv/bin/uvicorn`，因为后者 shebang 写
+死 venv 路径，venv 一搬就失效。详 service 文件里的注释。
 
 ### 测试
 

@@ -168,51 +168,53 @@ eas submit --profile production --platform ios --latest
 
 可选验证：`eas env:list --environment production` 确认 4 个 env 都在。
 
-### 6.2 后端 systemd 持久化
+### 6.2 后端 systemd 持久化 — 待 sudo
 
-后端现在用 `nohup` 跑着 (pid 7595)，机器一重启就死。`mealmate.service` 已经在
-`/home/xin/document/mealmate/backend/mealmate.service`，需要装到 systemd：
+后端代码已经迁到 `mealmate-app/backend/`（monorepo），venv 也搬过来了。
+现在 `nohup` 跑着，重启就死。装 systemd：
 
 ```bash
-sudo cp /home/xin/document/mealmate/backend/mealmate.service /etc/systemd/system/
+sudo cp /home/xin/document/mealmate-app/backend/mealmate.service /etc/systemd/system/
 sudo systemctl daemon-reload
+# 先 kill 当前 nohup uvicorn（不然端口冲突），再 enable
+pkill -f "python -m uvicorn app.main" 2>/dev/null
 sudo systemctl enable --now mealmate
-# 杀掉旧的 nohup（systemd 会绑同一个 8000 端口，必须先 kill 它）
-kill 7595 2>/dev/null
-sudo systemctl restart mealmate
-systemctl status mealmate                 # 看绿灯
+systemctl status mealmate                 # active (running)
 curl http://127.0.0.1:8000/health         # 200 OK
-journalctl -u mealmate -f                 # 看实时日志
+journalctl -u mealmate -f                 # 实时日志
 ```
 
-### 6.3 后端公网化（你已选 DDNS + 端口转发）
+ExecStart 用 `python -m uvicorn` 而不是 `.venv/bin/uvicorn` —— venv 是从旧位置
+mv 过来的，console script shebang 写死旧路径，直接调会找不到 python3.12。
+`python -m` 形式不依赖 shebang。
 
-操作目标：让用户的 iPhone 能直接 HTTPS 访问到 mealmate backend。
+### 6.3 后端公网化（Cloudflare Tunnel 已就绪）✅
 
-```
-[ TestFlight App ] --HTTPS--> [ 公网域名:443 ] --DNS A--> [ 你的公网 IP ]
-                                                                |
-                                                           [ 路由器 ]
-                                                                |
-                                                       [ 转发到 192.168.1.157:8000 ]
-                                                                |
-                                                         [ uvicorn / systemd ]
-```
+NS 已切 CF + tunnel `mealmate` 已建好，绑 `api.flykid.xyz`。当前 `nohup` 跑着
+(`/tmp/cloudflared.log`)，机器重启就死。装 systemd：
 
-步骤（不依赖 Cloudflare）：
-1. 路由器后台开 DDNS（Synology / FRITZ! / OpenWrt 都自带）；记下分配到的域名，例如 `xinray.dyndns.org`
-2. 路由器 NAT 端口转发：外部 `443` → 内部 `192.168.1.157:8000`
-3. iOS ATS 默认禁明文 HTTP，所以**必须 HTTPS**：
-   - 推荐 cloudflared sidecar（最省事）：`cloudflared tunnel --url http://localhost:8000`，免费、自动 TLS、出 `*.trycloudflare.com` 域名
-   - 或反向代理走 Let's Encrypt（caddy / nginx + certbot），更稳定但要装东西
-4. 域名拿到后，让我改 `apiClient.ts` 和 `foodDetection.ts` 的 `DEFAULT_BASE`，或者直接在 EAS env 里 `EXPO_PUBLIC_API_BASE=https://<域名>`
-
-如果**只想先验证 sync 跑通**，可以临时用 `cloudflared` 起一个隧道，不依赖路由器配置：
 ```bash
-# 在后端机器上跑
-cloudflared tunnel --url http://localhost:8000
-# 输出会给你一个 https://xxx-xxx-xxx.trycloudflare.com 临时域名
-# 直接拿去填 EXPO_PUBLIC_API_BASE 测试，关掉隧道就失效
+sudo cp /home/xin/document/mealmate-app/backend/cloudflared.service /etc/systemd/system/
+sudo systemctl daemon-reload
+# 先 kill 当前 nohup cloudflared
+pkill -f "cloudflared tunnel" 2>/dev/null
+sudo systemctl enable --now cloudflared
+systemctl status cloudflared
+curl https://api.flykid.xyz/health        # 公网验证 → 200 OK
+journalctl -u cloudflared -f
+```
+
+域名验证（已通过）：
+- `curl https://api.flykid.xyz/health` → `{"status":"ok","device":"cuda:0","model_loaded":true}`
+- `curl -X POST https://api.flykid.xyz/ocr/weight -F image=@<图>` → `kg=60.5, conf=0.9995, 175ms`
+
+EAS env 同步加 API base（覆盖前端默认 LAN IP）：
+```bash
+cd /home/xin/document/mealmate-app/app
+eas env:create --environment production --name EXPO_PUBLIC_API_BASE --value 'https://api.flykid.xyz' --visibility plain
+eas env:create --environment production --name EXPO_PUBLIC_DETECT_API_BASE --value 'https://api.flykid.xyz' --visibility plain
+eas env:create --environment preview --name EXPO_PUBLIC_API_BASE --value 'https://api.flykid.xyz' --visibility plain
+eas env:create --environment preview --name EXPO_PUBLIC_DETECT_API_BASE --value 'https://api.flykid.xyz' --visibility plain
 ```
 
 ### 6.4 验证清单（公网域名就绪后）
