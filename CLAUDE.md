@@ -37,25 +37,9 @@ Copy `app/.env.example` → `app/.env.local` (gitignored). Only `EXPO_PUBLIC_*` 
 
 The Gemini key is bundle-visible — fine for closed beta, must move behind a Cloudflare Worker before launch (`docs/dev-log.md`).
 
-## Bundle ID / 环境标识
+## Bundle ID / 双环境
 
-mealmate 有两套预期 bundle ID：
-
-- **production**（TestFlight + App Store）：`com.xinray.mealmate`，app 名 `MealMate`
-- **dev**（本地 Xcode build）：`com.xinray.mealmate.dev`，app 名 `MealMate Dev`
-
-dev bundle 拆分实现在 `feat/env-split` 分支（`app.config.ts` 按 `APP_VARIANT` env 切），但有已知 **`ios/mealmate.xcodeproj/project.pbxproj` 同步问题**：`expo run:ios` 不会自动把 `PRODUCT_BUNDLE_IDENTIFIER` 从 `app.config.ts` 同步到 pbxproj，所以即使设了 `APP_VARIANT=dev`，装上去的 bundle 还是 `com.xinray.mealmate`，会覆盖 TestFlight 那个安装。
-
-**变通办法（选一）**：
-
-- `APP_VARIANT=dev npx expo prebuild --clean` 重生 ios 目录（会清掉 Xcode 手工签名设置，需要重新在 Xcode 里点 Try Again 绑 profile）
-- 或直接改 pbxproj 加 build settings 条件：`PRODUCT_BUNDLE_IDENTIFIER[config=Debug] = com.xinray.mealmate.dev`
-
-**当前状态（2026-05-30）**：`feat/stage-4-5-ui` 分支没合 `feat/env-split`，本地 dev build = production bundle，会覆盖 TestFlight。如需双 bundle 并存，先把 `feat/env-split` 合进来 + 修 pbxproj 同步。
-
-AsyncStorage namespace 在 `feat/env-split` 已经按 variant 拆分（`mealmate-store` vs `mealmate-store-dev`），所以即使 native bundle 撞，JS 数据层是隔离的（只是 dev 数据看不见 TestFlight 那份）。
-
-详跟踪：`docs/v1.1-feedback-r1.md` OPEN-R1-D。
+prod (`com.xinray.mealmate`) vs dev (`com.xinray.mealmate.dev`) — Debug/Release config 在 pbxproj 里硬切，并存不撞。完整说明 + 已知 fragility（`ios/` gitignore）见仓库根 [`README.md`](./README.md) "Bundle ID / 双环境约定" 段。
 
 ## Architecture
 
