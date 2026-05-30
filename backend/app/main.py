@@ -19,6 +19,7 @@ from .auth import (
 )
 from .db import get_conn, init_db, now_iso
 from .detector import FoodDetector
+from .ocr import weight_ocr
 
 app = FastAPI(title="MealMate Backend")
 
@@ -54,6 +55,24 @@ async def detect(image: UploadFile = File(...)) -> dict:
     return {
         "detections": detections,
         "model": detector.weights_name,
+        "inference_ms": round(inference_ms, 2),
+    }
+
+
+@app.post("/ocr/weight")
+async def ocr_weight(image: UploadFile = File(...)) -> dict:
+    """体重秤照片 → kg。无识别结果时 kg=null，客户端回退到手填。"""
+    raw = await image.read()
+    try:
+        img = Image.open(BytesIO(raw)).convert("RGB")
+    except (UnidentifiedImageError, OSError):
+        raise HTTPException(status_code=400, detail="invalid image file")
+
+    kg, confidence, raw_text, inference_ms = weight_ocr.recognize(img)
+    return {
+        "kg": kg,
+        "confidence": round(confidence, 4),
+        "raw_text": raw_text,
         "inference_ms": round(inference_ms, 2),
     }
 

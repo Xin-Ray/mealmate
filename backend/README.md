@@ -1,8 +1,9 @@
 # MealMate Backend
 
-FastAPI + YOLOv8 + SQLite。为前端 (`../app/`) 提供：
+FastAPI + YOLOv8 + EasyOCR + SQLite。为前端 (`../app/`) 提供：
 
 - `POST /detect` — 食物图像识别（YOLOv8n，COCO 食物类过滤），GPU 推理
+- `POST /ocr/weight` — 体重秤数字识别（EasyOCR CRNN），GPU 推理
 - `POST /auth/apple` — Apple Sign-In identity token 校验 + 签发 session token
 - `POST /auth/logout` / `DELETE /auth/me` — 登出 / 注销
 - `POST /sync/push` / `GET /sync/pull` — 整包 JSON 同步（key-value，最后写赢）
@@ -21,7 +22,8 @@ backend/
 │   ├── main.py            # FastAPI 入口（uvicorn app.main:app）
 │   ├── auth.py            # Apple JWT 校验 + session token
 │   ├── db.py              # SQLite schema + connection 管理
-│   └── detector.py        # YOLOv8 封装 + 食物类过滤
+│   ├── detector.py        # YOLOv8 封装 + 食物类过滤
+│   └── ocr.py             # EasyOCR 封装 + 体重秤数字提取
 ├── data/                  # 运行时数据（.gitignored，首次 init_db 自动创建）
 │   ├── mealmate.db
 │   └── backups/
@@ -111,7 +113,6 @@ SQLite (`data/mealmate.db`)，三张表：
 
 ## TODO
 
-- 体重秤 OCR endpoint（issue：TestFlight 上挂）：本地 PaddleOCR / EasyOCR，
-  `POST /ocr/weight`，输入图，输出 `{ kg: number | null, confidence }`。
-  替换前端当前直连 Gemini Vision 的路径。
+- ~~体重秤 OCR endpoint~~ ✅ 已实现，EasyOCR CRNN（`feat/ocr-weight-backend`）
 - 公网化（Cloudflare Tunnel）：见 `../docs/issue-fix-plan-v1.1.md` §6.3
+- 前端 `weightOcr.ts` 切到调本地 `/ocr/weight`（替换 Gemini Vision）— 单独前端分支做

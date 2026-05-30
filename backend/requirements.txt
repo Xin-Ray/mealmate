@@ -4,6 +4,9 @@
 #   pip install torch==2.3.1 torchvision==0.18.1 \
 #     --index-url https://download.pytorch.org/whl/cu121
 ultralytics>=8.2.0,<8.5.0
+# EasyOCR — 体重秤数字识别（替换前端 Gemini Vision，TestFlight 上不可达问题）
+# 首次启动会下载 detection + recognition 模型到 ~/.EasyOCR/（~150MB），用 GPU 推理
+easyocr>=1.7.0,<1.8.0
 fastapi>=0.110.0
 uvicorn[standard]>=0.27.0
 python-multipart>=0.0.9
