@@ -8,7 +8,9 @@
 // 不直接抛 Response，统一封装成 ApiError，message 含 status + body 摘要，
 // caller 可按 status 决定降级或重试。
 
-const DEFAULT_BASE = "http://192.168.1.157:8000";
+// 默认走公网 Cloudflare Tunnel（自动 HTTPS）；dev 跑本地后端时 .env.local
+// 里设 EXPO_PUBLIC_API_BASE=http://<LAN-IP>:8000 覆盖即可
+const DEFAULT_BASE = "https://api.flykid.xyz";
 
 export const getApiBase = (): string => {
   const v =

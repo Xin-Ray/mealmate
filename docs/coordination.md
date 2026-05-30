@@ -56,7 +56,7 @@
 | Session | 分支 | 摸到的共享文件 | 状态 |
 |---|---|---|---|
 | frontend | `feat/frontend-v1.1-r2`（基于 origin/main `9eedf49`）| 暂无（idle，等任务） | 2026-05-30 audit + setup |
-| backend | *(等 backend 自己来登记)* | — | — |
+| backend | `chore/sync-frontend-flykid`（基于 main `a2a8831`）| `app/src/services/weightOcr.ts` / `apiClient.ts` / `foodDetection.ts` —— **app/ 下的前端文件**，但内容是 backend API 接入（DEFAULT_BASE 切公网域名 + weightOcr 从 Gemini Vision 切到后端 /ocr/weight）| 2026-05-30 19:00 进行中 @frontend |
 
 ---
 
