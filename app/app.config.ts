@@ -37,6 +37,8 @@ const config: ExpoConfig = {
       NSCameraUsageDescription:
         "mealmate 需要相机权限来记录你的三餐照片，让小伙伴知道你吃过了。",
       NSPhotoLibraryUsageDescription: "mealmate 需要访问相册以选择三餐照片。",
+      // App Store 加密合规：app 不用自家加密 → 不触发出口管制问卷
+      ITSAppUsesNonExemptEncryption: false,
     },
   },
   android: {
@@ -79,9 +81,14 @@ const config: ExpoConfig = {
     typedRoutes: true,
     reactCompiler: true,
   },
+  owner: "xinxiang",
   extra: {
     // useStore.ts 读这个切 STORE_KEY (mealmate-store-dev vs mealmate-store)
     appVariant: VARIANT,
+    eas: {
+      // 历史 eas init 生成（commit 16aa1c1），重新引入 app.config.ts 时漏了
+      projectId: "ad1dcf2a-0e7e-4d2b-b637-ee2c94da6dd0",
+    },
   },
 };
 
