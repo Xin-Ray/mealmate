@@ -9,9 +9,11 @@
 
 | 角色 | 范围 |
 |---|---|
-| **frontend**（cowork session）| UI 反馈实现 / RN 组件 / stage home 复用 / 样式 / 设计落地 / 文案 / icon / onboarding flow |
-| **backend**（Claude Code session）| 账号同步 / Apple Sign In / Gemini key / EAS env / API / 推送 / sync 协议 / Cloudflare / systemd / DDNS / backend/ 目录 |
-| **共享文件**（双方都可改但要登记）| `app/src/store/useStore.ts` schema（特别是加字段）/ selectors / `docs/PRD.md` / `docs/components.md` / `app/src/theme/tokens.ts` / `CLAUDE.md` / `app/app.json` |
+| **frontend**（cowork session）| UI 反馈实现 / RN 组件 / stage home 复用 / 样式 / 设计落地 / 文案 / icon / onboarding flow / `app/app.config.ts`（expo config）|
+| **backend**（Claude Code session）| 账号同步 / Apple Sign In / Gemini key / EAS env / API / 推送 / sync 协议 / Cloudflare / systemd / DDNS / backend/ 目录 / `ios/mealmate.xcodeproj/project.pbxproj` |
+| **共享文件**（双方都可改但要登记）| `app/src/store/useStore.ts` schema（特别是加字段）/ selectors / `docs/PRD.md` / `docs/components.md` / `app/src/theme/tokens.ts` / `CLAUDE.md` / `app/eas.json` |
+
+> ⚠️ **2026-05-30 r2 起：`app/app.config.ts` 是 canonical（**没有 `app.json`**）。frontend 维护。backend 如果要加 expo config 字段，请在 `app.config.ts` 里加，**不要新建 `app.json`**（expo 优先级 app.config.ts > app.json，新建 app.json 不会生效，反而让人困惑）。 bundleId 仍然由 pbxproj 决定（backend 领地）—— `app.config.ts` 里 `ios.bundleIdentifier` 只是 prebuild base value，不会覆盖现 pbxproj 配置。
 
 ---
 

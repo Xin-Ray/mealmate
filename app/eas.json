@@ -8,12 +8,18 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "dev"
+      },
       "ios": {
         "simulator": false
       }
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "production"
+      },
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release"
@@ -21,6 +27,9 @@
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "production"
+      },
       "ios": {
         "buildConfiguration": "Release"
       }
