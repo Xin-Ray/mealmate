@@ -18,7 +18,7 @@ from .auth import (
     verify_apple_identity_token,
 )
 from .db import get_conn, init_db, now_iso
-from .detector import FoodDetector
+from .detector import food_classifier
 from .ocr import weight_ocr
 
 app = FastAPI(title="MealMate Backend")
@@ -31,30 +31,53 @@ app.add_middleware(
 )
 
 init_db()
-detector = FoodDetector()
 
 
 @app.get("/health")
 def health() -> dict:
     return {
         "status": "ok",
-        "device": detector.device,
+        "device": food_classifier.device,
         "model_loaded": True,
+        "model": food_classifier.model_name,
+        "threshold_high": food_classifier.threshold_high,
+        "threshold_low": food_classifier.threshold_low,
     }
 
 
 @app.post("/detect")
 async def detect(image: UploadFile = File(...)) -> dict:
+    """v1.1.2: Food-101 classifier。
+
+    返回:
+      is_food (bool)        — 是否判定为食物 (基于 confidence 阈值)
+      food_label (str|null) — 中文食物名 ("炒饭" / "披萨" / "美食" 兜底 / None 当 !is_food)
+      confidence (float)    — top-1 confidence (0-1)
+      top_predictions       — [{label, label_en, confidence}] top-K 候选
+      detections            — v1.0 兼容字段，扁平化 [{label, confidence}]
+      model                 — 模型 ID
+      inference_ms (float)
+    """
     raw = await image.read()
     try:
         img = Image.open(BytesIO(raw)).convert("RGB")
     except (UnidentifiedImageError, OSError):
         raise HTTPException(status_code=400, detail="invalid image file")
 
-    detections, inference_ms = detector.detect(img)
+    is_food, food_label, confidence, top_preds, inference_ms = food_classifier.classify(img)
+
+    # v1.0 兼容：旧前端 (未升级到 v1.1.2 contract) 至少能拿到 detections 数组
+    detections = [
+        {"label": p["label"], "confidence": p["confidence"]} for p in top_preds
+    ]
+
     return {
+        "is_food": is_food,
+        "food_label": food_label,
+        "confidence": round(confidence, 4),
+        "top_predictions": top_preds,
         "detections": detections,
-        "model": detector.weights_name,
+        "model": food_classifier.model_name,
         "inference_ms": round(inference_ms, 2),
     }
 
