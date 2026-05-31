@@ -81,6 +81,32 @@ npx expo run:ios --device                       # 无 APP_VARIANT prefix
 
 build 一次约 2-5 分钟（增量）/ 8-15 分钟（clean）。
 
+## Backend 部署（Claude 可直接跑的 sudo 命令）
+
+后端在本机 systemd 上 (`mealmate.service` + `cloudflared.service`)，
+公网入口 `https://api.flykid.xyz`。改完后端代码后 systemd 必须 reload + restart 才会加载新版本。
+
+Claude 可以直接跑的命令（前提：xin 配过 `/etc/sudoers.d/mealmate-claude` NOPASSWD，
+跑过一次 `sudo bash backend/scripts/install-claude-sudo.sh`）：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart mealmate
+sudo systemctl restart cloudflared       # 改了 cloudflared 配置 / cert 失效时才用
+sudo systemctl status mealmate cloudflared --no-pager
+sudo cp backend/mealmate.service /etc/systemd/system/      # 改了 service 文件后装新版本
+sudo cp backend/cloudflared.service /etc/systemd/system/
+journalctl -u mealmate -f                 # 实时看日志（不需要 sudo）
+```
+
+**触发场景**：
+- 改了 `backend/app/*.py` → `daemon-reload` 不需要 + `restart mealmate`
+- 改了 `backend/mealmate.service` → `cp` 装到 `/etc/systemd/system/` + `daemon-reload` + `restart mealmate`
+- 改了 `backend/.env`（GEMINI_API_KEY 等） → 只 `restart mealmate`（不要 reload，service 文件没改）
+- 改了 `cloudflared` config / tunnel 路由 → reload + restart cloudflared
+
+**不要**直接 `pkill uvicorn` 杀进程 — systemd 会重启，但会进 fail loop。永远用 `systemctl restart`。
+
 ## Architecture
 
 ### Routing (expo-router, typed routes on)
