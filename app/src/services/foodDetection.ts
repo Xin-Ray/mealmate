@@ -1,10 +1,18 @@
 // 食物识别后端的调用层。
 //
-// 后端契约见 mealmate (backend) README §5：
+// 后端契约 v1.1.2（Food-101 classifier，HF nateraw/food）：
 //   POST /detect, multipart/form-data, field name = "image"
-//   200 -> { detections: [{label, bbox, confidence}], model, inference_ms }
+//   200 → {
+//     is_food: boolean,
+//     food_label: string | null,       // 中文，"美食"/"炒饭"... 或 null（!is_food）
+//     confidence: number,
+//     top_predictions: [{label, label_en, confidence}],
+//     detections: [{label, confidence}],  // v1.0 兼容字段
+//     model: string,
+//     inference_ms: number
+//   }
 //
-// 失败策略：抛错让 caller 决定降级（photo.tsx 选择"识别失败也允许打卡"）。
+// caller (photo.tsx) 拿 isFood / foodLabel 决定是否打卡 + 显示什么名字。
 
 // 默认走公网 Cloudflare Tunnel（同一台 backend，跟 apiClient 共用域名）。
 // dev 跑本地后端时 .env.local 里设 EXPO_PUBLIC_DETECT_API_BASE=http://<LAN-IP>:8000
@@ -18,16 +26,19 @@ const baseUrl = (): string => {
   return (env && env.trim()) || DEFAULT_BASE;
 };
 
-export type Detection = {
-  label: string;
-  bbox: [number, number, number, number]; // x1, y1, x2, y2
-  confidence: number;
+export type TopPrediction = {
+  label: string;        // 中文
+  labelEn: string;      // 英文原始 Food-101 标签
+  confidence: number;   // 0-1
 };
 
-export type DetectResponse = {
-  detections: Detection[];
+export type DetectResult = {
+  isFood: boolean;
+  foodLabel: string | null;   // 中文，"美食"/"炒饭"... 或 null
+  confidence: number;          // top-1 confidence
+  topPredictions: TopPrediction[];
   model: string;
-  inference_ms: number;
+  inferenceMs: number;
 };
 
 const guessMime = (uri: string): string => {
@@ -44,13 +55,13 @@ const guessName = (uri: string): string => {
   return "upload.jpg";
 };
 
-// 12s 超时：GPU 端推理只要 <100ms，主要花在上传，弱网也够。
+// 12s 超时：GPU 端推理只要 <100ms（首次 350MB 模型 lazy load 可能到几秒），
+// 主要花在上传。弱网也够。
 const TIMEOUT_MS = 12_000;
 
-export async function detectFood(imageUri: string): Promise<DetectResponse> {
+export async function detectFood(imageUri: string): Promise<DetectResult> {
   const url = `${baseUrl()}/detect`;
   const form = new FormData();
-  // RN/Expo 的 FormData 接收 {uri, name, type} 形态
   form.append("image", {
     uri: imageUri,
     name: guessName(imageUri),
@@ -69,7 +80,26 @@ export async function detectFood(imageUri: string): Promise<DetectResponse> {
     if (!resp.ok) {
       throw new Error(`detect ${resp.status}: ${await resp.text()}`);
     }
-    return (await resp.json()) as DetectResponse;
+    const j = (await resp.json()) as {
+      is_food: boolean;
+      food_label: string | null;
+      confidence: number;
+      top_predictions?: Array<{ label: string; label_en: string; confidence: number }>;
+      model: string;
+      inference_ms: number;
+    };
+    return {
+      isFood: j.is_food,
+      foodLabel: j.food_label,
+      confidence: j.confidence,
+      topPredictions: (j.top_predictions ?? []).map((p) => ({
+        label: p.label,
+        labelEn: p.label_en,
+        confidence: p.confidence,
+      })),
+      model: j.model,
+      inferenceMs: j.inference_ms,
+    };
   } finally {
     clearTimeout(timer);
   }

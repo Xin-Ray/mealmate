@@ -19,13 +19,13 @@ import {
 import CelebrationModal from "@src/components/photo/CelebrationModal";
 import FullnessRatingPicker from "@src/components/ui/FullnessRatingPicker";
 import { pickImageWithFallback, type Source } from "@src/services/imagePicker";
-import { detectFood, type Detection } from "@src/services/foodDetection";
+import { detectFood, type TopPrediction } from "@src/services/foodDetection";
 import type { FullnessScore, MealSlot } from "@src/types";
 
 type Phase = "intro" | "preview" | "uploading" | "rejected" | "result";
 
-// v1.1.1 严格食物验证：detect 0 个食物 → 拒绝打卡；网络/服务挂 → 同样拒绝。
-// 区分原因好让用户知道是「照片不是食物」还是「服务暂时不可达」。
+// v1.1.1 严格食物验证 + v1.1.2 Food-101 后端：detect 判 is_food=false → 拒绝；
+// 网络/服务挂 → 同样拒绝（严格模式无宽容）。区分 reason 给用户准确反馈。
 type RejectReason = "no_food" | "network_fail";
 
 const slotLabel: Record<MealSlot, string> = {
@@ -33,23 +33,6 @@ const slotLabel: Record<MealSlot, string> = {
   lunch: "午餐",
   dinner: "晚餐",
 };
-
-// backend COCO 食物类标签 → 中文（backend/app/detector.py COCO_FOOD_LABELS）
-// 没命中的（理论上不会出现）保留英文原文，至少不丢信息。
-const FOOD_LABEL_ZH: Record<string, string> = {
-  banana: "香蕉",
-  apple: "苹果",
-  sandwich: "三明治",
-  orange: "橙子",
-  broccoli: "西兰花",
-  carrot: "胡萝卜",
-  "hot dog": "热狗",
-  pizza: "披萨",
-  donut: "甜甜圈",
-  cake: "蛋糕",
-};
-
-const zhFood = (label: string): string => FOOD_LABEL_ZH[label] ?? label;
 
 // PRD §11.F.1：通过餐推送 2 条 dialogue（"太棒了！X 看起来不错" + 鼓励话）
 const ENCOURAGE_LINES = [
@@ -86,7 +69,7 @@ export default function PhotoScreen() {
   const [lastSource, setLastSource] = useState<Source>("camera");
   const [doneLine, setDoneLine] = useState<string>("");
   const [encourageLine, setEncourageLine] = useState<string>("");
-  const [detections, setDetections] = useState<Detection[]>([]);
+  const [topPreds, setTopPreds] = useState<TopPrediction[]>([]);
   const [detectError, setDetectError] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState<RejectReason | null>(null);
   // 同一次进入 photo modal 内是否已经打过卡：防止"重拍"导致重复 +HP / 重复推 dialogue。
@@ -154,13 +137,12 @@ export default function PhotoScreen() {
 
     setPhase("uploading");
     setDetectError(null);
-    setDetections([]);
+    setTopPreds([]);
     setRejectReason(null);
 
-    let dets: Detection[] = [];
+    let result;
     try {
-      const resp = await detectFood(imageUri);
-      dets = resp.detections;
+      result = await detectFood(imageUri);
     } catch (e) {
       // 区分 abort/网络 vs 服务挂，给用户更有意义的话。严格模式：无论哪种都拒绝打卡。
       const raw = e instanceof Error ? e.message : String(e);
@@ -180,35 +162,34 @@ export default function PhotoScreen() {
       return;
     }
 
-    // detect 成功但没识别到食物 → 拒绝
-    if (dets.length === 0) {
+    // backend Food-101 判定不是食物 → 拒绝（top-1 confidence < 0.15）
+    if (!result.isFood || !result.foodLabel) {
       setRejectReason("no_food");
       setPhase("rejected");
       return;
     }
 
-    setDetections(dets);
-
-    // 第一个 detection 当主食物名（confidence 最高），喂动态文案
-    const foodName = zhFood(dets[0].label);
+    setTopPreds(result.topPredictions);
+    const foodName = result.foodLabel; // 中文，已由后端翻译（具体名 或 "美食" 兜底）
 
     // detect 通过：开始正式打卡 +HP +dialogue
     // 重拍场景：本次 modal 已经打过卡，跳过 +HP 和 dialogue，只更新识别结果
     if (!confirmedOnce) {
       if (isSnack) {
         // 加餐流：addSnack 内部 push kind='snack_done' dialogue + HP +10
-        // 不写 mealRecord、不要 encourage 第二条、不需要 slot
+        // bodyOverride 用 detect 结果拼，foodLabel 喂 history 留 foodTags 痕迹（v1.1.2）
         const snackBody = `记下了这份 ${foodName} ✓`;
         addSnack({
           photoUri: imageUri ?? undefined,
           bodyOverride: snackBody,
+          foodLabel: foodName,
         });
         setDoneLine(snackBody);
         setEncourageLine("");
       } else {
         markMealDone(realSlot, { photoUri: imageUri ?? undefined });
 
-        // 动态文案：用 detect 第一个 label 拼，让 mascot 看起来真在「看图」（替代 v1.0 的静态池）
+        // 动态文案：用 backend Food-101 中文 label 拼，让 mascot 看起来真在「看图」
         const doneBody = `太棒了！这份 ${foodName} 看起来不错`;
         const encourageBody = pickRandom(ENCOURAGE_LINES);
 
@@ -218,6 +199,7 @@ export default function PhotoScreen() {
           mealSlot: realSlot,
           hpDelta: HP_MEAL_PHOTO_GAIN,
           photoUri: imageUri ?? undefined,
+          foodTags: [foodName],
         });
         pushDialogue({
           kind: "encourage",
@@ -238,7 +220,7 @@ export default function PhotoScreen() {
   // 在 result / rejected 页点"重拍" → 回 intro，清掉本张图和识别结果，confirmedOnce 保留
   const onRetake = () => {
     setImageUri(null);
-    setDetections([]);
+    setTopPreds([]);
     setDetectError(null);
     setRejectReason(null);
     setPhase("intro");
@@ -390,17 +372,17 @@ export default function PhotoScreen() {
               )}
             </View>
 
-            {detections.length > 0 && (
+            {topPreds.length > 0 && (
               <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mt-3 w-full">
                 <Text className="text-sub text-xs mb-2">识别到</Text>
                 <View className="flex-row flex-wrap">
-                  {detections.map((d, i) => (
+                  {topPreds.map((p, i) => (
                     <View
-                      key={`${d.label}-${i}`}
+                      key={`${p.labelEn}-${i}`}
                       className="bg-bg rounded-full px-3 py-1 mr-2 mb-2"
                     >
                       <Text className="text-ink text-sm">
-                        {d.label} · {Math.round(d.confidence * 100)}%
+                        {p.label} · {Math.round(p.confidence * 100)}%
                       </Text>
                     </View>
                   ))}

@@ -73,4 +73,8 @@ export type DialogueRecord = {
   // 仅 kind='failure' 用：失败时所在的阶段（demote 前的 currentStage）
   // 让未来查询 / 统计可以按阶段聚合（不必从 body 字符串解析）
   stageWhenFailed?: number;
+  // v1.1.2 起：meal_done / snack_done 装的食物中文名（来自后端 Food-101 分类，
+  // 高信心时是具体名 "炒饭"/"披萨"，中信心时兜底为 "美食"）。
+  // 用途：feed 显示 + 未来做食物多样性统计。空 = 老记录 / 离线打卡。
+  foodTags?: string[];
 };
