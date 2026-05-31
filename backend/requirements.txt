@@ -7,9 +7,8 @@
 # 首次启动拉 ~350MB 权重到 ~/.cache/huggingface/，部署留好 disk
 # 替换 v1.0 的 ultralytics/YOLOv8（COCO 10 食物类太窄，中餐基本全 reject）
 transformers>=4.40.0,<4.50.0
-# EasyOCR — 体重秤数字识别（替换前端 Gemini Vision，TestFlight 上不可达问题）
-# 首次启动会下载 detection + recognition 模型到 ~/.EasyOCR/（~150MB），用 GPU 推理
-easyocr>=1.7.0,<1.8.0
+# 体重秤 OCR 走 Gemini 2.5 Flash Vision（backend 持有 GEMINI_API_KEY 代理调用），
+# 不需要本地 OCR 模型依赖。之前用 easyocr，但 CRNN 对真实 LCD 7 段数字效果差。
 fastapi>=0.110.0
 uvicorn[standard]>=0.27.0
 python-multipart>=0.0.9

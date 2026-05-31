@@ -15,6 +15,9 @@ Group=xin
 # （比如旧后端 /home/xin/document/mealmate/backend/.venv 搬来这里），shebang
 # 仍指向旧路径会报"找不到 python3.12"。`python -m` 形式不依赖 shebang。
 WorkingDirectory=/home/xin/document/mealmate-app/backend
+# 从 backend/.env 加载 GEMINI_API_KEY / MEALMATE_APPLE_AUDIENCE 等
+# EnvironmentFile= 前缀加 `-` 表示文件不存在不报错（dev 环境可能没 .env）
+EnvironmentFile=-/home/xin/document/mealmate-app/backend/.env
 ExecStart=/home/xin/document/mealmate-app/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 Restart=on-failure
 RestartSec=5
