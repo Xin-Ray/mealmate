@@ -68,7 +68,15 @@ export async function recognizeWeightKg(
       return null;
     }
     const j = (await resp.json()) as OcrResponse;
-    if (j.kg == null) return null;
+    if (j.kg == null) {
+      // 把 raw_text 打到 dev console，方便对照真实秤面排查 EasyOCR 实际看到啥
+      if (__DEV__) {
+        console.warn(
+          `[weightOcr] kg=null raw=${JSON.stringify(j.raw_text)} (${j.inference_ms}ms)`
+        );
+      }
+      return null;
+    }
     if (j.kg < 20 || j.kg > 250) {
       if (__DEV__) console.warn("[weightOcr] out of range:", j.kg);
       return null;

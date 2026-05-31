@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from threading import Lock
 from time import perf_counter
@@ -20,6 +21,13 @@ from typing import Optional
 import numpy as np
 import torch
 from PIL import Image
+
+logger = logging.getLogger("mealmate.ocr")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("[ocr] %(message)s"))
+    logger.addHandler(_h)
 
 # 数字 + 可选小数（最多 1 位）。覆盖 "60", "60.5", ".5"(异常但容忍)；不接受 "1,234"。
 _NUM_RE = re.compile(r"(\d{1,3}(?:\.\d{1,2})?|\.\d{1,2})")
@@ -82,8 +90,18 @@ class WeightOcr:
                 if best is None or float(conf) > best[1]:
                     best = (round(kg, 1), float(conf))
 
+        # 把每次识别的原始候选都打到 journal，便于排查"识别不出来"的真实原因
+        items_dump = "; ".join(f"{t!r}={conf:.2f}" for _, t, conf in items)
         if best is None:
+            logger.info(
+                "no kg matched. items=[%s] raw=%r inference=%.0fms image=%dx%d",
+                items_dump, raw_joined, inference_ms, image.width, image.height,
+            )
             return None, 0.0, raw_joined, inference_ms
+        logger.info(
+            "kg=%.1f conf=%.3f raw=%r inference=%.0fms",
+            best[0], best[1], raw_joined, inference_ms,
+        )
         return best[0], best[1], raw_joined, inference_ms
 
 
