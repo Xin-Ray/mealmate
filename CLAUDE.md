@@ -57,6 +57,30 @@ mealmate 用到的 token / API key 持久化位置。任何 session 启动后 sh
 
 prod (`com.xinray.mealmate`) vs dev (`com.xinray.mealmate.dev`) — Debug/Release config 在 pbxproj 里硬切，并存不撞。完整说明 + 已知 fragility（`ios/` gitignore）见仓库根 [`README.md`](./README.md) "Bundle ID / 双环境约定" 段。
 
+## 本地 dev build / iOS 装机
+
+dev variant（`com.xinray.mealmate.dev`，跟 TestFlight 的 prod bundle 不撞，主屏并存）：
+
+```bash
+cd /Users/xiangxin/Documents/mealmate/app
+APP_VARIANT=dev npx expo run:ios --device       # 真机
+APP_VARIANT=dev npx expo run:ios                # simulator
+```
+
+prod variant（**会覆盖** TestFlight install，只用在严格模拟 prod 行为时）：
+
+```bash
+cd /Users/xiangxin/Documents/mealmate/app
+npx expo run:ios --device                       # 无 APP_VARIANT prefix
+```
+
+**Claude 可直接执行（不需要每次问 xin）**，前提：
+- iPhone 数据线连着 + 解锁
+- iPhone 跟 Mac 同一个 WiFi / 个人热点开着（Metro 走 LAN）
+- 第一次新 bundle ID 装机要 Xcode 自动 register profile（走 `mealmate.xcworkspace` → Signing → Try Again，xin 一次性操作）
+
+build 一次约 2-5 分钟（增量）/ 8-15 分钟（clean）。
+
 ## Architecture
 
 ### Routing (expo-router, typed routes on)
