@@ -18,7 +18,7 @@ fi
 DEST=/etc/sudoers.d/mealmate-claude
 
 cat > "$DEST" <<'EOF'
-xin ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload, /usr/bin/systemctl restart mealmate, /usr/bin/systemctl restart cloudflared, /usr/bin/systemctl restart mealmate.service, /usr/bin/systemctl restart cloudflared.service, /usr/bin/systemctl status mealmate, /usr/bin/systemctl status cloudflared, /usr/bin/systemctl status mealmate cloudflared, /usr/bin/systemctl status mealmate cloudflared --no-pager
+xin ALL=(ALL) NOPASSWD: /usr/bin/systemctl daemon-reload, /usr/bin/systemctl restart mealmate, /usr/bin/systemctl restart cloudflared, /usr/bin/systemctl restart mealmate.service, /usr/bin/systemctl restart cloudflared.service, /usr/bin/systemctl status mealmate, /usr/bin/systemctl status cloudflared, /usr/bin/systemctl status mealmate cloudflared, /usr/bin/systemctl status mealmate cloudflared --no-pager, /usr/bin/cp /home/xin/document/mealmate-app/backend/mealmate.service /etc/systemd/system/, /usr/bin/cp /home/xin/document/mealmate-app/backend/mealmate.service /etc/systemd/system/mealmate.service, /usr/bin/cp /home/xin/document/mealmate-app/backend/cloudflared.service /etc/systemd/system/, /usr/bin/cp /home/xin/document/mealmate-app/backend/cloudflared.service /etc/systemd/system/cloudflared.service
 EOF
 
 chmod 0440 "$DEST"
