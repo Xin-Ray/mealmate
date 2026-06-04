@@ -45,6 +45,36 @@ const ENCOURAGE_LINES = [
 
 const pickRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
+// v1.2.1 Stage 0 用:wall clock 离哪个 schedule slot 最近就算哪餐
+// 让 Stage 0 那张餐照能进 mealRecords + WeekStrip 标亮
+const closestSlotByWallClock = (schedules: {
+  breakfast: string;
+  lunch: string;
+  dinner: string;
+}): MealSlot => {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const parse = (hhmm: string): number => {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const dist = (a: number, b: number): number => {
+    const d = Math.abs(a - b);
+    return Math.min(d, 24 * 60 - d); // wrap-around 距离(凌晨拍仍算 breakfast/dinner)
+  };
+  const slots: MealSlot[] = ["breakfast", "lunch", "dinner"];
+  let best: MealSlot = "lunch";
+  let bestD = Infinity;
+  for (const slot of slots) {
+    const d = dist(nowMin, parse(schedules[slot]));
+    if (d < bestD) {
+      bestD = d;
+      best = slot;
+    }
+  }
+  return best;
+};
+
 export default function PhotoScreen() {
   // issue #3 加餐：snack='true' 时走加餐流（addSnack 而非 markMealDone，
   // HP +10、不写 mealRecord、不需要 slot、跳过饱腹度选择）
@@ -53,8 +83,6 @@ export default function PhotoScreen() {
     snack?: string;
   }>();
   const isSnack = snack === "true";
-  const realSlot: MealSlot = (slot as MealSlot) ?? "lunch";
-  const hpGain = isSnack ? HP_SNACK_GAIN : HP_MEAL_PHOTO_GAIN;
   const router = useRouter();
   const markMealDone = useStore((s) => s.markMealDone);
   const addSnack = useStore((s) => s.addSnack);
@@ -63,6 +91,16 @@ export default function PhotoScreen() {
   const addFullnessRecord = useStore((s) => s.addFullnessRecord);
   const fullnessHistory = useStore((s) => s.fullnessHistory);
   const todayKey = useStore((s) => s.todayKey);
+  // v1.2.1: Stage 0 用,从 home 进 photo 不带 slot 参数 → 按 wall clock 决定
+  const currentStage = useStore((s) => s.currentStage);
+  const mealSchedules = useStore((s) => s.mealSchedules);
+  const advanceFromStage0 = useStore((s) => s.advanceFromStage0);
+  const isStage0 = currentStage === 0;
+  // Stage 0 时 slot 没传(home 直接进 photo) → 按 wall clock 算最近 slot
+  const realSlot: MealSlot = (slot as MealSlot) ?? (isStage0
+    ? closestSlotByWallClock(mealSchedules)
+    : "lunch");
+  const hpGain = isSnack ? HP_SNACK_GAIN : HP_MEAL_PHOTO_GAIN;
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -164,6 +202,9 @@ export default function PhotoScreen() {
 
     // backend Food-101 判定不是食物 → 拒绝（top-1 confidence < 0.15）
     if (!result.isFood || !result.foodLabel) {
+      // TODO(v1.2.x): 连续 3 次 rejectCount → 弹「需要帮助?」link 到 FAQ 静态页。
+      //   设计见 docs/v1.2.1-stage-0-easy-onboarding.md §6.3 / §14
+      //   暂跳过实现,v1.2.x 后续 release 加 (modal)/help-faq.tsx
       setRejectReason("no_food");
       setPhase("rejected");
       return;
@@ -210,6 +251,13 @@ export default function PhotoScreen() {
         setEncourageLine(encourageBody);
       }
       setConfirmedOnce(true);
+
+      // v1.2.1: Stage 0 那张照算今日 closestSlotByWallClock 的餐(markMealDone 已做),
+      // 同时 advanceFromStage0 触发 Stage 0 → 0.5 transition + transitionsPending push
+      // (在 markMealDone 之后调,确保 mealRecords / dialogueHistory 已落库)
+      if (isStage0) {
+        advanceFromStage0();
+      }
     }
 
     setPhase("result");
@@ -321,13 +369,21 @@ export default function PhotoScreen() {
             <View className="bg-white border border-cardBorder rounded-2xl px-5 py-4 mt-5 w-full">
               <Text className="text-ink text-base font-semibold mb-1">
                 {rejectReason === "no_food"
-                  ? "看起来不像食物哦"
-                  : "识别服务连不上"}
+                  ? isStage0
+                    ? "再来一张吧"
+                    : "看起来不像食物哦"
+                  : isStage0
+                    ? "网不太好"
+                    : "识别服务连不上"}
               </Text>
               <Text className="text-sub text-sm leading-5">
                 {rejectReason === "no_food"
-                  ? "换个角度重拍一张？要让我能看清楚是什么食物 ✨"
-                  : detectError ?? "请检查网络后重拍"}
+                  ? isStage0
+                    ? "这次让我看清楚是什么 ✨"
+                    : "换个角度重拍一张？要让我能看清楚是什么食物 ✨"
+                  : isStage0
+                    ? "等会儿再来试一下吧"
+                    : detectError ?? "请检查网络后重拍"}
               </Text>
             </View>
 

@@ -32,7 +32,9 @@ export const HP_MEAL_MISSED_LOSS = 10;
 // issue #3 加餐：拍照 +10 HP（addHp 内部 clamp 到 100）
 export const HP_SNACK_GAIN = 10;
 // issue #3 加餐每日上限（防作弊通关）：一天最多 3 次（2026-05-30 改 2→3）
-export const SNACK_DAILY_LIMIT = 3;
+// v1.2.1 回退 3 → 2:commit 5c9e875 把 2 误改到 3,xin 原意每天 2 次。
+// 配合 Stage 0.5 4 颗爱心:3 正餐 + 2 加餐 = 5 次/天最高,鼓励但不过松。
+export const SNACK_DAILY_LIMIT = 2;
 
 // 把 ms timestamp 转成 YYYY-MM-DD（跟 todayKey 同格式），用于 snack count by day
 const dateOf = (ts: number): string => {
@@ -67,11 +69,18 @@ export type TransitionRecord = { stage: number; kind: TransitionKind };
 export type Gender = "male" | "female" | "other";
 export type Ethnicity = "asian" | "other";
 
+// v13: Stage 类型扩到含 0 / 0.5（v1.2.1 缓冲层）
+// 0   = 试一下（拍 1 张餐照通关）
+// 0.5 = 4 颗爱心鼓励（每张通过验证的餐照 +1，4 颗满通关）
+// 1-5 = 原有机制（HP / 漏餐扣 / advance / demote）
+export type Stage = 0 | 0.5 | 1 | 2 | 3 | 4 | 5;
+
 // v11：stage 变化历史（advance/demote/init），Stats tab 用阶梯线
+// v13 扩 reason 加 "stage0_complete" / "stage05_complete"
 export type StageHistoryEntry = {
   ts: number;
-  stage: 1 | 2 | 3 | 4 | 5;
-  reason: "advance" | "demote" | "init";
+  stage: Stage;
+  reason: "advance" | "demote" | "init" | "stage0_complete" | "stage05_complete";
 };
 
 // v11：HP 时间线，addHp 每次写一条，Stats tab "爱心变化"图表用。滑窗见 HP_HISTORY_CAP
@@ -79,7 +88,11 @@ export type HpHistoryEntry = { ts: number; hp: number };
 
 type State = {
   hp: number;
-  currentStage: 1 | 2 | 3 | 4 | 5;
+  currentStage: Stage;
+  // v13: Stage 0 通关标志(拍了那张餐照置 true)。仅 stage 0 用,stage 0.5+ 都为 true
+  stage0Done: boolean;
+  // v13: Stage 0.5 分数 0-40,每 10 分 = 1 颗爱心。仅 stage 0.5 用
+  stage05Score: number;
   companionLv: number;
   robotName: string;
   gentleMode: boolean;
@@ -210,6 +223,15 @@ type Actions = {
   // 不暴露给 UI 直接调（idempotent，多次调安全）
   __internal_runStage5Check: () => void;
 
+  // ====== v13 Stage 0 / 0.5 缓冲层（v1.2.1）======
+  // Stage 0 拍完那张餐照后调:置 stage0Done + push transitions(0 end → 0.5 start) +
+  // currentStage = 0.5。photo.tsx onConfirm 在 markMealDone 之后调。
+  advanceFromStage0: () => void;
+  // Stage 0.5 集齐 4 颗爱心后调:push 0.5 end transition + 1 start + currentStage=1 + hp=100
+  advanceFromStage05: () => void;
+  // 加爱心(每张通过验证的餐照 / 加餐 +10)。stage 0.5 才生效;>=40 自动 advance
+  incrementStage05Score: (delta: number) => void;
+
   // v12 云端账号同步（issue #4 #5）
   signIn: (account: { userId: string; token: string; email: string | null }) => void;
   signOut: () => void;
@@ -217,7 +239,9 @@ type Actions = {
 
   // Dev-only：bypass 业务规则的直接 setter，仅在 __DEV__ 守卫的开发者面板里调用
   __dev_setHp: (n: number) => void;
-  __dev_setStage: (s: 1 | 2 | 3 | 4 | 5) => void;
+  __dev_setStage: (s: Stage) => void;
+  // v13 DEV: 直接设 stage 0.5 的分数(测试 4 颗爱心填充用)
+  __dev_setStage05Score: (n: number) => void;
   __dev_resetToday: () => void;
   __dev_clearWeightHistory: () => void;
   __dev_clearFullnessHistory: () => void;
@@ -237,8 +261,11 @@ const todayKey = () => {
 const clampHp = (n: number) => Math.max(0, Math.min(HP_MAX, n));
 
 const initialState: State = {
-  hp: HP_INITIAL_STAGE_1, // stage 1 起步 60 / 6 hearts（hotfix#13）
-  currentStage: 1,
+  hp: HP_INITIAL_STAGE_1, // stage 1 起步 60 / 6 hearts;Stage 0/0.5 不用 HP
+  // v13: 新装 v1.2.1 用户从 Stage 0 起步(老用户 migrate 时保留各自 stage)
+  currentStage: 0,
+  stage0Done: false,
+  stage05Score: 0,
   companionLv: 1,
   robotName: "小满",
   gentleMode: false,
@@ -255,14 +282,15 @@ const initialState: State = {
   onboardingDone: false,
   onboardingCompletedAt: null,
   transitionsSeen: [],
-  transitionsPending: [],
+  // 新用户首次进 home 弹一次 stage_0_start
+  transitionsPending: [{ stage: 0, kind: "start" }],
   // v11 新字段
   height: null,
   gender: null,
   ethnicity: null,
   targetWeight: null,
-  // 新用户从 init 开始，stage 1
-  stageHistory: [{ ts: Date.now(), stage: 1, reason: "init" }],
+  // 新用户从 init 开始,Stage 0
+  stageHistory: [{ ts: Date.now(), stage: 0, reason: "init" }],
   stage5StartedAt: null,
   stage5Stars: 0,
   stage5LastStarCheck: null,
@@ -338,11 +366,20 @@ export const useStore = create<State & Actions>()(
           todayMeals: { ...s.todayMeals, [slot]: "done" },
           mealRecords: [...s.mealRecords, record],
         });
-        get().addHp(HP_MEAL_PHOTO_GAIN);
+        // v13: stage 0/0.5 不走 HP 系统(stage 0 那张照走 advanceFromStage0,
+        // stage 0.5 走 incrementStage05Score)。stage 1+ 才 addHp
+        if (s.currentStage >= 1) {
+          get().addHp(HP_MEAL_PHOTO_GAIN);
+        } else if (s.currentStage === 0.5) {
+          get().incrementStage05Score(10);
+        }
+        // stage 0 拍照走 markMealDone 后由 photo.tsx 调 advanceFromStage0 处理跳转
       },
 
       markMealMissed: (slot) => {
         const s = get();
+        // v13: stage 0/0.5 漏餐免疫(纯鼓励阶段,不扣 HP / 不写 missed record)
+        if (s.currentStage < 1) return;
         if (s.todayMeals[slot] === "missed") return;
         const delta = s.gentleMode
           ? -HP_MEAL_MISSED_LOSS / 2
@@ -543,8 +580,13 @@ export const useStore = create<State & Actions>()(
         ).length;
         if (todayCount >= SNACK_DAILY_LIMIT) return;
 
-        // HP +10 走 addHp 统一边界（>=100 触发 advance；不会 <0 因为是 +10）
-        get().addHp(HP_SNACK_GAIN);
+        // v13: stage 1+ 走 HP +10;stage 0.5 走 stage05Score +10(纯爱心鼓励)
+        // stage 0 不应该出现在加餐流(SnackCard 不显示),但兜底也不爆
+        if (s.currentStage >= 1) {
+          get().addHp(HP_SNACK_GAIN);
+        } else if (s.currentStage === 0.5) {
+          get().incrementStage05Score(10);
+        }
         // feed 留痕：dialogue kind='snack_done'，feed 渲染端识别此 kind 走加餐卡
         get().pushDialogue({
           kind: "snack_done",
@@ -598,8 +640,67 @@ export const useStore = create<State & Actions>()(
       signOut: () => set({ account: null, lastSyncedAt: null }),
       setLastSyncedAt: (ts) => set({ lastSyncedAt: ts }),
 
+      // ===== v13 Stage 0 / 0.5 actions (v1.2.1) =====
+      advanceFromStage0: () => {
+        const s = get();
+        if (s.currentStage !== 0) return; // 幂等:不在 stage 0 调 no-op
+        const ts = Date.now();
+        set({
+          currentStage: 0.5,
+          stage0Done: true,
+          stage05Score: 0,
+          stageHistory: [
+            ...s.stageHistory,
+            { ts, stage: 0.5, reason: "stage0_complete" },
+          ],
+          // push 两条 transition:stage 0 end (庆祝那张照) → stage 0.5 start (介绍 4 颗爱心)
+          transitionsPending: [
+            ...s.transitionsPending,
+            { stage: 0, kind: "end" },
+            { stage: 0.5, kind: "start" },
+          ],
+        });
+      },
+
+      advanceFromStage05: () => {
+        const s = get();
+        if (s.currentStage !== 0.5) return; // 幂等
+        const ts = Date.now();
+        set({
+          currentStage: 1,
+          hp: 100, // 满血开局,跟 v1.0 onboarding 完一样
+          stage05Score: 40, // 锁定在 40(防 UI 闪烁)
+          stageHistory: [
+            ...s.stageHistory,
+            { ts, stage: 1, reason: "stage05_complete" },
+          ],
+          transitionsPending: [
+            ...s.transitionsPending,
+            { stage: 0.5, kind: "end" },
+            { stage: 1, kind: "start" },
+          ],
+          // 标记 stage 1 start 已 pending(避免 (main)/_layout consumer 重复弹)
+          transitionsSeen: [
+            ...s.transitionsSeen,
+            { stage: 1, kind: "start" },
+          ],
+        });
+      },
+
+      incrementStage05Score: (delta) => {
+        const s = get();
+        if (s.currentStage !== 0.5) return; // 仅 stage 0.5 生效
+        const newScore = Math.min(40, s.stage05Score + delta);
+        set({ stage05Score: newScore });
+        // 集齐 4 颗(40 分)→ 自动 advance
+        if (newScore >= 40) {
+          get().advanceFromStage05();
+        }
+      },
+
       __dev_setHp: (n) => set({ hp: clampHp(n) }),
       __dev_setStage: (s) => set({ currentStage: s }),
+      __dev_setStage05Score: (n) => set({ stage05Score: Math.max(0, Math.min(40, n)) }),
       __dev_resetToday: () =>
         set({ todayMeals: { ...FRESH_TODAY }, todayKey: todayKey() }),
       __dev_clearWeightHistory: () => set({ weightHistory: [] }),
@@ -694,7 +795,7 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 12,
+      version: 13,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
@@ -807,6 +908,13 @@ export const useStore = create<State & Actions>()(
           // v12 云端同步（issue #4 #5）
           if (ps.account === undefined) ps.account = null;
           if (ps.lastSyncedAt === undefined) ps.lastSyncedAt = null;
+        }
+        if (version < 13) {
+          // v13 Stage 0/0.5 缓冲层(v1.2.1)
+          // OPEN-2 决策: 老用户不动 — 保留 currentStage(1-5),不 reset
+          // 仅新装 v1.2.1 用户从 initialState 拿 currentStage=0 起步
+          if (ps.stage0Done === undefined) ps.stage0Done = false;
+          if (ps.stage05Score === undefined) ps.stage05Score = 0;
         }
         return persistedState as State & Actions;
       },
