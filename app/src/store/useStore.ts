@@ -32,7 +32,9 @@ export const HP_MEAL_MISSED_LOSS = 10;
 // issue #3 加餐：拍照 +10 HP（addHp 内部 clamp 到 100）
 export const HP_SNACK_GAIN = 10;
 // issue #3 加餐每日上限（防作弊通关）：一天最多 3 次（2026-05-30 改 2→3）
-export const SNACK_DAILY_LIMIT = 3;
+// v1.2.1 回退 3 → 2:commit 5c9e875 把 2 误改到 3,xin 原意每天 2 次。
+// 配合 Stage 0.5 4 颗爱心:3 正餐 + 2 加餐 = 5 次/天最高,鼓励但不过松。
+export const SNACK_DAILY_LIMIT = 2;
 
 // 把 ms timestamp 转成 YYYY-MM-DD（跟 todayKey 同格式），用于 snack count by day
 const dateOf = (ts: number): string => {
