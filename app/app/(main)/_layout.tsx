@@ -58,13 +58,16 @@ export default function MainLayout() {
     const t = setTimeout(() => {
       // 1. 优先消费 pending 队首（advance/demote 触发）
       //    用 router.replace 切到 (stage) 全屏 page（v0.5 Plan B），按钮再 replace 回 home
+      // v1.2.1: stage 0.5 路径段用 "0_5"(expo-router 文件名不允许 "."),stageSegment 映射
       if (transitionsPending.length > 0) {
         const next = transitionsPending[0];
-        router.replace(`/(stage)/stage-${next.stage}-${next.kind}` as never);
+        const seg = next.stage === 0.5 ? "0_5" : String(next.stage);
+        router.replace(`/(stage)/stage-${seg}-${next.kind}` as never);
         consumeTransition();
         return;
       }
       // 2. 否则 stage-1-start 一次性触发（基于 transitionsSeen）
+      // v1.2.1: 新装用户从 Stage 0 起步,这条 stage-1-start fallback 只对老用户生效
       if (
         currentStage === 1 &&
         !transitionsSeen.some((t) => t.stage === 1 && t.kind === "start")
