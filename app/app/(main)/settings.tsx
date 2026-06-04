@@ -659,6 +659,32 @@ export default function SettingsScreen() {
               >
                 阶段（当前 Stage {currentStage}）
               </Text>
+              {/* v1.2.1: 加 Stage 0 / 0.5 跳板 */}
+              <View className="flex-row gap-2 mb-2">
+                {([0, 0.5] as const).map((s) => (
+                  <Pressable
+                    key={s}
+                    onPress={() => devSetStage(s)}
+                    className="flex-1 py-2 rounded-xl items-center"
+                    style={{
+                      backgroundColor:
+                        currentStage === s
+                          ? colors.brand.green
+                          : colors.bg.hpEmpty,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          currentStage === s ? "#FFFFFF" : colors.ink.primary,
+                        fontSize: 13,
+                      }}
+                    >
+                      {s === 0.5 ? "0.5" : "0"}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
               <View className="flex-row gap-2">
                 {([1, 2, 3, 4, 5] as const).map((s) => (
                   <Pressable
@@ -683,6 +709,31 @@ export default function SettingsScreen() {
                   </Pressable>
                 ))}
               </View>
+              {/* v1.2.1: Stage 0.5 4 颗爱心分数直接设(测试填充用) */}
+              {currentStage === 0.5 && (
+                <>
+                  <Text
+                    className="mt-3 mb-2"
+                    style={{ fontSize: 12, color: colors.ink.sub }}
+                  >
+                    Stage 0.5 分数（0=0 颗, 10=1 颗, ..., 40=满 4 颗自动通关）
+                  </Text>
+                  <View className="flex-row gap-2">
+                    {[0, 10, 20, 30, 40].map((n) => (
+                      <Pressable
+                        key={n}
+                        onPress={() => useStore.getState().__dev_setStage05Score(n)}
+                        className="flex-1 py-2 rounded-xl items-center"
+                        style={{ backgroundColor: colors.bg.hpEmpty }}
+                      >
+                        <Text style={{ color: colors.ink.primary, fontSize: 13 }}>
+                          {n}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
             </Card>
 
             {/* 重置 / 清空动作（共用一个 Card 容器分隔线分项） */}
@@ -830,6 +881,28 @@ export default function SettingsScreen() {
               <Text className="mb-2" style={{ fontSize: 12, color: colors.ink.sub }}>
                 跳屏（单测，不改 state；v0.5 Plan B 走 /(stage)/）
               </Text>
+              {/* v1.2.1: Stage 0/0.5 跳屏 */}
+              <View className="flex-row gap-2 mb-2">
+                {[
+                  { path: "stage-0-start", label: "0 start" },
+                  { path: "stage-0-end", label: "0 end" },
+                  { path: "stage-0_5-start", label: "0.5 start" },
+                  { path: "stage-0_5-end", label: "0.5 end" },
+                ].map((t) => (
+                  <Pressable
+                    key={t.path}
+                    onPress={() =>
+                      router.replace(`/(stage)/${t.path}` as never)
+                    }
+                    className="flex-1 py-2 rounded-xl items-center"
+                    style={{ backgroundColor: colors.bg.hpEmpty }}
+                  >
+                    <Text style={{ color: colors.ink.primary, fontSize: 11 }}>
+                      {t.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
               <Pressable
                 onPress={() =>
                   router.replace("/(stage)/stage-1-start" as never)
