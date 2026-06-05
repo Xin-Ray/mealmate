@@ -83,25 +83,21 @@ export default function HomeStage0() {
             </Text>
           </View>
 
-          {/* CTA 紧跟文字下方,不依赖 flex 撑到底部 → 不会被 tab bar 遮 */}
+          {/* CTA 紧跟文字下方,不依赖 flex 撑到底部 → 不会被 tab bar 遮。
+              v1.2.2 P0 fix:Pressable 用 plain object style 而不是函数式 style,
+              React Compiler 似乎 eat 了 ({pressed}) => ({...}) 形式让 bg 丢失。 */}
           <Pressable
             onPress={() => router.push("/(modal)/photo" as never)}
-            style={({ pressed }) => ({
+            style={{
               marginTop: 32,
-              backgroundColor: pressed ? "#5A8A5C" : colors.brand.green,
+              alignSelf: "stretch",
+              backgroundColor: "#60883b",
               borderRadius: 30,
               paddingVertical: 18,
-              paddingHorizontal: 48,
-              minHeight: 56,
               alignItems: "center",
               justifyContent: "center",
-              // 阴影增强按钮存在感
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.12,
-              shadowRadius: 6,
-              elevation: 3,
-            })}
+              minHeight: 56,
+            }}
           >
             <Text
               style={{

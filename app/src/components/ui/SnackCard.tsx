@@ -118,14 +118,10 @@ export default function SnackCard({ onPress }: Props) {
     return <View style={cardStyle}>{Inner}</View>;
   }
 
+  // v1.2.2 P0 注意:React Compiler 会 swallow Pressable 的函数式 style
+  // ({pressed}) => ({...}),导致 bg / border 丢失。用 plain object,放弃 pressed 反馈。
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        ...cardStyle,
-        backgroundColor: pressed ? "#F2EDDB" : cardBg,
-      })}
-    >
+    <Pressable onPress={onPress} style={cardStyle}>
       {Inner}
     </Pressable>
   );

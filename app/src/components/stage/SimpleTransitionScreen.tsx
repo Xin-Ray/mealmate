@@ -129,14 +129,16 @@ export default function SimpleTransitionScreen({
           backgroundColor: colors.bg.page,
         }}
       >
+        {/* v1.2.2 P0 注意:React Compiler swallow Pressable 函数式 style → bg 丢失。
+            用 plain object,放弃 pressed 视觉反馈以保证按钮可见可点。 */}
         <Pressable
           onPress={onContinue}
-          style={({ pressed }) => ({
-            backgroundColor: pressed ? "#5A8A5C" : colors.brand.greenDark,
+          style={{
+            backgroundColor: colors.brand.greenDark,
             borderRadius: 30,
             paddingVertical: 18,
             alignItems: "center",
-          })}
+          }}
         >
           <Text style={{ color: "#FFFFFF", fontSize: 17, fontWeight: "600" }}>
             {ctaLabel}
