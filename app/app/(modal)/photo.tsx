@@ -238,7 +238,9 @@ export default function PhotoScreen() {
           kind: "meal_done",
           body: doneBody,
           mealSlot: realSlot,
-          hpDelta: HP_MEAL_PHOTO_GAIN,
+          // v1.2.1: Stage 0/0.5 不走 HP 系统(markMealDone 同样短路 addHp),
+          // dialogue 不显示 HP badge 避免「+5 HP 但 HP 没动」的视觉错觉
+          hpDelta: currentStage >= 1 ? HP_MEAL_PHOTO_GAIN : 0,
           photoUri: imageUri ?? undefined,
           foodTags: [foodName],
         });
@@ -262,7 +264,11 @@ export default function PhotoScreen() {
 
     setPhase("result");
     // v1.1 #14: 进 result 自动开庆祝弹窗（重拍场景也开 — 用户每次确认都看动画）
-    setCelebrationOpen(true);
+    // v1.2.1: Stage 0 跳过 CelebrationModal — stage_0_end 过渡屏 title 也是"太棒了！",
+    // 立刻接着弹会重复;让过渡屏当唯一的庆祝点
+    if (!isStage0) {
+      setCelebrationOpen(true);
+    }
   };
 
   // 在 result / rejected 页点"重拍" → 回 intro，清掉本张图和识别结果，confirmedOnce 保留

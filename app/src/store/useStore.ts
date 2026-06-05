@@ -358,7 +358,9 @@ export const useStore = create<State & Actions>()(
           mealSlot: slot,
           status: "done",
           ts,
-          hpDelta: HP_MEAL_PHOTO_GAIN,
+          // v1.2.1: Stage 0/0.5 不走 HP 系统,record 也置 0 避免 records tab
+          // 显示「+5 HP」badge 但 HP 实际没动
+          hpDelta: s.currentStage >= 1 ? HP_MEAL_PHOTO_GAIN : 0,
           photoUri: options?.photoUri,
         };
         // 先把 done 状态和记录落进 store，再走 HP 边界（advance 会改 hp）
@@ -588,10 +590,12 @@ export const useStore = create<State & Actions>()(
           get().incrementStage05Score(10);
         }
         // feed 留痕：dialogue kind='snack_done'，feed 渲染端识别此 kind 走加餐卡
+        // v1.2.1: Stage 0/0.5 不走 HP(走 stage05Score),dialogue hpDelta=0 避免
+        // 「+10 HP 但 HP 没动」的视觉错觉(stage 0 即使没 SnackCard 入口也兜底)
         get().pushDialogue({
           kind: "snack_done",
           body: input?.bodyOverride ?? "加餐已记录 ✓",
-          hpDelta: HP_SNACK_GAIN,
+          hpDelta: s.currentStage >= 1 ? HP_SNACK_GAIN : 0,
           photoUri: input?.photoUri,
           foodTags: input?.foodLabel ? [input.foodLabel] : undefined,
         });

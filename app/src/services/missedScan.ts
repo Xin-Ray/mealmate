@@ -86,6 +86,10 @@ export function detectMissedSlots(
 export function runMissedScan(): MealSlot[] {
   const state = useStore.getState();
   if (!state.onboardingDone) return [];
+  // v1.2.1: Stage 0/0.5 漏餐免疫(纯鼓励阶段,不扣 HP / 不 push missed / remind dialogues)
+  // 单层 markMealMissed 内已早 return,但 runMissedScan 这里还会 push 2 条
+  // dialogue,跟「漏餐没影响」基调冲突 → 在 scan 入口就短路
+  if (state.currentStage < 1) return [];
   state.rollDayIfNeeded();
 
   const fresh = useStore.getState(); // rollDayIfNeeded 后再读
