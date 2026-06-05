@@ -110,6 +110,32 @@ export default function HomeStage0() {
               拍一张餐照
             </Text>
           </Pressable>
+
+          {/* v1.2.3 兜底:身边没真食物 → 用 bundled 示例图走 Food-101 流程,
+              一样会通过 + advance Stage 0.5。下方 subtle link,不抢主 CTA 视觉 */}
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: "/(modal)/photo",
+                params: { sample: "1" },
+              } as never)
+            }
+            style={{
+              marginTop: 14,
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+            }}
+          >
+            <Text
+              style={{
+                color: colors.ink.sub,
+                fontSize: 14,
+                textDecorationLine: "underline",
+              }}
+            >
+              身边没食物?用示例图试试 →
+            </Text>
+          </Pressable>
         </View>
       </View>
     </SafeAreaView>

@@ -8,6 +8,11 @@ import {
   Text,
   View,
 } from "react-native";
+
+// v1.2.3: 示例食物图(身边没真食物兜底,Stage 0 home 提供)
+// Image.resolveAssetSource 返回 {uri,...},dev = http://localhost:8081/assets/...,
+// prod = asset://... 都能 fetch 上传到 backend Food-101
+const SAMPLE_PIZZA = require("../../assets/sample-food/sample-pizza.jpg");
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -78,11 +83,14 @@ const closestSlotByWallClock = (schedules: {
 export default function PhotoScreen() {
   // issue #3 加餐：snack='true' 时走加餐流（addSnack 而非 markMealDone，
   // HP +10、不写 mealRecord、不需要 slot、跳过饱腹度选择）
-  const { slot, snack } = useLocalSearchParams<{
+  // v1.2.3: sample='1' 用 bundled 示例食物图(身边没真食物兜底,Stage 0 用)
+  const { slot, snack, sample } = useLocalSearchParams<{
     slot?: MealSlot;
     snack?: string;
+    sample?: string;
   }>();
   const isSnack = snack === "true";
+  const isSample = sample === "1";
   const router = useRouter();
   const markMealDone = useStore((s) => s.markMealDone);
   const addSnack = useStore((s) => s.addSnack);
@@ -119,6 +127,18 @@ export default function PhotoScreen() {
       fullnessHistory.find((r) => r.date === todayKey && r.mealSlot === realSlot)
         ?.score
   );
+
+  // v1.2.3: sample='1' 时挂载后立刻塞 bundled 示例图,跳到 preview phase
+  // (用户没真食物可拍 → 用示例图体验 Food-101 完整流程 + advance Stage 0)
+  useEffect(() => {
+    if (!isSample || imageUri) return;
+    const src = Image.resolveAssetSource(SAMPLE_PIZZA);
+    if (src?.uri) {
+      setImageUri(src.uri);
+      setLastSource("library");
+      setPhase("preview");
+    }
+  }, [isSample, imageUri]);
 
   // HP +5 弹一下的 scale animation
   const scale = useRef(new Animated.Value(1)).current;
@@ -216,7 +236,23 @@ export default function PhotoScreen() {
     // detect 通过：开始正式打卡 +HP +dialogue
     // 重拍场景：本次 modal 已经打过卡，跳过 +HP 和 dialogue，只更新识别结果
     if (!confirmedOnce) {
-      if (isSnack) {
+      if (isStage0) {
+        // v1.2.3 reverse OPEN-3:Stage 0 拍照 = 纯仪式。
+        // 不 markMealDone(否则会占今日某餐 slot,Stage 0.5 后无法重新打那餐)。
+        // 不 addSnack、不写 mealHistory、不影响 WeekStrip。
+        // 只 push 一条庆祝 dialogue + advance,user 上 Stage 0.5 后早午晚全 pending。
+        const stage0Body = `太棒了！记下了这份 ${foodName} ✓`;
+        pushDialogue({
+          kind: "meal_done",
+          body: stage0Body,
+          hpDelta: 0,
+          photoUri: imageUri ?? undefined,
+          foodTags: [foodName],
+        });
+        setDoneLine(stage0Body);
+        setEncourageLine("");
+        advanceFromStage0();
+      } else if (isSnack) {
         // 加餐流：addSnack 内部 push kind='snack_done' dialogue + HP +10
         // bodyOverride 用 detect 结果拼，foodLabel 喂 history 留 foodTags 痕迹（v1.1.2）
         const snackBody = `记下了这份 ${foodName} ✓`;
@@ -253,13 +289,6 @@ export default function PhotoScreen() {
         setEncourageLine(encourageBody);
       }
       setConfirmedOnce(true);
-
-      // v1.2.1: Stage 0 那张照算今日 closestSlotByWallClock 的餐(markMealDone 已做),
-      // 同时 advanceFromStage0 触发 Stage 0 → 0.5 transition + transitionsPending push
-      // (在 markMealDone 之后调,确保 mealRecords / dialogueHistory 已落库)
-      if (isStage0) {
-        advanceFromStage0();
-      }
     }
 
     setPhase("result");
