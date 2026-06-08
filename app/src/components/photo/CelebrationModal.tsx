@@ -21,7 +21,7 @@
 // memory feedback_react_compiler_pressable.md)。
 
 import { useEffect } from "react";
-import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -160,47 +160,61 @@ export default function CelebrationModal({
         onPress={skipToEnd}
         accessibilityLabel="跳过动画"
       >
+        {/* v1.2.4 P0 fix: 真机上 mascot aspectRatio+maxHeight 不靠谱让 card 超过
+            viewport → 居中溢出 top/bottom 同时被切(title + badge + CTA 看不见)。
+            修法:
+            (a) mascotBox 用 fixed height(180px),Image width:100% height:100% +
+                resizeMode contain → 内部图自适应不撑爆
+            (b) card 包 ScrollView 兜底极小屏 / 大字体时仍可滚出 CTA
+            (c) badge 加 left:50% + marginLeft 真正居中(原来缺 left/right 默认靠左) */}
         <Animated.View style={[styles.card, cardAStyle]}>
-          {/* 顶部 ✓ 圆形 badge,绝对定位半压卡顶 */}
+          {/* 顶部 ✓ 圆形 badge — 真正水平居中 */}
           <Animated.View style={[styles.badge, badgeAStyle]}>
             <Text style={styles.badgeCheck}>✓</Text>
           </Animated.View>
 
-          {/* 标题 + 小 ✓ */}
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.titleCheck}> ✓</Text>
-          </View>
-
-          {/* 副标 */}
-          <Text style={styles.doneLine}>{doneLine}</Text>
-
-          {/* mascot 独立 box:浅米背景 + 圆角 + 内边距 */}
-          <Animated.View style={[styles.mascotBox, mascotAStyle]}>
-            <Image
-              source={CELEBRATION_MASCOT}
-              style={styles.mascotImg}
-              resizeMode="contain"
-            />
-          </Animated.View>
-
-          {/* 绿心 + 血量 +N */}
-          <View style={styles.hpRow}>
-            <Text style={styles.hpHeart}>💚</Text>
-            <Text style={styles.hpLabel}>血量 +{hpDelta}</Text>
-            <Animated.Text style={[styles.hpFloating, hpDeltaAStyle]}>
-              +{hpDelta}
-            </Animated.Text>
-          </View>
-
-          {/* CTA 继续加油 — plain object style,避免 RC swallow */}
-          <Pressable
-            onPress={dismiss}
-            style={styles.btn}
-            accessibilityLabel="继续加油"
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
           >
-            <Text style={styles.btnText}>继续加油！</Text>
-          </Pressable>
+            {/* 标题 + 小 ✓ */}
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>{title}</Text>
+              <Text style={styles.titleCheck}> ✓</Text>
+            </View>
+
+            {/* 副标 */}
+            <Text style={styles.doneLine}>{doneLine}</Text>
+
+            {/* mascot 独立 box:fixed height 180,Image fill 内部 contain */}
+            <Animated.View style={[styles.mascotBox, mascotAStyle]}>
+              <Image
+                source={CELEBRATION_MASCOT}
+                style={styles.mascotImg}
+                resizeMode="contain"
+              />
+            </Animated.View>
+
+            {/* 绿心 + 血量 +N */}
+            <View style={styles.hpRow}>
+              <Text style={styles.hpHeart}>💚</Text>
+              <Text style={styles.hpLabel}>血量 +{hpDelta}</Text>
+              <Animated.Text style={[styles.hpFloating, hpDeltaAStyle]}>
+                +{hpDelta}
+              </Animated.Text>
+            </View>
+
+            {/* CTA 继续加油 — plain object style,避免 RC swallow */}
+            <Pressable
+              onPress={dismiss}
+              style={styles.btn}
+              accessibilityLabel="继续加油"
+            >
+              <Text style={styles.btnText}>继续加油！</Text>
+            </Pressable>
+          </ScrollView>
         </Animated.View>
       </Pressable>
     </Modal>
@@ -208,6 +222,7 @@ export default function CelebrationModal({
 }
 
 const BADGE_SIZE = 48;
+const MASCOT_BOX_HEIGHT = 180;
 
 const styles = StyleSheet.create({
   backdrop: {
@@ -215,16 +230,16 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 28,
+    padding: 24,
   },
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 28,
-    paddingTop: 40, // 给 badge 半压顶留 24 + 标题距 16
-    paddingBottom: 24,
+    paddingTop: 40,
+    paddingBottom: 0, // ScrollView contentContainer 补底 padding
     paddingHorizontal: 22,
     width: "100%",
-    alignItems: "center",
+    maxHeight: "92%", // 真机兜底:不超 backdrop 高度 92%,防溢出切边
     // 强阴影
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
@@ -232,9 +247,18 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 10,
   },
+  scroll: {
+    width: "100%",
+  },
+  scrollContent: {
+    alignItems: "center",
+    paddingBottom: 24,
+  },
   badge: {
     position: "absolute",
     top: -BADGE_SIZE / 2,
+    left: "50%",
+    marginLeft: -BADGE_SIZE / 2, // 真正水平居中(原来没 left/right 默认 left:0 靠左)
     width: BADGE_SIZE,
     height: BADGE_SIZE,
     borderRadius: BADGE_SIZE / 2,
@@ -248,6 +272,7 @@ const styles = StyleSheet.create({
     elevation: 6,
     borderWidth: 3,
     borderColor: "#FFFFFF",
+    zIndex: 10, // 真机叠在 ScrollView 之上
   },
   badgeCheck: {
     color: "#FFFFFF",
@@ -277,18 +302,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   mascotBox: {
-    backgroundColor: "#F4F8E8", // 浅米绿(跟叶片背景呼应)
+    backgroundColor: "#F4F8E8",
     borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    padding: 12,
     alignSelf: "stretch",
     alignItems: "center",
+    justifyContent: "center",
     marginBottom: 18,
+    height: MASCOT_BOX_HEIGHT, // FIXED height,不靠 aspectRatio(真机不稳)
   },
   mascotImg: {
     width: "100%",
-    aspectRatio: 600 / 800, // celebration.png 大致比例
-    maxHeight: 220,
+    height: "100%", // 填满 mascotBox,resizeMode contain 让图自适应不变形
   },
   hpRow: {
     flexDirection: "row",
