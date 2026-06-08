@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { useStore } from "@src/store/useStore";
 import {
@@ -22,6 +23,18 @@ export default function HomeMealStatusSlot() {
   const mealRecords = useStore((s) => s.mealRecords);
   const todayKey = useStore((s) => s.todayKey);
   const acknowledgeMissedMeal = useStore((s) => s.acknowledgeMissedMeal);
+
+  // v1.2.3 fix: 每 30s tick 一次重新评估 active / missed / next 分支。
+  // 之前只在 mount 时跑一次,如果 user 开 home 不动,12:00 跨过 lunch schedule
+  // 时不会从 NextMealCard 切到 MealReminderCard,显示停留在错误的卡。
+  // 用真 timestamp state 而不是 ignored setTick,避免 React Compiler 当死代码消掉。
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  // 让 nowMs 真被读到,RC 不会把 state 当 dead code 消掉
+  void nowMs;
 
   const active = selectActiveReminderSlot({
     mealSchedules,

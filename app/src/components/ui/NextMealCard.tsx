@@ -56,15 +56,21 @@ export default function NextMealCard() {
   const mealSchedules = useStore((s) => s.mealSchedules);
   const todayMeals = useStore((s) => s.todayMeals);
 
-  // 每秒 tick：触发 re-render 重新计算 secondsRemaining
-  const [, setTick] = useState(0);
+  // v1.2.3 fix: 每秒重算倒计时。
+  // 之前用 const [, setTick] = useState(0) ignored value,React Compiler 可能
+  // 当死代码消掉 useState + useEffect → countdown 不更新。改用真 timestamp state,
+  // 同时把 now 显式喂 selector,避免 selector 每次都默认 new Date() 跟 state 不同步。
+  const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
   const stars = selectTodayMealStars({ todayMeals });
-  const countdown = selectNextMealCountdown({ mealSchedules, todayMeals });
+  const countdown = selectNextMealCountdown(
+    { mealSchedules, todayMeals },
+    new Date(nowMs)
+  );
 
   const slotLabel = SLOT_LABEL[countdown.slot];
   const prefix = countdown.isNextDay ? "明天" : "";

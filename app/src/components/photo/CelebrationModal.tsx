@@ -1,5 +1,27 @@
+// 拍照庆祝弹窗 — v1.2.3 UI 升级(参考 xin image 2 reference)。
+//
+// 视觉:
+// - 白卡 + 圆角 + 强阴影
+// - 顶部绿圆 ✓ badge,半压在卡顶边缘
+// - 标题「太棒了！」+ 小 ✓
+// - 副标 doneLine(如「记下了这份炒饭 ✓」)
+// - mascot 在卡内独立 box(浅米底 + 圆角,thumbs-up 男孩,见 assets/mascot/celebration.png)
+// - 绿心 + 「血量 +10」
+// - 绿 pill CTA「继续加油！」
+//
+// 动画沿用 v1.1:
+//   t=0    : 卡 scale 0.85→1.0 + opacity 0→1(180ms ease-out)
+//   t=120ms: mascot bounce translateY 0→-8→0(2 cycles)
+//   t=200ms: 「+N」浮字 zoom in + fadeout(400ms)
+//   t=200ms: 心形 ±10° 左右轻摆(3 cycles)
+//
+// 敏感人群约束(doc §八):无 confetti,无"赢/成功"词,文案温和,可点屏跳过。
+//
+// React Compiler 注意:Pressable style 用 plain object,不用函数式(见
+// memory feedback_react_compiler_pressable.md)。
+
 import { useEffect } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -12,31 +34,14 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { getHpBand } from "@src/theme/hp";
-import { useStore } from "@src/store/useStore";
-import { Image } from "react-native";
 
-// v1.1 doc §八：拍照庆祝弹窗（Figma 32:1637）
-// 白卡 + mascot + 两侧❤️装饰 + 文案 + 血量+N + 继续加油 button
-// 600ms 总动画，可点屏跳过。Reanimated v4 手写，不引新库。
-//
-// 时序（doc §八）：
-//   t=0    : 弹窗 scale 0.85→1.0 + opacity 0→1（180ms ease-out）
-//   t=120ms: mascot bounce translateY 0→-8→0，2 cycles（240ms total）
-//   t=200ms: "+N" 浮字 zoom in + translateY 0→-20 fadeout（400ms ease-in）
-//   t=200ms: 心形左右轻摆 ±10°，3 cycles（400ms）
-//
-// 敏感人群约束（doc §八）：
-//   - 不用 confetti
-//   - 不用"赢了/成功"类词
-//   - 文案温和（"太棒了" "继续加油" 已在边界，文案池由 photo.tsx 决定）
-//   - 时长短，可跳过
+const CELEBRATION_MASCOT = require("../../../assets/mascot/celebration.png");
 
 type Props = {
   visible: boolean;
-  hpDelta: number;            // +5 (meal) / +10 (snack)
-  title: string;              // "太棒了！"（hardcoded in component）
-  doneLine: string;           // "早餐看起来很健康呢！" 等
+  hpDelta: number; // +5 / +10
+  title: string;
+  doneLine: string;
   onContinue: () => void;
 };
 
@@ -47,37 +52,36 @@ export default function CelebrationModal({
   doneLine,
   onContinue,
 }: Props) {
-  const hp = useStore((s) => s.hp);
-  const band = getHpBand(hp);
-
-  // 动画 shared values
   const cardScale = useSharedValue(0.85);
   const cardOpacity = useSharedValue(0);
   const mascotY = useSharedValue(0);
   const hpDeltaY = useSharedValue(0);
   const hpDeltaOpacity = useSharedValue(0);
-  const heartRot = useSharedValue(0);
+  const badgeScale = useSharedValue(0);
 
   useEffect(() => {
     if (!visible) {
-      // 重置
       cardScale.value = 0.85;
       cardOpacity.value = 0;
       mascotY.value = 0;
       hpDeltaY.value = 0;
       hpDeltaOpacity.value = 0;
-      heartRot.value = 0;
+      badgeScale.value = 0;
       return;
     }
 
-    // t=0: 弹窗出现
     cardScale.value = withSpring(1, { damping: 14, stiffness: 180 });
     cardOpacity.value = withTiming(1, {
       duration: 180,
       easing: Easing.out(Easing.quad),
     });
 
-    // t=120ms: mascot bounce (2 cycles)
+    // badge ✓ 弹入(略晚于卡)
+    badgeScale.value = withDelay(
+      80,
+      withSpring(1, { damping: 10, stiffness: 200 })
+    );
+
     mascotY.value = withDelay(
       120,
       withRepeat(
@@ -90,7 +94,6 @@ export default function CelebrationModal({
       )
     );
 
-    // t=200ms: "+N" 浮字 zoom in（用 opacity + translateY）
     hpDeltaOpacity.value = withDelay(
       200,
       withSequence(
@@ -103,29 +106,14 @@ export default function CelebrationModal({
       withTiming(-20, { duration: 400, easing: Easing.out(Easing.quad) })
     );
 
-    // t=200ms: 心形左右轻摆（3 cycles）
-    heartRot.value = withDelay(
-      200,
-      withRepeat(
-        withSequence(
-          withTiming(10, { duration: 70 }),
-          withTiming(-10, { duration: 70 }),
-          withTiming(0, { duration: 70 })
-        ),
-        3,
-        false
-      )
-    );
-
     return () => {
       cancelAnimation(cardScale);
       cancelAnimation(cardOpacity);
       cancelAnimation(mascotY);
       cancelAnimation(hpDeltaOpacity);
       cancelAnimation(hpDeltaY);
-      cancelAnimation(heartRot);
+      cancelAnimation(badgeScale);
     };
-    // visible 是唯一 dep；refs 都是 stable shared values
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
@@ -135,7 +123,7 @@ export default function CelebrationModal({
     mascotY.value = 0;
     hpDeltaY.value = -20;
     hpDeltaOpacity.value = 0;
-    heartRot.value = 0;
+    badgeScale.value = 1;
   };
 
   const dismiss = () => {
@@ -155,11 +143,8 @@ export default function CelebrationModal({
     opacity: hpDeltaOpacity.value,
     transform: [{ translateY: hpDeltaY.value }],
   }));
-  const heartLeftAStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${heartRot.value}deg` }],
-  }));
-  const heartRightAStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${-heartRot.value}deg` }],
+  const badgeAStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: badgeScale.value }],
   }));
 
   return (
@@ -176,34 +161,39 @@ export default function CelebrationModal({
         accessibilityLabel="跳过动画"
       >
         <Animated.View style={[styles.card, cardAStyle]}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.doneLine}>{doneLine}</Text>
+          {/* 顶部 ✓ 圆形 badge,绝对定位半压卡顶 */}
+          <Animated.View style={[styles.badge, badgeAStyle]}>
+            <Text style={styles.badgeCheck}>✓</Text>
+          </Animated.View>
 
-          {/* mascot + 两侧心形 */}
-          <View style={styles.mascotRow}>
-            <Animated.Text style={[styles.heart, heartLeftAStyle]}>
-              ❤️
-            </Animated.Text>
-            <Animated.View style={[styles.mascotWrap, mascotAStyle]}>
-              <Image
-                source={band.mascot}
-                style={{ width: 96, aspectRatio: band.mascotAspect }}
-                resizeMode="contain"
-              />
-            </Animated.View>
-            <Animated.Text style={[styles.heart, heartRightAStyle]}>
-              ❤️
-            </Animated.Text>
+          {/* 标题 + 小 ✓ */}
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.titleCheck}> ✓</Text>
           </View>
 
-          {/* HP delta + 浮字 */}
+          {/* 副标 */}
+          <Text style={styles.doneLine}>{doneLine}</Text>
+
+          {/* mascot 独立 box:浅米背景 + 圆角 + 内边距 */}
+          <Animated.View style={[styles.mascotBox, mascotAStyle]}>
+            <Image
+              source={CELEBRATION_MASCOT}
+              style={styles.mascotImg}
+              resizeMode="contain"
+            />
+          </Animated.View>
+
+          {/* 绿心 + 血量 +N */}
           <View style={styles.hpRow}>
-            <Text style={styles.hpLabel}>💚 血量 +{hpDelta}</Text>
+            <Text style={styles.hpHeart}>💚</Text>
+            <Text style={styles.hpLabel}>血量 +{hpDelta}</Text>
             <Animated.Text style={[styles.hpFloating, hpDeltaAStyle]}>
               +{hpDelta}
             </Animated.Text>
           </View>
 
+          {/* CTA 继续加油 — plain object style,避免 RC swallow */}
           <Pressable
             onPress={dismiss}
             style={styles.btn}
@@ -217,45 +207,88 @@ export default function CelebrationModal({
   );
 }
 
+const BADGE_SIZE = 48;
+
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 32,
+    padding: 28,
   },
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    paddingVertical: 28,
-    paddingHorizontal: 24,
+    borderRadius: 28,
+    paddingTop: 40, // 给 badge 半压顶留 24 + 标题距 16
+    paddingBottom: 24,
+    paddingHorizontal: 22,
     width: "100%",
     alignItems: "center",
+    // 强阴影
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  badge: {
+    position: "absolute",
+    top: -BADGE_SIZE / 2,
+    width: BADGE_SIZE,
+    height: BADGE_SIZE,
+    borderRadius: BADGE_SIZE / 2,
+    backgroundColor: "#60883b",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+  },
+  badgeCheck: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "700",
+    lineHeight: 28,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 24,
+    fontWeight: "700",
     color: "#3D683F",
-    marginBottom: 6,
+  },
+  titleCheck: {
+    fontSize: 18,
+    color: "#60883b",
   },
   doneLine: {
     fontSize: 14,
     color: "#6E6F6C",
-    marginBottom: 16,
+    marginTop: 6,
+    marginBottom: 18,
     textAlign: "center",
   },
-  mascotRow: {
-    flexDirection: "row",
+  mascotBox: {
+    backgroundColor: "#F4F8E8", // 浅米绿(跟叶片背景呼应)
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    alignSelf: "stretch",
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
+    marginBottom: 18,
   },
-  mascotWrap: {
-    marginHorizontal: 16,
-  },
-  heart: {
-    fontSize: 22,
+  mascotImg: {
+    width: "100%",
+    aspectRatio: 600 / 800, // celebration.png 大致比例
+    maxHeight: 220,
   },
   hpRow: {
     flexDirection: "row",
@@ -263,6 +296,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 18,
     position: "relative",
+    gap: 6,
+  },
+  hpHeart: {
+    fontSize: 18,
   },
   hpLabel: {
     fontSize: 16,
@@ -278,15 +315,15 @@ const styles = StyleSheet.create({
   },
   btn: {
     backgroundColor: "#60883b",
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderRadius: 28,
+    paddingVertical: 16,
     paddingHorizontal: 24,
     alignSelf: "stretch",
     alignItems: "center",
   },
   btnText: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "700",
   },
 });

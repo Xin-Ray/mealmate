@@ -4,7 +4,7 @@
 //
 // HP 标度（v0.4 §11.B 起）：**0–100**
 // - 满血 ≥ 80 / 平稳 50–80 / 低血 30–50 / 濒临 < 30（详见 src/theme/hp.ts）
-// - 通过餐 +HP_MEAL_PHOTO_GAIN（=5），错过餐 -HP_MEAL_MISSED_LOSS（=10）
+// - 通过餐 +HP_MEAL_PHOTO_GAIN（=10），错过餐 -HP_MEAL_MISSED_LOSS（=10）
 //   gentleMode 下扣分减半
 // - HP 上限 100、下限 0
 // - HP=100 触发 advanceStage（仅 Stage 1→2 占位）
@@ -27,7 +27,9 @@ import type {
 } from "@src/types";
 
 export const HP_MAX = 100;
-export const HP_MEAL_PHOTO_GAIN = 5;
+// v1.2.3: 5 → 10 通关变易(xin 觉得 +5 升 stage 太慢,跟 SNACK_GAIN 持平 +10)。
+// HP_MEAL_MISSED_LOSS 不变(漏餐仍扣 10),但拍照能赚回来更快。
+export const HP_MEAL_PHOTO_GAIN = 10;
 export const HP_MEAL_MISSED_LOSS = 10;
 // issue #3 加餐：拍照 +10 HP（addHp 内部 clamp 到 100）
 export const HP_SNACK_GAIN = 10;
