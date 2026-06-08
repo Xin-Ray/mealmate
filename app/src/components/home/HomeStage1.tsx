@@ -2,9 +2,9 @@ import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import StageChip from "@src/components/home/StageChip";
 import SnackCard from "@src/components/ui/SnackCard";
-import HpHeartsContent from "@src/components/ui/HpHeartsContent";
+import HeartProgress from "@src/components/ui/HeartProgress";
 import WeekStrip from "@src/components/WeekStrip";
-import { useStore } from "@src/store/useStore";
+import { STAGE_TARGETS, useStore } from "@src/store/useStore";
 import { getHpBand } from "@src/theme/hp";
 import { colors } from "@src/theme/tokens";
 import { Image, ScrollView, Text, View } from "react-native";
@@ -18,12 +18,16 @@ import { useRouter } from "expo-router";
 
 export default function HomeStage1() {
   const router = useRouter();
-  const hp = useStore((s) => s.hp);
+  // v14 改动 #5: stage 1 用 stageScore 替代 hp 显示。band 仍用 stage 1 调性,
+  // 但 hp 喂 getHpBand 的值改成 score/target 百分比映射(让 mascot text 跟着 score 涨)
+  const stageScore = useStore((s) => s.stageScore);
   const todayMeals = useStore((s) => s.todayMeals);
   const todayKey = useStore((s) => s.todayKey);
   const mealHistory = useStore((s) => s.mealHistory);
 
-  const band = getHpBand(hp, 1);
+  const target = STAGE_TARGETS[1];
+  const pseudoHp = Math.round((stageScore / target) * 100);
+  const band = getHpBand(pseudoHp, 1);
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
@@ -120,22 +124,16 @@ export default function HomeStage1() {
             </View>
           </View>
 
-          {/* 心形浮卡：absolute 跨 mascot 底沿（自带 bg + border） */}
+          {/* v14 改动 #5: HpHeartsContent → HeartProgress(stage 1 = 4 颗心,target 40)*/}
           <View
             style={{
               position: "absolute",
               bottom: -16,
               left: 16,
               right: 16,
-              backgroundColor: "#FDFCF6",
-              borderColor: "#D2DEB9",
-              borderWidth: 1,
-              borderRadius: 30,
-              paddingHorizontal: 16,
-              paddingVertical: 14,
             }}
           >
-            <HpHeartsContent hp={hp} />
+            <HeartProgress score={stageScore} total={target} />
           </View>
         </View>
 

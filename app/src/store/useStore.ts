@@ -30,6 +30,23 @@ export const HP_MAX = 100;
 // v1.2.3: 5 → 10 通关变易(xin 觉得 +5 升 stage 太慢,跟 SNACK_GAIN 持平 +10)。
 // HP_MEAL_MISSED_LOSS 不变(漏餐仍扣 10),但拍照能赚回来更快。
 export const HP_MEAL_PHOTO_GAIN = 10;
+
+// v1.2.3 改动 #5: 统一所有 stage 1/2/3 通关到「累分制」(替换 HP 60-100/50-100 等
+// 不一致的 HP range)。stage 0.5 已经是累分(4 颗心),把 1/2/3 拉齐到同模型。
+// stage 4/5 保留旧机制(基于体重 / 体重区间),hp 字段仍由它们用。
+// target 数 + heart 数挂钩:1 颗 = 10 分。
+export const STAGE_TARGETS: Record<number, number> = {
+  0.5: 40,
+  1: 40,
+  2: 50,
+  3: 30,
+};
+export const STAGE_HEART_COUNT: Record<number, number> = {
+  0.5: 4,
+  1: 4,
+  2: 5,
+  3: 3,
+};
 export const HP_MEAL_MISSED_LOSS = 10;
 // issue #3 加餐：拍照 +10 HP（addHp 内部 clamp 到 100）
 export const HP_SNACK_GAIN = 10;
@@ -95,6 +112,8 @@ type State = {
   stage0Done: boolean;
   // v13: Stage 0.5 分数 0-40,每 10 分 = 1 颗爱心。仅 stage 0.5 用
   stage05Score: number;
+  // v14 改动 #5: stage 1/2/3 累分(0-target),替换 HP 显示。stage 0/0.5/4/5 不读此值
+  stageScore: number;
   companionLv: number;
   robotName: string;
   gentleMode: boolean;
@@ -225,6 +244,10 @@ type Actions = {
   // 不暴露给 UI 直接调（idempotent，多次调安全）
   __internal_runStage5Check: () => void;
 
+  // v14 改动 #5 internal: stage 1/2/3 累分驱动。delta 正负皆可,clamp [0, target]。
+  // 达 target 自动 advanceStage。**仅 stage 1/2/3 调**(其他 stage no-op)。
+  __internal_addStageScore: (delta: number) => void;
+
   // ====== v13 Stage 0 / 0.5 缓冲层（v1.2.1）======
   // Stage 0 拍完那张餐照后调:置 stage0Done + push transitions(0 end → 0.5 start) +
   // currentStage = 0.5。photo.tsx onConfirm 在 markMealDone 之后调。
@@ -244,6 +267,8 @@ type Actions = {
   __dev_setStage: (s: Stage) => void;
   // v13 DEV: 直接设 stage 0.5 的分数(测试 4 颗爱心填充用)
   __dev_setStage05Score: (n: number) => void;
+  // v14 DEV: 直接设 stage 1/2/3 分数(测试 hearts 填充)
+  __dev_setStageScore: (n: number) => void;
   __dev_resetToday: () => void;
   __dev_clearWeightHistory: () => void;
   __dev_clearFullnessHistory: () => void;
@@ -268,6 +293,8 @@ const initialState: State = {
   currentStage: 0,
   stage0Done: false,
   stage05Score: 0,
+  // v14 改动 #5: stage 1/2/3 累分,新装从 0 起步
+  stageScore: 0,
   companionLv: 1,
   robotName: "小满",
   gentleMode: false,
@@ -370,14 +397,17 @@ export const useStore = create<State & Actions>()(
           todayMeals: { ...s.todayMeals, [slot]: "done" },
           mealRecords: [...s.mealRecords, record],
         });
-        // v13: stage 0/0.5 不走 HP 系统(stage 0 那张照走 advanceFromStage0,
-        // stage 0.5 走 incrementStage05Score)。stage 1+ 才 addHp
-        if (s.currentStage >= 1) {
+        // v14 改动 #5: stage 1/2/3 走 stageScore +10(替换原 addHp);
+        // stage 4/5 仍走 addHp(机制不变);stage 0.5 走 incrementStage05Score;
+        // stage 0 由 photo.tsx advanceFromStage0 处理(本函数 stage 0 不进 +score)
+        const cs = s.currentStage;
+        if (cs === 1 || cs === 2 || cs === 3) {
+          get().__internal_addStageScore(10);
+        } else if (cs >= 4) {
           get().addHp(HP_MEAL_PHOTO_GAIN);
-        } else if (s.currentStage === 0.5) {
+        } else if (cs === 0.5) {
           get().incrementStage05Score(10);
         }
-        // stage 0 拍照走 markMealDone 后由 photo.tsx 调 advanceFromStage0 处理跳转
       },
 
       markMealMissed: (slot) => {
@@ -403,7 +433,14 @@ export const useStore = create<State & Actions>()(
           todayMeals: { ...s.todayMeals, [slot]: "missed" },
           mealRecords: [...s.mealRecords, record],
         });
-        get().addHp(delta);
+        // v14 改动 #5: stage 1/2/3 走 stageScore -10 clamp 0(不 demote,本期 spec);
+        // stage 4/5 仍走 addHp(可能触发 demote)
+        const cs = s.currentStage;
+        if (cs === 1 || cs === 2 || cs === 3) {
+          get().__internal_addStageScore(delta); // delta 已含 gentleMode 折半,负值
+        } else if (cs >= 4) {
+          get().addHp(delta);
+        }
       },
 
       addHp: (delta) => {
@@ -445,6 +482,8 @@ export const useStore = create<State & Actions>()(
           currentStage: newStage,
           companionLv: s.companionLv + 1,
           hp: initHp,
+          // v14 改动 #5: 进入新 stage 时 stageScore reset 0(干净起步)
+          stageScore: 0,
           transitionsPending: [
             ...s.transitionsPending,
             { stage: oldStage, kind: "end" },
@@ -584,11 +623,14 @@ export const useStore = create<State & Actions>()(
         ).length;
         if (todayCount >= SNACK_DAILY_LIMIT) return;
 
-        // v13: stage 1+ 走 HP +10;stage 0.5 走 stage05Score +10(纯爱心鼓励)
-        // stage 0 不应该出现在加餐流(SnackCard 不显示),但兜底也不爆
-        if (s.currentStage >= 1) {
+        // v14 改动 #5: stage 1/2/3 → stageScore +10(替换原 addHp);
+        // stage 4/5 → addHp(机制不变);stage 0.5 → 爱心 +10
+        const cs = s.currentStage;
+        if (cs === 1 || cs === 2 || cs === 3) {
+          get().__internal_addStageScore(HP_SNACK_GAIN);
+        } else if (cs >= 4) {
           get().addHp(HP_SNACK_GAIN);
-        } else if (s.currentStage === 0.5) {
+        } else if (cs === 0.5) {
           get().incrementStage05Score(10);
         }
         // feed 留痕：dialogue kind='snack_done'，feed 渲染端识别此 kind 走加餐卡
@@ -704,9 +746,27 @@ export const useStore = create<State & Actions>()(
         }
       },
 
+      // v14 改动 #5: stage 1/2/3 累分驱动。clamp [0, target],达 target 自动 advance。
+      __internal_addStageScore: (delta) => {
+        const s = get();
+        const target = STAGE_TARGETS[s.currentStage];
+        if (target == null) return; // 仅 stage 1/2/3 生效
+        const newScore = Math.max(0, Math.min(target, s.stageScore + delta));
+        set({ stageScore: newScore });
+        if (newScore >= target) {
+          // advance 内部会 reset stageScore=0 + push transitions
+          get().advanceStage();
+        }
+      },
+
       __dev_setHp: (n) => set({ hp: clampHp(n) }),
       __dev_setStage: (s) => set({ currentStage: s }),
       __dev_setStage05Score: (n) => set({ stage05Score: Math.max(0, Math.min(40, n)) }),
+      // v14 DEV: 直接设 stageScore(测试 stage 1/2/3 hearts 填充)
+      __dev_setStageScore: (n: number) => {
+        const target = STAGE_TARGETS[get().currentStage] ?? 40;
+        set({ stageScore: Math.max(0, Math.min(target, n)) });
+      },
       __dev_resetToday: () =>
         set({ todayMeals: { ...FRESH_TODAY }, todayKey: todayKey() }),
       __dev_clearWeightHistory: () => set({ weightHistory: [] }),
@@ -801,7 +861,7 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 13,
+      version: 14,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
@@ -921,6 +981,27 @@ export const useStore = create<State & Actions>()(
           // 仅新装 v1.2.1 用户从 initialState 拿 currentStage=0 起步
           if (ps.stage0Done === undefined) ps.stage0Done = false;
           if (ps.stage05Score === undefined) ps.stage05Score = 0;
+        }
+        if (version < 14) {
+          // v14 改动 #5:stage 1/2/3 累分模型替换 HP 显示。
+          // 从老 hp 反推 stageScore:
+          //   stage 1: max(0, hp - 60)  (老起始 60, 100 = 通关)
+          //   stage 2: max(0, hp - 50)  (老起始 50, 100 = 通关)
+          //   stage 3: max(0, hp - 70)  (老起始 70, 100 = 通关)
+          //   stage 0/0.5/4/5: 0(各自机制)
+          // clamp 到 target-1 防 migrate 触发 advance(干净)
+          if (ps.stageScore === undefined) {
+            const stage = typeof ps.currentStage === "number" ? ps.currentStage : 0;
+            const hp = typeof ps.hp === "number" ? ps.hp : 0;
+            let score = 0;
+            if (stage === 1) score = Math.max(0, hp - 60);
+            else if (stage === 2) score = Math.max(0, hp - 50);
+            else if (stage === 3) score = Math.max(0, hp - 70);
+            // clamp 到 target-1,避免 migrate 落库瞬间触发 advance
+            const target = STAGE_TARGETS[stage];
+            if (target != null) score = Math.min(target - 10, score);
+            ps.stageScore = Math.max(0, score);
+          }
         }
         return persistedState as State & Actions;
       },

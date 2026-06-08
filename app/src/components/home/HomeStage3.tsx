@@ -3,10 +3,10 @@ import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import StageChip from "@src/components/home/StageChip";
 import WeekStripConnected from "@src/components/home/WeekStripConnected";
 import ExerciseCard from "@src/components/ui/ExerciseCard";
-import HpHeartsContent from "@src/components/ui/HpHeartsContent";
+import HeartProgress from "@src/components/ui/HeartProgress";
 import SnackCard from "@src/components/ui/SnackCard";
 import WeightCard from "@src/components/ui/WeightCard";
-import { useStore } from "@src/store/useStore";
+import { STAGE_TARGETS, useStore } from "@src/store/useStore";
 import { getHpBand } from "@src/theme/hp";
 import { colors } from "@src/theme/tokens";
 import { useRouter } from "expo-router";
@@ -22,10 +22,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeStage3() {
   const router = useRouter();
-  const hp = useStore((s) => s.hp);
+  // v14 改动 #5: stage 3 用 stageScore 替代 hp 显示
+  const stageScore = useStore((s) => s.stageScore);
   const weightHistory = useStore((s) => s.weightHistory);
 
-  const band = getHpBand(hp);
+  const target = STAGE_TARGETS[3];
+  const pseudoHp = Math.round((stageScore / target) * 100);
+  const band = getHpBand(pseudoHp);
   const lastWeight = weightHistory[weightHistory.length - 1];
   const prevWeight =
     weightHistory.length >= 2 ? weightHistory[weightHistory.length - 2] : undefined;
@@ -116,22 +119,16 @@ export default function HomeStage3() {
             </View>
           </View>
 
-          {/* HP 心形浮卡 */}
+          {/* v14 改动 #5: HpHeartsContent → HeartProgress(stage 3 = 3 颗心,target 30)*/}
           <View
             style={{
               position: "absolute",
               bottom: -16,
               left: 16,
               right: 16,
-              backgroundColor: "#FDFCF6",
-              borderColor: "#D2DEB9",
-              borderWidth: 1,
-              borderRadius: 30,
-              paddingHorizontal: 16,
-              paddingVertical: 14,
             }}
           >
-            <HpHeartsContent hp={hp} />
+            <HeartProgress score={stageScore} total={target} />
           </View>
         </View>
 
