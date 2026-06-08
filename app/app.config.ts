@@ -22,7 +22,7 @@ const NAME = IS_DEV ? "MealMate Dev" : "MealMate";
 const config: ExpoConfig = {
   name: NAME,
   slug: "mealmate",
-  version: "1.2.2",
+  version: "1.2.3",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "mealmate",
@@ -31,7 +31,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: false,
     bundleIdentifier: "com.xinray.mealmate",
-    buildNumber: "8",
+    buildNumber: "9",
     usesAppleSignIn: true,
     infoPlist: {
       NSCameraUsageDescription:
