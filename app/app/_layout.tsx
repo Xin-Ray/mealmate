@@ -1,5 +1,5 @@
 import "../global.css";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -14,6 +14,7 @@ import {
 import { runMissedScan } from "@src/services/missedScan";
 import { schedulePush, SYNCED_KEYS } from "@src/services/sync";
 import { hpBandFromValue, pickDialogue } from "@src/data/dialogues";
+import LaunchAnimation from "@src/components/launch/LaunchAnimation";
 import type { MealSlot } from "@src/types";
 
 export default function RootLayout() {
@@ -23,6 +24,9 @@ export default function RootLayout() {
   const schedules = useStore((s) => s.mealSchedules);
   const hp = useStore((s) => s.hp);
   const accountToken = useStore((s) => s.account?.token ?? null);
+
+  // v1.2.3 改动 #4: 每次冷启动播 ~3s 标志性 splash 视频(全屏覆盖,结束/点击 dismiss)
+  const [launchAnimDone, setLaunchAnimDone] = useState(false);
 
   useEffect(() => {
     rollDayIfNeeded();
@@ -122,6 +126,10 @@ export default function RootLayout() {
             options={{ headerShown: false }}
           />
         </Stack>
+        {/* v1.2.3 改动 #4: 启动动画覆盖在最上层,视频结束/点击屏幕 → setLaunchAnimDone */}
+        {!launchAnimDone && (
+          <LaunchAnimation onFinish={() => setLaunchAnimDone(true)} />
+        )}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
