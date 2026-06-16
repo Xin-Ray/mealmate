@@ -523,8 +523,8 @@ selector：`buildTodayFeed({ todayKey, todayMeals, schedules, fullnessHistory })
 | 项 | 默认值 |
 |---|---|
 | HP 标度 | **0–100**（store v2 起；v1→v2 migrate 把老 0–15 数据 ×6.67 放大；常量 `HP_MAX=100`） |
-| 通过餐 HP +5 | stage 1/2 一致；常量 `HP_MEAL_PHOTO_GAIN=5` |
-| 错过餐 HP -10 | stage 1/2 一致；常量 `HP_MEAL_MISSED_LOSS=10`；gentleMode 减半 |
+| 通过餐 HP +10 | stage 1/2 一致；常量 `HP_MEAL_PHOTO_GAIN=10`(v1.2.3 起 5→10) |
+| ~~错过餐 HP -10~~ | **v1.2.5 起取消**:漏餐 hpDelta = 0,不扣分。见 [v1.2.5-pure-encouragement.md](./v1.2.5-pure-encouragement.md) |
 | 时间窗 | settings 里设的提醒时间 ±90min |
 | missed 检测触发 | 每餐窗末立即触发（不等 §四 的 21:00 称重检查） |
 | HP 4 band 阈值 | full 80–100 / stable 50–79 / low 20–49 / critical 0–19（闭区间，§11.B） |

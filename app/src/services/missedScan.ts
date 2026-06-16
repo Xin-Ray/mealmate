@@ -2,51 +2,54 @@
 //
 // iOS 后台 JS 不能可靠跑，所以 v0.4 退化为：每次 app 激活（启动 / 从后台回前台）
 // 跑一次 detectMissedSlots → 找今日已过窗末仍 status=pending 的 slot → 自动
-// markMealMissed（扣 HP -10 / gentle -5）+ push 两条 dialogue 进 feed。
+// markMealMissed + push 两条 dialogue 进 feed。
+//
+// v1.2.5: pure encouragement —— markMealMissed 不再扣 HP/score(useStore 已改);
+// 本文件 dialogue 文案也全面去惩罚化:
+//   - meal_missed 文案中性鼓励(原:「错过/有点饿/失落」→ 新:「下一顿见/慢慢来」)
+//   - hpDelta = 0(原 -10/-5),UI 不渲染红色血量 badge
+//   - REMIND_BY_STAGE 文案改成温和提醒(原:「贵在坚持/别再落下」→ 新:「不急/明天再来」)
 //
 // 调用方：`app/_layout.tsx` AppState listener。
 //
 // 返回：本次新发现的 missed slot 数组（用于决定要不要弹 missed modal）。
 // 已经 missed 的 slot 不重复触发（store action 内有 dedup）。
 
-import {
-  HP_MEAL_MISSED_LOSS,
-  useStore,
-} from "@src/store/useStore";
+import { useStore } from "@src/store/useStore";
 import type { MealSchedule, MealSlot, TodayMeals } from "@src/types";
 
 const WINDOW_MIN = 90; // PRD §11.F.3
 
-// PRD §11.F.2 第一条："你错过了一餐..."
+// v1.2.5: 中性鼓励文案,不让用户觉得"漏一餐 = 失败"。原 v1.2.4 文案见 git log。
 const MISSED_LINE_BY_SLOT: Record<MealSlot, string[]> = {
   breakfast: [
-    "你错过了一餐，有点饿",
-    "早餐没吃，肚子咕噜咕噜",
-    "今早没等到你",
+    "这餐没赶上,下一顿见 🌱",
+    "早餐过去了,慢慢来不急",
+    "今早慢了一拍,没关系",
   ],
   lunch: [
-    "中午没等到你，有点失落",
-    "你错过了一餐，有点饿",
-    "午餐没吃，下半天会有点没劲",
+    "中午没等到你,稍后吃点也好",
+    "这餐过去了,补充点水分吧",
+    "午餐错过了,下一顿见 🌱",
   ],
   dinner: [
-    "晚餐没吃，今天像缺了一块",
-    "你错过了一餐，有点饿",
-    "晚饭时间过了，我等了一会儿",
+    "今晚没吃也没关系,别太勉强",
+    "这餐过去了,早点休息吧",
+    "晚餐过了,明天继续 🌱",
   ],
 };
 
-// PRD §11.F.2 第二条 — 按当前 stage 切语气
+// v1.2.5: 第二条暖心提示,只鼓励不施压。
 const REMIND_BY_STAGE: Record<1 | 2, string[]> = {
   1: [
-    "坚持每天三餐才是开始呀",
-    "下一顿我们一起好吗",
-    "今天剩下的别再落下了",
+    "我们一起期待下一餐",
+    "慢慢来,不急",
+    "下一顿吃点喜欢的吧",
   ],
   2: [
-    "第二阶段贵在坚持，希望下一顿可以吃上饭",
-    "稳定的节奏比偶尔满分重要",
-    "下一餐到了别忘了我",
+    "节奏不用一直完美",
+    "下一餐到了再见",
+    "保持你的节奏就好",
   ],
 };
 
@@ -101,15 +104,13 @@ export function runMissedScan(): MealSlot[] {
   );
   if (newMissed.length === 0) return [];
 
-  const hpLoss = fresh.gentleMode ? HP_MEAL_MISSED_LOSS / 2 : HP_MEAL_MISSED_LOSS;
-
   for (const slot of newMissed) {
     fresh.markMealMissed(slot);
     fresh.pushDialogue({
       kind: "meal_missed",
       body: pickRandom(MISSED_LINE_BY_SLOT[slot]),
       mealSlot: slot,
-      hpDelta: -hpLoss,
+      hpDelta: 0, // v1.2.5: pure encouragement,无血量 badge
     });
     // REMIND_BY_STAGE 现仅有 stage 1+2 的提醒池；3-5 阶段 fallback 到 stage 2 文案
     const stageKey = (Math.min(fresh.currentStage, 2) as 1 | 2);

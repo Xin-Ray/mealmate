@@ -4,8 +4,10 @@
 //
 // HP 标度（v0.4 §11.B 起）：**0–100**
 // - 满血 ≥ 80 / 平稳 50–80 / 低血 30–50 / 濒临 < 30（详见 src/theme/hp.ts）
-// - 通过餐 +HP_MEAL_PHOTO_GAIN（=10），错过餐 -HP_MEAL_MISSED_LOSS（=10）
-//   gentleMode 下扣分减半
+// - 通过餐 +HP_MEAL_PHOTO_GAIN（=10）
+// - v1.2.5: **全 stage 漏餐 pure encouragement,不扣 HP/score/star**
+//   HP_MEAL_MISSED_LOSS 常量已删除(无 caller)。gentleMode 字段保留(将来留口子,
+//   但漏餐路径已不读它)。
 // - HP 上限 100、下限 0
 // - HP=100 触发 advanceStage（仅 Stage 1→2 占位）
 // - 老用户 0–15 标度数据通过 persist v1→v2 migrate 自动放大 6.67 倍
@@ -28,7 +30,7 @@ import type {
 
 export const HP_MAX = 100;
 // v1.2.3: 5 → 10 通关变易(xin 觉得 +5 升 stage 太慢,跟 SNACK_GAIN 持平 +10)。
-// HP_MEAL_MISSED_LOSS 不变(漏餐仍扣 10),但拍照能赚回来更快。
+// v1.2.5: 漏餐改 pure encouragement,删 HP_MEAL_MISSED_LOSS(无 caller)。
 export const HP_MEAL_PHOTO_GAIN = 10;
 
 // v1.2.3 改动 #5: 统一所有 stage 1/2/3 通关到「累分制」(替换 HP 60-100/50-100 等
@@ -47,7 +49,6 @@ export const STAGE_HEART_COUNT: Record<number, number> = {
   2: 5,
   3: 3,
 };
-export const HP_MEAL_MISSED_LOSS = 10;
 // issue #3 加餐：拍照 +10 HP（addHp 内部 clamp 到 100）
 export const HP_SNACK_GAIN = 10;
 // issue #3 加餐每日上限（防作弊通关）：一天最多 3 次（2026-05-30 改 2→3）
@@ -412,12 +413,12 @@ export const useStore = create<State & Actions>()(
 
       markMealMissed: (slot) => {
         const s = get();
-        // v13: stage 0/0.5 漏餐免疫(纯鼓励阶段,不扣 HP / 不写 missed record)
+        // v1.2.5: 全 stage 漏餐 pure encouragement —— 不扣 HP/score/star,
+        // 只落 mealRecord(status='missed' + hpDelta=0)给 WeekStrip 灰格显示。
+        // dialogue 中性鼓励文案在 missedScan.ts。
+        // stage 0/0.5 仍早 return(本来就免疫)
         if (s.currentStage < 1) return;
         if (s.todayMeals[slot] === "missed") return;
-        const delta = s.gentleMode
-          ? -HP_MEAL_MISSED_LOSS / 2
-          : -HP_MEAL_MISSED_LOSS;
         const ts = Date.now();
         const date = s.todayKey;
         const record: MealRecord = {
@@ -426,21 +427,13 @@ export const useStore = create<State & Actions>()(
           mealSlot: slot,
           status: "missed",
           ts,
-          hpDelta: delta,
+          hpDelta: 0, // v1.2.5: 无惩罚 → UI 不渲染血量 badge(RecordCard 守卫 <0)
         };
-        // 先落 record + 标 missed，再走 HP 边界（demote 会改 hp + stage）
         set({
           todayMeals: { ...s.todayMeals, [slot]: "missed" },
           mealRecords: [...s.mealRecords, record],
         });
-        // v14 改动 #5: stage 1/2/3 走 stageScore -10 clamp 0(不 demote,本期 spec);
-        // stage 4/5 仍走 addHp(可能触发 demote)
-        const cs = s.currentStage;
-        if (cs === 1 || cs === 2 || cs === 3) {
-          get().__internal_addStageScore(delta); // delta 已含 gentleMode 折半,负值
-        } else if (cs >= 4) {
-          get().addHp(delta);
-        }
+        // v1.2.5: 不再调 __internal_addStageScore / addHp(无扣分)
       },
 
       addHp: (delta) => {
@@ -817,22 +810,10 @@ export const useStore = create<State & Actions>()(
           return;
         }
 
-        // 2) 今日体重超 target+2.5 → -1 星（按今日最高一条算）
-        const todayWeights = s.weightHistory.filter(
-          (w) => w.date === s.todayKey
-        );
-        const todayMax =
-          todayWeights.length > 0
-            ? Math.max(...todayWeights.map((w) => w.kg))
-            : null;
-        if (todayMax != null && todayMax > target + STAGE5_TARGET_BAND_KG) {
-          const newStars = Math.max(0, s.stage5Stars - 1);
-          set({ stage5Stars: newStars });
-          if (newStars === 0) {
-            get().demoteStage(); // 回 stage 4，stage5 状态由 demoteStage 清
-          }
-          return;
-        }
+        // 2) v1.2.5: 取消「今日超 target+2.5 → -1 星」惩罚(pure encouragement)。
+        //    保留 +1 星(7 天全在区间) + 60 天通关。stars 只升不降,stage 5 永不
+        //    demote 回 stage 4。
+        //    历史 -1 / demote 逻辑见 git log,如未来要恢复加 feature flag 切。
 
         // 3) 每 7 天加星判定：过去 7 天 ≥ 7 条体重记录且全在区间内 → +1 星
         const lastCheck = s.stage5LastStarCheck ?? s.stage5StartedAt;
