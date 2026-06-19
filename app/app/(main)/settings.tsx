@@ -85,6 +85,13 @@ export default function SettingsScreen() {
   const setGentleMode = useStore((s) => s.setGentleMode);
   const skipWeightPhoto = useStore((s) => s.skipWeightPhoto);
   const setSkipWeightPhoto = useStore((s) => s.setSkipWeightPhoto);
+  // v1.2.5 build 13: 错过一餐提醒开关(默认关闭)
+  const missedRemindersEnabled = useStore(
+    (s) => s.missedMealRemindersEnabled
+  );
+  const setMissedRemindersEnabled = useStore(
+    (s) => s.setMissedMealRemindersEnabled
+  );
   const schedules = useStore((s) => s.mealSchedules);
   const setMealSchedule = useStore((s) => s.setMealSchedule);
   const resetAll = useStore((s) => s.resetAll);
@@ -528,6 +535,31 @@ export default function SettingsScreen() {
           </Card>
         )}
 
+        {/* v1.2.5 build 13: 通知设置 — 错过一餐提醒(默认关) */}
+        <SectionLabel>通知设置</SectionLabel>
+        <Card style={{ paddingVertical: 0, paddingHorizontal: 20 }}>
+          <View
+            className="flex-row items-center justify-between"
+            style={{ paddingVertical: 16 }}
+          >
+            <View className="flex-1 pr-3">
+              <Text style={{ fontSize: 16, color: colors.ink.primary }}>
+                错过一餐提醒
+              </Text>
+              <Text
+                className="mt-1"
+                style={{ fontSize: 12, color: colors.ink.sub, lineHeight: 18 }}
+              >
+                打开后,如果错过用餐时间,会在记录里看到一条温和提醒。默认关闭,因为我们觉得没必要给你压力。
+              </Text>
+            </View>
+            <Switch
+              value={missedRemindersEnabled}
+              onValueChange={setMissedRemindersEnabled}
+            />
+          </View>
+        </Card>
+
         {/* 偏好开关 */}
         <SectionLabel>偏好</SectionLabel>
         <Card style={{ paddingVertical: 0, paddingHorizontal: 20 }}>
@@ -543,7 +575,7 @@ export default function SettingsScreen() {
                 className="mt-1"
                 style={{ fontSize: 12, color: colors.ink.sub }}
               >
-                错过一餐时只扣 5 HP（默认 -10）；语气更轻。
+                语气更轻。
               </Text>
             </View>
             <Switch value={gentleMode} onValueChange={setGentleMode} />

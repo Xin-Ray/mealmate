@@ -2,13 +2,16 @@
 //
 // iOS 后台 JS 不能可靠跑，所以 v0.4 退化为：每次 app 激活（启动 / 从后台回前台）
 // 跑一次 detectMissedSlots → 找今日已过窗末仍 status=pending 的 slot → 自动
-// markMealMissed + push 两条 dialogue 进 feed。
+// markMealMissed + (条件)push dialogue 进 feed。
 //
-// v1.2.5: pure encouragement —— markMealMissed 不再扣 HP/score(useStore 已改);
-// 本文件 dialogue 文案也全面去惩罚化:
-//   - meal_missed 文案中性鼓励(原:「错过/有点饿/失落」→ 新:「下一顿见/慢慢来」)
-//   - hpDelta = 0(原 -10/-5),UI 不渲染红色血量 badge
-//   - REMIND_BY_STAGE 文案改成温和提醒(原:「贵在坚持/别再落下」→ 新:「不急/明天再来」)
+// v1.2.5 build 13: 错过提醒默认关闭(missedMealRemindersEnabled = false)
+//   - 仍走 markMealMissed → 落 mealRecord(status='missed') 让 WeekStrip 显示历史
+//   - 不 pushDialogue(dialogueHistory 不写,records feed 不显示提醒条)
+//   - 用户在 Settings 手动开关 → true 才走完整 dialogue push
+//
+// v1.2.5 build 11: pure encouragement —— markMealMissed 不再扣 HP/score
+//   (useStore 已改); dialogue 文案全面去「错过/失落/有点饿」→ 「下一顿见/慢慢来」
+//   hpDelta = 0(原 -10/-5),UI 不渲染红色血量 badge
 //
 // 调用方：`app/_layout.tsx` AppState listener。
 //
@@ -20,36 +23,47 @@ import type { MealSchedule, MealSlot, TodayMeals } from "@src/types";
 
 const WINDOW_MIN = 90; // PRD §11.F.3
 
-// v1.2.5: 中性鼓励文案,不让用户觉得"漏一餐 = 失败"。原 v1.2.4 文案见 git log。
+// v1.2.5 build 13:全套纯鼓励 + 去「错过/漏/-」字。让用户感到「没事,我们继续」
+// 而不是「我做错了」。3 slot × 5 = 15 条 池子。
 const MISSED_LINE_BY_SLOT: Record<MealSlot, string[]> = {
   breakfast: [
-    "这餐没赶上,下一顿见 🌱",
-    "早餐过去了,慢慢来不急",
-    "今早慢了一拍,没关系",
+    "今天的早餐没拍上,没关系,下一顿等你 🌱",
+    "早晨的节奏慢一点,中午我们再见 ✨",
+    "今天的早餐我们跳一次,记得喝点水 💧",
+    "没拍上也没关系,身体感觉舒服最重要",
+    "新的一天,慢慢来就好 🌿",
   ],
   lunch: [
-    "中午没等到你,稍后吃点也好",
-    "这餐过去了,补充点水分吧",
-    "午餐错过了,下一顿见 🌱",
+    "今天的午餐没拍上,没关系,下一顿等你 🌱",
+    "中午这一顿我们跳一次,晚餐见 ✨",
+    "没拍上也没关系,记得照顾好自己",
+    "今天的节奏轻一点,下一顿我们一起 💧",
+    "稍后想吃点什么,随手记一下就好 🌿",
   ],
   dinner: [
-    "今晚没吃也没关系,别太勉强",
-    "这餐过去了,早点休息吧",
-    "晚餐过了,明天继续 🌱",
+    "今天的晚餐没拍上,没关系,早点休息 🌙",
+    "今晚这顿我们跳一次,明天我们继续 ✨",
+    "没拍上也没关系,你愿意来就在这里 🌿",
+    "今天到这里也很好,身体先休息",
+    "明天我们重新开始 🌱",
   ],
 };
 
-// v1.2.5: 第二条暖心提示,只鼓励不施压。
+// v1.2.5 build 13:第二条暖心提示,纯支持不施压。stage 1+2 各 5 条。
 const REMIND_BY_STAGE: Record<1 | 2, string[]> = {
   1: [
-    "我们一起期待下一餐",
-    "慢慢来,不急",
-    "下一顿吃点喜欢的吧",
+    "我们一起期待下一餐 ✨",
+    "你愿意来,我都在",
+    "下一顿吃点喜欢的吧 🌱",
+    "节奏不用赶,慢慢来",
+    "你今天已经做得很好了",
   ],
   2: [
-    "节奏不用一直完美",
-    "下一餐到了再见",
+    "节奏不用一直完美 🌿",
     "保持你的节奏就好",
+    "下一餐到了再见",
+    "今天的我们足够",
+    "你愿意拍一张,我就在 ✨",
   ],
 };
 
@@ -104,8 +118,14 @@ export function runMissedScan(): MealSlot[] {
   );
   if (newMissed.length === 0) return [];
 
+  // v1.2.5 build 13: 默认 false → 仍 markMealMissed(WeekStrip 用),但不 push
+  // dialogue / 不让 MealIncompleteCard 显示。用户在 Settings 手动开才走完整流程。
+  const remindersEnabled = fresh.missedMealRemindersEnabled;
+
   for (const slot of newMissed) {
     fresh.markMealMissed(slot);
+    if (!remindersEnabled) continue; // skip dialogue push,保留 mealRecord
+
     fresh.pushDialogue({
       kind: "meal_missed",
       body: pickRandom(MISSED_LINE_BY_SLOT[slot]),

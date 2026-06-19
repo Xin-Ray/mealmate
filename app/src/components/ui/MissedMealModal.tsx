@@ -1,12 +1,20 @@
-import { View, Text, Image } from "react-native";
+import { View, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Card from "@src/components/ui/Card";
 import PrimaryButton from "@src/components/ui/PrimaryButton";
 import { colors } from "@src/theme/tokens";
 import type { MealSlot } from "@src/types";
 
-// 错过餐次提示 modal（占位 UI，按 Figma 1:79 missed-meal 块）
-// HP 扣分 / 调度逻辑留 §11.K 第 7 项
+// 错过餐次提示 modal(/(modal)/meal-missed 路由)
+//
+// v1.2.5 build 13 重写:
+//   - 移除 mascot 图(193x173 missed.png)
+//   - 移除「血量 -10」badge
+//   - 文案改纯鼓励调
+//   - 整体退到「日记式」温和卡,无 modal「警告」气质
+//
+// 注意:该路由现已是次入口(_layout 不主动推 modal,主要交互走首页
+// <MealIncompleteCard>),保留只为兼容老 deep link / 直接 router.push。
 
 const SLOT_LABEL: Record<MealSlot, string> = {
   breakfast: "早餐",
@@ -24,36 +32,20 @@ export default function MissedMealModal({ slot, onAcknowledge }: Props) {
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
       <View className="flex-1 px-6 justify-center">
         <Card style={{ paddingVertical: 28, alignItems: "center" }}>
-          <Image
-            source={require("../../../assets/mascot/missed.png")}
-            style={{ width: 193, height: 173 }}
-            resizeMode="contain"
-          />
           <Text
-            className="font-semibold mt-4"
+            className="font-semibold"
             style={{ fontSize: 22, color: colors.brand.greenDark }}
           >
-            你错过了一餐
+            {SLOT_LABEL[slot]}这餐没拍上
           </Text>
-          <View
-            className="px-3 py-1 rounded-full mt-2"
-            style={{ backgroundColor: `${colors.status.bad}22` }}
-          >
-            <Text
-              className="font-semibold"
-              style={{ fontSize: 13, color: colors.status.bad }}
-            >
-              血量 -10
-            </Text>
-          </View>
           <Text
             className="text-center mt-3"
-            style={{ fontSize: 14, color: colors.ink.sub, lineHeight: 22 }}
+            style={{ fontSize: 15, color: colors.ink.sub, lineHeight: 22 }}
           >
-            {SLOT_LABEL[slot]}没吃，有点饿。{"\n"}希望下一顿可以吃上饭。
+            没关系,下一顿等你 🌱{"\n"}保持你的节奏就好。
           </Text>
           <View className="w-full mt-6">
-            <PrimaryButton label="我知道了" onPress={onAcknowledge} />
+            <PrimaryButton label="知道了" onPress={onAcknowledge} />
           </View>
         </Card>
       </View>

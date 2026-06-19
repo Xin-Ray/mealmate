@@ -133,6 +133,54 @@ export default function TodayRecordRow({ item, mascotSource }: Props) {
     );
   }
 
+  // v1.2.5 build 13: meal_missed 走纯文字布局,无 avatar / 无 badge / 无背景色调
+  // 强反差。让漏餐看起来像「日记里的一句话」,不是「警告」。
+  if (item.kind === "dialogue" && item.record.kind === "meal_missed") {
+    const r = item.record;
+    return (
+      <View className="mb-3">
+        <View
+          className="px-4 py-3 rounded-2xl"
+          style={{
+            backgroundColor: "#FCFCFC",
+            borderColor: "#F4F3EC",
+            borderWidth: 1,
+          }}
+        >
+          <Text
+            style={{ fontSize: 14, color: colors.ink.primary, lineHeight: 20 }}
+          >
+            {r.body}
+          </Text>
+          <Text className="text-sub text-xs mt-1">{fmtTime(item.ts)}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // v1.2.5 build 13: meal kind missed 同款无图无 badge 中性卡
+  if (item.kind === "meal" && item.record.status === "missed") {
+    return (
+      <View className="mb-3">
+        <View
+          className="px-4 py-3 rounded-2xl"
+          style={{
+            backgroundColor: "#FCFCFC",
+            borderColor: "#F4F3EC",
+            borderWidth: 1,
+          }}
+        >
+          <Text
+            style={{ fontSize: 14, color: colors.ink.primary, lineHeight: 20 }}
+          >
+            {SLOT_LABEL[item.record.mealSlot]}这餐没拍上
+          </Text>
+          <Text className="text-sub text-xs mt-1">{fmtTime(item.ts)}</Text>
+        </View>
+      </View>
+    );
+  }
+
   // failure 专属渲染（PRD §11.L）：暖橘卡 + 💭 icon 替代 mascot + 无 HP badge
   if (item.kind === "dialogue" && item.record.kind === "failure") {
     const r = item.record;

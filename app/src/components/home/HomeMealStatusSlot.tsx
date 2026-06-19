@@ -13,9 +13,12 @@ import NextMealCard from "@src/components/ui/NextMealCard";
 //
 // 渲染规则（参考 §11.F + Figma 12:119 / 10:116）：
 // 1. 当前在某 mealWindow 内 + 该 slot 今日未 done → <MealReminderCard>
-// 2. 否则有未 ack 的 missed slot → <MealIncompleteCard>
+// 2. 否则有未 ack 的 missed slot **+ missedMealRemindersEnabled** → <MealIncompleteCard>
 // 3. 否则 → <NextMealCard>（v0.5 加：显示下一顿倒计时 + 今日三餐进度星，
 //    替代之前的 null 隐藏分支）
+//
+// v1.2.5 build 13:missedMealRemindersEnabled = false(默认) → 跳过 missed 分支,
+// 直接走 NextMealCard,不向用户呈现「错过卡片」。WeekStrip cell 仍显示历史 missed。
 
 export default function HomeMealStatusSlot() {
   const router = useRouter();
@@ -23,6 +26,9 @@ export default function HomeMealStatusSlot() {
   const mealRecords = useStore((s) => s.mealRecords);
   const todayKey = useStore((s) => s.todayKey);
   const acknowledgeMissedMeal = useStore((s) => s.acknowledgeMissedMeal);
+  const missedRemindersEnabled = useStore(
+    (s) => s.missedMealRemindersEnabled
+  );
 
   // v1.2.3 fix: 每 30s tick 一次重新评估 active / missed / next 分支。
   // 之前只在 mount 时跑一次,如果 user 开 home 不动,12:00 跨过 lunch schedule
@@ -56,14 +62,17 @@ export default function HomeMealStatusSlot() {
     );
   }
 
-  const missed = selectUnackMissedSlot({ mealRecords });
-  if (missed) {
-    return (
-      <MealIncompleteCard
-        slot={missed.slot}
-        onAcknowledge={() => acknowledgeMissedMeal(missed.slot, missed.date)}
-      />
-    );
+  // v1.2.5 build 13: 开关关闭时跳过 missed 分支(直接落 NextMealCard)
+  if (missedRemindersEnabled) {
+    const missed = selectUnackMissedSlot({ mealRecords });
+    if (missed) {
+      return (
+        <MealIncompleteCard
+          slot={missed.slot}
+          onAcknowledge={() => acknowledgeMissedMeal(missed.slot, missed.date)}
+        />
+      );
+    }
   }
 
   return <NextMealCard />;

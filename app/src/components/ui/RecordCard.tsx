@@ -149,6 +149,21 @@ export default function RecordCard({ item }: Props) {
         </Card>
       );
     }
+    // v1.2.5 build 13: meal_missed kind 走纯文字布局,无 avatar / 无 badge。
+    // 跟 "missed = no penalty + no visual judgement" 原则一致。
+    if (r.kind === "meal_missed") {
+      return (
+        <Card style={{ marginBottom: 8 }}>
+          <Text className="text-sub text-xs">{fmtTime(item.ts)}</Text>
+          <Text
+            className="mt-0.5"
+            style={{ fontSize: 15, color: colors.ink.primary, lineHeight: 22 }}
+          >
+            {r.body}
+          </Text>
+        </Card>
+      );
+    }
     return (
       <Card style={{ marginBottom: 8 }}>
         <View className="flex-row items-start gap-3">
@@ -208,9 +223,22 @@ export default function RecordCard({ item }: Props) {
   if (item.kind === "meal") {
     const r = item.record;
     const isDone = r.status === "done";
-    const text = isDone
-      ? `${SLOT_LABEL[r.mealSlot]} 已完成 ✓`
-      : `${SLOT_LABEL[r.mealSlot]} 错过了`;
+    // v1.2.5 build 13: missed 无 mascot / 无 emoji / 无 badge / 无「错过」字。
+    // 中性「这餐没拍上」+ 时间。done 路径不动(仍有 🍽️ + 绿 +badge)。
+    if (!isDone) {
+      return (
+        <Card style={{ marginBottom: 8 }}>
+          <Text className="text-sub text-xs">{fmtTime(item.ts)}</Text>
+          <Text
+            className="mt-0.5"
+            style={{ fontSize: 15, color: colors.ink.primary, lineHeight: 22 }}
+          >
+            {SLOT_LABEL[r.mealSlot]}这餐没拍上
+          </Text>
+        </Card>
+      );
+    }
+    const text = `${SLOT_LABEL[r.mealSlot]} 已完成 ✓`;
     return (
       <Card style={{ marginBottom: 8 }}>
         <View className="flex-row items-start gap-3">
@@ -229,7 +257,7 @@ export default function RecordCard({ item }: Props) {
                 backgroundColor: colors.bg.hpEmpty,
               }}
             >
-              <Text style={{ fontSize: 22 }}>{isDone ? "🍽️" : "💤"}</Text>
+              <Text style={{ fontSize: 22 }}>🍽️</Text>
             </View>
           )}
           <View className="flex-1">
@@ -241,25 +269,19 @@ export default function RecordCard({ item }: Props) {
               {text}
             </Text>
           </View>
-          <View
-            className="px-2 py-1 rounded-full"
-            style={{
-              backgroundColor:
-                r.hpDelta > 0
-                  ? `${colors.status.ok}33`
-                  : `${colors.status.bad}33`,
-            }}
-          >
-            <Text
-              className="text-xs font-semibold"
-              style={{
-                color: r.hpDelta > 0 ? colors.status.ok : colors.status.bad,
-              }}
+          {r.hpDelta > 0 && (
+            <View
+              className="px-2 py-1 rounded-full"
+              style={{ backgroundColor: `${colors.status.ok}33` }}
             >
-              血量{r.hpDelta > 0 ? "+" : ""}
-              {r.hpDelta}
-            </Text>
-          </View>
+              <Text
+                className="text-xs font-semibold"
+                style={{ color: colors.status.ok }}
+              >
+                血量+{r.hpDelta}
+              </Text>
+            </View>
+          )}
         </View>
       </Card>
     );

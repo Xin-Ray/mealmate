@@ -181,6 +181,14 @@ type State = {
   account: { userId: string; token: string; email: string | null } | null;
   // 上次 push 成功的时间戳（ms），用于 UI 显示 "刚刚同步" 之类的提示
   lastSyncedAt: number | null;
+
+  // ====== v15 错过一餐提醒(默认关闭) ======
+  // 跟 v1.2.5 pure encouragement 同方向:用户默认看不到任何错过提醒。
+  // - true: missedScan 走完整 missed dialogue push + MealIncompleteCard 可显示
+  // - false(默认): 仍 markMealMissed 落 mealRecord(status='missed'),WeekStrip
+  //   cell 仍能显示;但不 push dialogue / 不弹 MealIncompleteCard
+  // 老用户 migrate v14→v15 全部回填 false
+  missedMealRemindersEnabled: boolean;
 };
 
 type Actions = {
@@ -263,6 +271,9 @@ type Actions = {
   signOut: () => void;
   setLastSyncedAt: (ts: number) => void;
 
+  // v15: 错过一餐提醒开关
+  setMissedMealRemindersEnabled: (v: boolean) => void;
+
   // Dev-only：bypass 业务规则的直接 setter，仅在 __DEV__ 守卫的开发者面板里调用
   __dev_setHp: (n: number) => void;
   __dev_setStage: (s: Stage) => void;
@@ -328,6 +339,8 @@ const initialState: State = {
   // v12 云端同步（issue #4 #5）
   account: null,
   lastSyncedAt: null,
+  // v15: 错过提醒默认关(pure encouragement)
+  missedMealRemindersEnabled: false,
 };
 
 // HP 重置到 90（demote 之后）—— stage>1 退到 N-1 也用 90，stage 1 不变 stage 也用 90
@@ -681,6 +694,10 @@ export const useStore = create<State & Actions>()(
       signOut: () => set({ account: null, lastSyncedAt: null }),
       setLastSyncedAt: (ts) => set({ lastSyncedAt: ts }),
 
+      // v15: 错过提醒开关 setter(Settings 用)
+      setMissedMealRemindersEnabled: (v) =>
+        set({ missedMealRemindersEnabled: v }),
+
       // ===== v13 Stage 0 / 0.5 actions (v1.2.1) =====
       advanceFromStage0: () => {
         const s = get();
@@ -842,7 +859,7 @@ export const useStore = create<State & Actions>()(
     {
       name: "mealmate-store",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 14,
+      version: 15,
       // v1 → v2: HP 0–15 → 0–100（× 100/15）
       // v2 → v3: 加 fullnessHistory 默认 []（§11.D.1）
       // v3 → v4: dialogueHistory shape: string[] → DialogueRecord[]（老数据丢）；加 mealRecords []
@@ -873,6 +890,8 @@ export const useStore = create<State & Actions>()(
       // v11 → v12: 加 account / lastSyncedAt（云端同步，issue #4 #5）。老用户默认
       //          null（未登录），走纯本地模式跟之前没区别。settings 里点 Sign in
       //          with Apple 才进入云同步。
+      // v14 → v15: 加 missedMealRemindersEnabled,默认 false。所有用户(老+新)默认关
+      //          错过提醒(pure encouragement,v1.2.5 build 13)。打开走 Settings。
       migrate: (persistedState: unknown, version: number) => {
         if (!persistedState || typeof persistedState !== "object") {
           return persistedState as State & Actions;
@@ -982,6 +1001,14 @@ export const useStore = create<State & Actions>()(
             const target = STAGE_TARGETS[stage];
             if (target != null) score = Math.min(target - 10, score);
             ps.stageScore = Math.max(0, score);
+          }
+        }
+        if (version < 15) {
+          // v15:错过一餐提醒开关默认关。老 user 全部回填 false(pure encouragement
+          // 一脉相承,不主动用 missed dialogue / MealIncompleteCard 打扰)。
+          // 要打开走 Settings 手动 toggle。
+          if (ps.missedMealRemindersEnabled === undefined) {
+            ps.missedMealRemindersEnabled = false;
           }
         }
         return persistedState as State & Actions;
