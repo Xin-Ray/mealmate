@@ -30,16 +30,23 @@ type Props = {
   emptyText?: string;     // data.length === 0 时显示的占位文案
 };
 
-const CHART_PAD_LEFT = 36;
-const CHART_PAD_RIGHT = 8;
+// v1.2.5 build 14: 右边数据点 + 日期 label clip 问题修
+// 原 CHART_PAD_RIGHT=8 太小,最后一个点的 textAnchor=middle 日期 label 会半个字
+// 超出卡片右边 → 看到「06-0」缺尾巴。改 28 留半个 label 的安全距。CHART_PAD_LEFT
+// 同步加 4 视觉对称。
+const CHART_PAD_LEFT = 40;
+const CHART_PAD_RIGHT = 28;
 const CHART_PAD_TOP = 16;
 const CHART_PAD_BOTTOM = 36;
 const MAX_X_LABELS = 6;
 
-// "YYYY-MM-DD" → "MM-DD"
+// "YYYY-MM-DD" → "M/D"(更短,跟 xin spec 一致)
 const fmtMD = (date: string): string => {
   const parts = date.split("-");
-  return parts.length === 3 ? `${parts[1]}-${parts[2]}` : date;
+  if (parts.length !== 3) return date;
+  const m = parseInt(parts[1], 10);
+  const d = parseInt(parts[2], 10);
+  return `${m}/${d}`;
 };
 
 // 等距抽样 indices：[0..n-1] 取最多 maxLabels 个，首尾必含
@@ -170,19 +177,19 @@ export default function TrendChart({
                 />
               )}
 
-              {/* 数据点 */}
+              {/* 数据点(v1.2.5 build 14: r=14→11,小一点不压视觉) */}
               {positioned.map((pt, i) => (
                 <G key={`${pt.date}-${i}`}>
                   <Circle
                     cx={pt.x}
                     cy={pt.y}
-                    r={14}
+                    r={11}
                     fill={colors.brand.green}
                   />
                   <SvgText
                     x={pt.x}
-                    y={pt.y + 4}
-                    fontSize={11}
+                    y={pt.y + 3.5}
+                    fontSize={10}
                     fontWeight="600"
                     fill="#FFFFFF"
                     textAnchor="middle"

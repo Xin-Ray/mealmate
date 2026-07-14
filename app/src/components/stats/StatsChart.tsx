@@ -41,27 +41,28 @@ export default function StatsChart({ kind, window }: Props) {
   let subtitle: string;
   let emptyText: string;
 
+  // v1.2.5 build 14: 文案改用户友好,去除 dev 技术词(advance/demote/init/addHp/Stage)。
   switch (kind) {
     case "weight":
       raw = filterByWindow(selectWeightTimeline({ weightHistory }), window);
       yAxis = autoYAxis(raw.map((p) => p.value));
-      title = "体重变化趋势";
-      subtitle = "kg";
+      title = "体重变化";
+      subtitle = "记录每一次的变化 · kg";
       emptyText = "还没有体重记录";
       break;
     case "hp":
       raw = filterByWindow(selectHpTimeline({ hpHistory }), window);
       yAxis = [0, 25, 50, 75, 100];
-      title = "爱心变化趋势";
-      subtitle = "0-100，按 addHp 记录";
-      emptyText = "暂无爱心历史（v1.1 起累积）";
+      title = "爱心变化";
+      subtitle = "这段时间的状态走势";
+      emptyText = "暂无爱心记录";
       break;
     case "stage":
       raw = filterByWindow(selectStageTimeline({ stageHistory }), window);
       yAxis = [1, 2, 3, 4, 5];
-      title = "等级（Stage）变化";
-      subtitle = "advance / demote / init";
-      emptyText = "暂无 stage 变化记录";
+      title = "阶段变化";
+      subtitle = "记录你走过的每一关";
+      emptyText = "暂无阶段记录";
       break;
   }
 
