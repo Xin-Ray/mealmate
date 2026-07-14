@@ -31,7 +31,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: false,
     bundleIdentifier: "com.xinray.mealmate",
-    buildNumber: "13",
+    buildNumber: "14",
     usesAppleSignIn: true,
     infoPlist: {
       NSCameraUsageDescription:
