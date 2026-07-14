@@ -13,6 +13,7 @@ import { Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import StageChip from "@src/components/home/StageChip";
+import StageRulesCard from "@src/components/home/StageRulesCard";
 import { colors, spacing } from "@src/theme/tokens";
 
 const MASCOT = require("../../../assets/mascot/full.png");
@@ -34,6 +35,7 @@ export default function HomeStage0() {
         }}
       >
         <StageChip stage={0} />
+        <StageRulesCard stage={0} />
 
         {/* Hero stack: mascot + 文字 + CTA 紧凑在一起,在屏幕上中段。
             NOT flex:1 → 不抢空间,按钮总在 mascot 下方可见。 */}

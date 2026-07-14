@@ -1,6 +1,7 @@
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import StageChip from "@src/components/home/StageChip";
+import StageRulesCard from "@src/components/home/StageRulesCard";
 import WeekStripConnected from "@src/components/home/WeekStripConnected";
 import ExerciseCard from "@src/components/ui/ExerciseCard";
 import WeightCard from "@src/components/ui/WeightCard";
@@ -52,6 +53,7 @@ export default function HomeStage5() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 64 }}>
         {/* r1 F6：stage label chip */}
         <StageChip stage={5} />
+        <StageRulesCard stage={5} />
         {/* r1 F5：周一到周日吃饭记录表 */}
         <WeekStripConnected />
         <View style={{ height: 16 }} />

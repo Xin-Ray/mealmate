@@ -11,6 +11,7 @@
 import HomeMealStatusSlot from "@src/components/home/HomeMealStatusSlot";
 import HomeRecordsSection from "@src/components/home/HomeRecordsSection";
 import StageChip from "@src/components/home/StageChip";
+import StageRulesCard from "@src/components/home/StageRulesCard";
 import HeartProgress from "@src/components/ui/HeartProgress";
 import SnackCard from "@src/components/ui/SnackCard";
 import WeekStrip from "@src/components/WeekStrip";
@@ -34,6 +35,7 @@ export default function HomeStage0_5() {
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.bg.page }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }}>
         <StageChip stage={0.5} />
+        <StageRulesCard stage={0.5} />
 
         {/* WeekStrip(stage 1 也有,保持视觉一致) */}
         <WeekStrip
