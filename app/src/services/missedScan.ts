@@ -119,7 +119,8 @@ export function runMissedScan(): MealSlot[] {
   if (newMissed.length === 0) return [];
 
   // v1.2.5 build 13: 默认 false → 仍 markMealMissed(WeekStrip 用),但不 push
-  // dialogue / 不让 MealIncompleteCard 显示。用户在 Settings 手动开才走完整流程。
+  // dialogue / 不让 MealIncompleteCard 显示 / **不返回 slots 给 caller**(避免
+  // _layout 自动弹 MissedMealModal)。用户在 Settings 手动开才走完整流程。
   const remindersEnabled = fresh.missedMealRemindersEnabled;
 
   for (const slot of newMissed) {
@@ -141,5 +142,6 @@ export function runMissedScan(): MealSlot[] {
     });
   }
 
-  return newMissed;
+  // 关时返回 [] → _layout 不会弹 MissedMealModal。仍走 markMealMissed 不变。
+  return remindersEnabled ? newMissed : [];
 }
